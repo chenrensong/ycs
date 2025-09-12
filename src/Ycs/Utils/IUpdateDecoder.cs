@@ -7,7 +7,7 @@
 using System;
 using System.IO;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     internal interface IDSDecoder : IDisposable
     {

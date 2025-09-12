@@ -9,8 +9,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Ycs.Core;
+using Ycs.Structs;
+using GC = Ycs.Structs.GC;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     internal sealed class StructStore
     {

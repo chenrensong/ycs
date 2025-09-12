@@ -8,8 +8,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Structs
 {
     public class ContentString : IContentEx
     {

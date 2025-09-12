@@ -6,8 +6,10 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using Ycs.Structs;
+using Ycs.Types;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     public class ChangesCollection
     {

@@ -8,8 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using Ycs.Core;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     internal class DSDecoderV2 : IDSDecoder
     {

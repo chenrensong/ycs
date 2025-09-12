@@ -7,8 +7,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Ycs.Core;
+using Ycs.Types;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Structs
 {
     public class Item : AbstractStruct
     {

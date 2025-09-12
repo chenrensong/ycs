@@ -6,8 +6,11 @@
 
 using System;
 using System.IO;
+using Ycs.Core;
+using Ycs.Structs;
+using Ycs.Types;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     /// <summary>
     /// A relative position is based on the YUjs model and is not affected by document changes.

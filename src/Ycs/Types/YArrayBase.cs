@@ -9,8 +9,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using Ycs.Structs;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Types
 {
     public abstract class YArrayBase : AbstractType, IEnumerable<object>
     {

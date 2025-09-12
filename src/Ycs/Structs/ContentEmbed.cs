@@ -6,8 +6,9 @@
 
 using System;
 using System.Collections.Generic;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Structs
 {
     public class ContentEmbed : IContentEx
     {

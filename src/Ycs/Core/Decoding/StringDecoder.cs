@@ -8,7 +8,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <seealso cref="StringEncoder"/>
     internal class StringDecoder : IDecoder<string>

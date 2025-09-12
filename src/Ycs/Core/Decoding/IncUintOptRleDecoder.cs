@@ -6,20 +6,21 @@
 
 using System.IO;
 
-namespace Ycs
+namespace Ycs.Core
 {
-    /// <seealso cref="UintOptRleEncoder"/>
-    internal class UintOptRleDecoder : AbstractStreamDecoder<uint>
+    /// <seealso cref="IncUintOptRleEncoder"/>
+    internal class IncUintOptRleDecoder : AbstractStreamDecoder<uint>
     {
         private uint _state;
         private uint _count;
 
-        public UintOptRleDecoder(Stream input, bool leaveOpen = false)
+        public IncUintOptRleDecoder(Stream input, bool leaveOpen = false)
             : base(input, leaveOpen)
         {
             // Do nothing.
         }
 
+        /// <inheritdoc/>
         public override uint Read()
         {
             CheckDisposed();
@@ -28,7 +29,7 @@ namespace Ycs
             {
                 var (value, sign) = Stream.ReadVarInt();
 
-                // If the sign is negative, we read the count too; otherwise, count is 1.
+                // If the sign is negative, we read the count too; otherwise. count is 1.
                 bool isNegative = sign < 0;
                 if (isNegative)
                 {
@@ -43,7 +44,7 @@ namespace Ycs
             }
 
             _count--;
-            return _state;
+            return _state++;
         }
     }
 }

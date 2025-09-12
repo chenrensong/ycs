@@ -7,28 +7,28 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace Ycs
+namespace Ycs.Core
 {
-    /// <seealso cref="RleEncoder"/>
-    internal class RleDecoder : AbstractStreamDecoder<byte>
+    /// <seealso cref="RleIntDiffEncoder"/>
+    internal class RleIntDiffDecoder : AbstractStreamDecoder<long>
     {
-        private byte _state;
+        private long _state;
         private long _count;
 
-        public RleDecoder(Stream input, bool leaveOpen = false)
+        public RleIntDiffDecoder(Stream input, long start, bool leaveOpen = false)
             : base(input, leaveOpen)
         {
-            // Do nothing.
+            _state = start;
         }
 
         /// <inheritdoc/>
-        public override byte Read()
+        public override long Read()
         {
             CheckDisposed();
 
             if (_count == 0)
             {
-                _state = Stream._ReadByte();
+                _state += Stream.ReadVarInt().Value;
 
                 if (HasContent)
                 {

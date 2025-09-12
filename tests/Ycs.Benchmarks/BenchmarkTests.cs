@@ -6,6 +6,7 @@
 
 using System;
 using BenchmarkDotNet.Attributes;
+using Ycs.Utils;
 
 namespace Ycs.Benchmarks
 {

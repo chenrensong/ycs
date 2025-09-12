@@ -7,8 +7,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Ycs.Structs;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Types
 {
     /// <summary>
     /// Event that describes changes on a YMap.

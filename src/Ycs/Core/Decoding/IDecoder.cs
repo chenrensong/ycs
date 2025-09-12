@@ -6,7 +6,7 @@
 
 using System;
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <seealso cref="IEncoder{T}"/>
     internal interface IDecoder<T> : IDisposable

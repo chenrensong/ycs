@@ -9,7 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <summary>
     /// Optimized String Encoder.

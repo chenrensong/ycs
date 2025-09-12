@@ -6,8 +6,10 @@
 
 using System;
 using System.Collections.Generic;
+using Ycs.Utils;
+using Transaction = Ycs.Utils.Transaction;
 
-namespace Ycs
+namespace Ycs.Structs
 {
     internal class ContentDoc : IContentEx
     {

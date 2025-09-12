@@ -6,7 +6,7 @@
 
 using System.IO;
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <seealso cref="IntDiffEncoder"/>
     internal class IntDiffDecoder : AbstractStreamDecoder<long>

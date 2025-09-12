@@ -6,7 +6,7 @@
 
 using System.Diagnostics;
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <summary>
     /// A combination of the <see cref="IntDiffEncoder"/> and the <see cref="UintOptRleEncoder"/>.

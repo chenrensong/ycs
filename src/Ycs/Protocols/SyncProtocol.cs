@@ -6,8 +6,10 @@
 
 using System;
 using System.IO;
+using Ycs.Core;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Protocols
 {
     internal static class SyncProtocol
     {

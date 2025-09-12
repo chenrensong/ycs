@@ -7,8 +7,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using Ycs.Core;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     public struct ID : IEquatable<ID>
     {

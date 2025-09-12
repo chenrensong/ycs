@@ -4,7 +4,7 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <summary>
     /// Basic Run Length Encoder - a basic compression implementation.

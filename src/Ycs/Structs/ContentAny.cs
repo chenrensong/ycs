@@ -8,8 +8,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Structs
 {
     public class ContentAny : IContentEx
     {

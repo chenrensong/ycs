@@ -4,7 +4,7 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <summary>
     /// Basic diff encoder using variable length encoding.

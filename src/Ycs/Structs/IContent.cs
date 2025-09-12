@@ -5,8 +5,9 @@
 // ------------------------------------------------------------------------------
 
 using System.Collections.Generic;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Structs
 {
     public interface IContent
     {

@@ -5,8 +5,10 @@
 // ------------------------------------------------------------------------------
 
 using System.Collections.Generic;
+using Ycs.Structs;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Types
 {
     public class YArrayEvent : YEvent
     {

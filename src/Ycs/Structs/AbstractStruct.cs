@@ -5,8 +5,9 @@
 // ------------------------------------------------------------------------------
 
 using System.Diagnostics;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Structs
 {
     public abstract class AbstractStruct
     {

@@ -4,7 +4,7 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <summary>
     /// N-th bit activated.

@@ -9,8 +9,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Ycs.Core;
+using Ycs.Structs;
+using Ycs.Types;
+using GC = Ycs.Structs.GC;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     /// <summary>
     /// We use first five bits in the info flag for determining the type of the struct.

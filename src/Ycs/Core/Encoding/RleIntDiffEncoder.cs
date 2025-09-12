@@ -4,7 +4,7 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <summary>
     /// A combination of <see cref="IntDiffEncoder"/> and <see cref="RleEncoder"/>.

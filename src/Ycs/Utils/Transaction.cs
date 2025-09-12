@@ -8,8 +8,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Ycs.Structs;
+using Ycs.Types;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     /// <summary>
     /// A transaction is created for every change on the Yjs model. It is possible

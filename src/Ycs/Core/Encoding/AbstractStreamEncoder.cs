@@ -8,40 +8,53 @@ using System;
 using System.Diagnostics;
 using System.IO;
 
-namespace Ycs
+namespace Ycs.Core
 {
-    /// <seealso cref="AbstractStreamEncoder{T}"/>
-    internal abstract class AbstractStreamDecoder<T> : IDecoder<T>
+    /// <seealso cref="AbstractStreamDecoder{T}"/>
+    internal abstract class AbstractStreamEncoder<T> : IEncoder<T>
     {
-        private readonly bool _leaveOpen;
-
-        protected AbstractStreamDecoder(Stream input, bool leaveOpen = false)
+        protected AbstractStreamEncoder()
         {
-            Debug.Assert(input != null);
-
-            Stream = input;
-            _leaveOpen = leaveOpen;
+            Stream = new MemoryStream();
         }
 
-        protected Stream Stream { get; private set; }
+        protected MemoryStream Stream { get; private set; }
         protected bool Disposed { get; private set; }
 
-        protected bool HasContent => Stream.Position < Stream.Length;
-
         /// <inheritdoc/>
-        public abstract T Read();
-
         public void Dispose()
         {
             Dispose(disposing: true);
             System.GC.SuppressFinalize(this);
         }
 
+        /// <inheritdoc/>
+        public abstract void Write(T value);
+
+        /// <inheritdoc/>
+        public virtual byte[] ToArray()
+        {
+            Flush();
+            return Stream.ToArray();
+        }
+
+        /// <inheritdoc/>
+        public virtual (byte[] buffer, int length) GetBuffer()
+        {
+            Flush();
+            return (Stream.GetBuffer(), (int)Stream.Length);
+        }
+
+        protected virtual void Flush()
+        {
+            CheckDisposed();
+        }
+
         protected virtual void Dispose(bool disposing)
         {
             if (!Disposed)
             {
-                if (disposing && !_leaveOpen)
+                if (disposing)
                 {
                     Stream?.Dispose();
                 }

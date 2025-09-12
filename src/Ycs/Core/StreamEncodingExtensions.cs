@@ -10,7 +10,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Ycs
+namespace Ycs.Core
 {
     /// <summary>
     /// Contains <see cref="Stream"/> extensions compatible with the <c>lib0</c>:

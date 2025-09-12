@@ -7,8 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Ycs.Structs;
+using Ycs.Utils;
 
-namespace Ycs
+namespace Ycs.Types
 {
     /// <summary>
     /// Event that describes the changes on a YText type.

@@ -8,8 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Ycs.Core;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     public sealed class Snapshot : IEquatable<Snapshot>
     {

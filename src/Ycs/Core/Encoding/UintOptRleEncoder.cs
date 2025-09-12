@@ -4,25 +4,21 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-using System.Diagnostics;
-
-namespace Ycs
+namespace Ycs.Core
 {
     /// <summary>
-    /// Increasing Uint Optimized RLE Encoder.
-    /// <br/>
-    /// The RLE encoder counts the number of same occurences of the same value.
-    /// The <see cref="IncUintOptRleEncoder"/> counts if the value increases.
-    /// <br/>
-    /// I.e. <c>[7, 8, 9, 10]</c> will be encoded as <c>[-7, 4]</c>, and <c>[1, 3, 5]</c> will be encoded as <c>[1, 3, 5]</c>.
+    /// Optimized RLE encoder that does not suffer from the mentioned problem of the basic RLE encoder.
+    /// Internally uses VarInt encoder to write unsigned integers.
+    /// If the input occurs multiple times, we write it as a negative number. The <see cref="UintOptRleDecoder"/>
+    /// then understands that it needs to read a count.
     /// </summary>
-    /// <seealso cref="IncUintOptRleDecoder"/>
-    internal class IncUintOptRleEncoder : AbstractStreamEncoder<uint>
+    /// <seealso cref="UintOptRleDecoder"/>
+    internal class UintOptRleEncoder : AbstractStreamEncoder<uint>
     {
         private uint _state;
         private uint _count;
 
-        public IncUintOptRleEncoder()
+        public UintOptRleEncoder()
         {
             // Do nothing.
         }
@@ -30,10 +26,9 @@ namespace Ycs
         /// <inheritdoc/>
         public override void Write(uint value)
         {
-            Debug.Assert(value <= int.MaxValue);
             CheckDisposed();
 
-            if (_state + _count == value)
+            if (_state == value)
             {
                 _count++;
             }
@@ -65,7 +60,7 @@ namespace Ycs
                 }
                 else
                 {
-                    // Specify 'treatZeroAsNegative' in case we pass the '-0' value.
+                    // Specify 'treatZeroAsNegative' in case we pass the '-0'.
                     Stream.WriteVarInt(-_state, treatZeroAsNegative: _state == 0);
 
                     // Since count is always >1, we can decrement by one. Non-standard encoding.

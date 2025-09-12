@@ -6,6 +6,8 @@
 
 using System.Collections.Generic;
 using System.IO;
+using Ycs.Protocols;
+using Ycs.Utils;
 
 namespace Ycs
 {

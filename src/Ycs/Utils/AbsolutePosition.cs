@@ -6,8 +6,10 @@
 
 using System;
 using System.Diagnostics;
+using Ycs.Structs;
+using Ycs.Types;
 
-namespace Ycs
+namespace Ycs.Utils
 {
     internal class AbsolutePosition
     {
