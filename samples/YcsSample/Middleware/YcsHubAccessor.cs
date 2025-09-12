@@ -26,11 +26,22 @@ namespace YcsSample.Middleware
         {
             return appBuilder.Use(async (context, next) =>
             {
-                YcsHubAccessor.Instance.YcsHub = context.RequestServices.GetRequiredService<IHubContext<YcsHub>>();
-
-                if (next != null)
+                try
                 {
-                    await next.Invoke();
+                    YcsHubAccessor.Instance.YcsHub = context.RequestServices.GetRequiredService<IHubContext<YcsHub>>();
+
+                    if (next != null)
+                    {
+                        await next.Invoke();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log the exception (you might want to use ILogger here)
+                    System.Diagnostics.Debug.WriteLine($"YcsHubAccessor middleware error: {ex.Message}");
+                    
+                    // Re-throw the exception to let other middleware handle it
+                    throw;
                 }
             });
         }

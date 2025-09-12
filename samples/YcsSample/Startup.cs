@@ -49,10 +49,10 @@ namespace YcsSample
             app.UseStaticFiles();
             app.UseSpaStaticFiles();
 
+            app.UseRouting();
+
             // Allows YcsManager to broadcast YDocument changes made by the current process.
             app.UseYcsHubAccessor();
-
-            app.UseRouting();
 
             app.UseEndpoints(endpoints =>
             {
