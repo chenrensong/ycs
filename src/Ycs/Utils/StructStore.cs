@@ -9,13 +9,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Ycs.Core;
+using Ycs.Lib0;
 using Ycs.Structs;
+using Ycs.Types;
 using GC = Ycs.Structs.GC;
 
 namespace Ycs.Utils
 {
-    internal sealed class StructStore
+    public sealed class StructStore : IStructStore
     {
         private class PendingClientStructRef
         {
@@ -210,7 +211,7 @@ namespace Ycs.Utils
             return structs[index];
         }
 
-        public int FindIndexCleanStart(Transaction transaction, List<AbstractStruct> structs, long clock)
+        public int FindIndexCleanStart(ITransaction transaction, List<AbstractStruct> structs, long clock)
         {
             int index = FindIndexSS(structs, clock);
             var str = structs[index];
@@ -223,7 +224,7 @@ namespace Ycs.Utils
             return index;
         }
 
-        public AbstractStruct GetItemCleanStart(Transaction transaction, ID id)
+        public AbstractStruct GetItemCleanStart(ITransaction transaction, ID id)
         {
             if (!Clients.TryGetValue(id.Client, out var structs))
             {
@@ -235,7 +236,7 @@ namespace Ycs.Utils
             return structs[indexCleanStart];
         }
 
-        public AbstractStruct GetItemCleanEnd(Transaction transaction, ID id)
+        public AbstractStruct GetItemCleanEnd(ITransaction transaction, ID id)
         {
             if (!Clients.TryGetValue(id.Client, out var structs))
             {
@@ -264,7 +265,7 @@ namespace Ycs.Utils
             structs[index] = newStruct;
         }
 
-        public void IterateStructs(Transaction transaction, List<AbstractStruct> structs, long clockStart, long length, Predicate<AbstractStruct> fun)
+        public void IterateStructs(ITransaction transaction, List<AbstractStruct> structs, long clockStart, long length, Predicate<AbstractStruct> fun)
         {
             if (length <= 0)
             {
@@ -315,7 +316,7 @@ namespace Ycs.Utils
             return (item, diff);
         }
 
-        public void ReadAndApplyDeleteSet(IDSDecoder decoder, Transaction transaction)
+        public void ReadAndApplyDeleteSet(IDSDecoder decoder, ITransaction transaction)
         {
             var unappliedDs = new DeleteSet();
             var numClients = decoder.Reader.ReadVarUint();
@@ -454,7 +455,7 @@ namespace Ycs.Utils
         /// This method is implemented in a way so that we can resume computation if this update causally
         /// depends on another update.
         /// </summary>
-        internal void ResumeStructIntegration(Transaction transaction)
+        internal void ResumeStructIntegration(ITransaction transaction)
         {
             // @todo: Don't forget to append stackhead at the end.
             var stack = _pendingStack;
@@ -596,7 +597,7 @@ namespace Ycs.Utils
             _pendingClientStructRefs.Clear();
         }
 
-        internal void TryResumePendingDeleteReaders(Transaction transaction)
+        internal void TryResumePendingDeleteReaders(ITransaction transaction)
         {
             var pendingReaders = _pendingDeleteReaders.ToArray();
             _pendingDeleteReaders.Clear();

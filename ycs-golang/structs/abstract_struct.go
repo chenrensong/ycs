@@ -1,72 +1,92 @@
 package structs
 
-// AbstractStruct represents an abstract structure
-type AbstractStruct struct {
-	ID     *ID
-	Length int
+// ITransaction defines the interface for transaction operations
+// This interface helps avoid circular dependencies between structs and utils packages
+type ITransaction interface {
+	// Doc returns the document associated with this transaction
+	Doc() interface{}
+
+	// Origin returns the origin of this transaction
+	Origin() interface{}
+
+	// Local returns whether this transaction is local
+	Local() bool
+
+	// DeleteSet returns the delete set for this transaction
+	DeleteSet() interface{}
 }
 
-// NewAbstractStruct creates a new AbstractStruct
-func NewAbstractStruct(id *ID, length int) *AbstractStruct {
-	// In Go, we don't have Debug.Assert, but we could add a check if needed:
-	// if length < 0 {
-	//     panic("length must be non-negative")
-	// }
-	
-	return &AbstractStruct{
-		ID:     id,
-		Length: length,
+// IStructStore defines the interface for struct store operations
+// This interface helps avoid circular dependencies between structs and utils packages
+type IStructStore interface {
+	// GetState returns the current state for a client
+	GetState(client uint64) uint64
+
+	// GetStateVector returns the current state vector
+	GetStateVector() map[uint64]uint64
+}
+
+// AbstractStruct is the base struct for all Yjs data structures.
+type AbstractStruct interface {
+	// ID returns the struct's identifier
+	ID() ID
+
+	// Length returns the length of the struct
+	Length() int
+
+	// SetLength updates the length of the struct
+	SetLength(length int)
+
+	// Deleted returns whether the struct is deleted
+	Deleted() bool
+
+	// MergeWith attempts to merge this struct with another
+	MergeWith(right AbstractStruct) bool
+
+	// Delete marks the struct as deleted
+	Delete(transaction ITransaction)
+
+	// Integrate integrates the struct into the document
+	Integrate(transaction ITransaction, offset int)
+
+	// GetMissing gets missing structs from the store
+	GetMissing(transaction ITransaction, store IStructStore) *uint64
+
+	// Write encodes the struct to an encoder
+	Write(encoder IUpdateEncoder, offset int) error
+}
+
+// BaseStruct provides common functionality for all struct implementations
+type BaseStruct struct {
+	id     ID
+	length int
+}
+
+// NewBaseStruct creates a new BaseStruct instance
+func NewBaseStruct(id ID, length int) *BaseStruct {
+	if length < 0 {
+		panic("length must be non-negative")
+	}
+	return &BaseStruct{
+		id:     id,
+		length: length,
 	}
 }
 
-// Deleted returns whether the struct is deleted
-func (s *AbstractStruct) Deleted() bool {
-	// This is an abstract method that should be implemented by subclasses
-	panic("Deleted method not implemented")
+// ID returns the struct's identifier
+func (s *BaseStruct) ID() ID {
+	return s.id
 }
 
-// MergeWith merges this struct with the right struct
-func (s *AbstractStruct) MergeWith(right *AbstractStruct) bool {
-	// This is an abstract method that should be implemented by subclasses
-	panic("MergeWith method not implemented")
+// Length returns the length of the struct
+func (s *BaseStruct) Length() int {
+	return s.length
 }
 
-// Delete deletes this struct
-func (s *AbstractStruct) Delete(transaction *Transaction) {
-	// This is an abstract method that should be implemented by subclasses
-	panic("Delete method not implemented")
+// SetLength updates the length of the struct
+func (s *BaseStruct) SetLength(length int) {
+	if length < 0 {
+		panic("length must be non-negative")
+	}
+	s.length = length
 }
-
-// Integrate integrates this struct
-func (s *AbstractStruct) Integrate(transaction *Transaction, offset int) {
-	// This is an abstract method that should be implemented by subclasses
-	panic("Integrate method not implemented")
-}
-
-// GetMissing gets missing structs
-func (s *AbstractStruct) GetMissing(transaction *Transaction, store *StructStore) *int64 {
-	// This is an abstract method that should be implemented by subclasses
-	panic("GetMissing method not implemented")
-}
-
-// Write writes this struct to an encoder
-func (s *AbstractStruct) Write(encoder IUpdateEncoder, offset int) {
-	// This is an abstract method that should be implemented by subclasses
-	panic("Write method not implemented")
-}
-
-// Placeholder for ID type
-// This should be replaced with actual implementation from the utils package
-type ID struct{}
-
-// Placeholder for Transaction type
-// This should be replaced with actual implementation from the utils package
-type Transaction struct{}
-
-// Placeholder for StructStore type
-// This should be replaced with actual implementation from the utils package
-type StructStore struct{}
-
-// Placeholder for IUpdateEncoder interface
-// This should be replaced with actual implementation from the utils package
-type IUpdateEncoder interface{}

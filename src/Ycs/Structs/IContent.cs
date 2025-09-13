@@ -23,8 +23,8 @@ namespace Ycs.Structs
     {
         int Ref { get; }
 
-        void Integrate(Transaction transaction, Item item);
-        void Delete(Transaction transaction);
+        void Integrate(ITransaction transaction, Item item);
+        void Delete(ITransaction transaction);
         void Gc(StructStore store);
         void Write(IUpdateEncoder encoder, int offset);
     }

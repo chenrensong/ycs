@@ -8,7 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using Ycs.Core;
+using Ycs.Lib0;
+using Ycs.Structs;
 
 namespace Ycs.Utils
 {

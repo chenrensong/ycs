@@ -10,8 +10,8 @@ using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Ycs.Utils;
 using Ycs.Protocols;
+using Ycs.Types;
 
 namespace Ycs
 {

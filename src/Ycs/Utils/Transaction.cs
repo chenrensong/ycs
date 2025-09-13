@@ -19,12 +19,14 @@ namespace Ycs.Utils
     /// the number of messages sent and the number of observer calls.
     /// If possible the user of this library should bundle as many changes as possible.
     /// </summary>
-    public class Transaction
+    public class Transaction : ITransaction
     {
         // TODO: [alekseyk] To private?
-        internal readonly IList<AbstractStruct> _mergeStructs;
+        public readonly IList<AbstractStruct> _mergeStructs;
 
-        internal Transaction(YDoc doc, object origin, bool local)
+        public IList<AbstractStruct> MergeStructs => _mergeStructs;
+
+        public Transaction(YDoc doc, object origin, bool local)
         {
             Doc = doc;
             DeleteSet = new DeleteSet();
@@ -90,9 +92,9 @@ namespace Ycs.Utils
         /// <summary>
         /// Describes the set of deleted items by Ids.
         /// </summary>
-        internal DeleteSet DeleteSet { get; }
+        public DeleteSet DeleteSet { get; }
 
-        internal ID GetNextId()
+        public ID GetNextId()
         {
             return new ID(Doc.ClientId, Doc.Store.GetState(Doc.ClientId));
         }
@@ -101,7 +103,7 @@ namespace Ycs.Utils
         /// If 'type.parent' was added in current transaction, 'type' technically did not change,
         /// it was just added and we should not fire events for 'type'.
         /// </summary>
-        internal void AddChangedTypeToTransaction(AbstractType type, string parentSub)
+        public void AddChangedTypeToTransaction(AbstractType type, string parentSub)
         {
             var item = type._item;
             if (item == null || (BeforeState.TryGetValue(item.Id.Client, out var clock) && item.Id.Clock < clock && !item.Deleted))
@@ -116,7 +118,7 @@ namespace Ycs.Utils
             }
         }
 
-        internal static void CleanupTransactions(IList<Transaction> transactionCleanups, int i)
+        public static void CleanupTransactions(IList<Transaction> transactionCleanups, int i)
         {
             if (i < transactionCleanups.Count)
             {
@@ -302,7 +304,7 @@ namespace Ycs.Utils
         /// <summary>
         /// Redoes the effect of this operation.
         /// </summary>
-        internal AbstractStruct RedoItem(Item item, ISet<Item> redoItems)
+        public AbstractStruct RedoItem(Item item, ISet<Item> redoItems)
         {
             var doc = Doc;
             var store = doc.Store;
@@ -420,7 +422,7 @@ namespace Ycs.Utils
             return redoneItem;
         }
 
-        internal static void SplitSnapshotAffectedStructs(Transaction transaction, Snapshot snapshot)
+        public static void SplitSnapshotAffectedStructs(Transaction transaction, Snapshot snapshot)
         {
             if (!transaction.Meta.TryGetValue("splitSnapshotAffectedStructs", out var metaObj))
             {
@@ -451,7 +453,7 @@ namespace Ycs.Utils
         }
 
         /// <returns>Whether the data was written.</returns>
-        internal bool WriteUpdateMessageFromTransaction(IUpdateEncoder encoder)
+        public bool WriteUpdateMessageFromTransaction(IUpdateEncoder encoder)
         {
             if (DeleteSet.Clients.Count == 0 && !AfterState.Any(kvp => !BeforeState.TryGetValue(kvp.Key, out var clockB) || kvp.Value != clockB))
             {

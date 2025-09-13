@@ -6,7 +6,7 @@
 
 using System;
 using System.IO;
-using Ycs.Core;
+using Ycs.Lib0;
 using Ycs.Structs;
 using Ycs.Types;
 

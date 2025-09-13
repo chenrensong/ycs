@@ -5,7 +5,6 @@
 // ------------------------------------------------------------------------------
 
 using System.Diagnostics;
-using Ycs.Utils;
 
 namespace Ycs.Structs
 {
@@ -25,9 +24,9 @@ namespace Ycs.Structs
         public abstract bool Deleted { get; }
 
         internal abstract bool MergeWith(AbstractStruct right);
-        internal abstract void Delete(Transaction transaction);
-        internal abstract void Integrate(Transaction transaction, int offset);
-        internal abstract long? GetMissing(Transaction transaction, StructStore store);
+        internal abstract void Delete(ITransaction transaction);
+        internal abstract void Integrate(ITransaction transaction, int offset);
+        internal abstract long? GetMissing(ITransaction transaction, IStructStore store);
         internal abstract void Write(IUpdateEncoder encoder, int offset);
     }
 }

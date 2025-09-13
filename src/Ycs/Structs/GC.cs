@@ -5,7 +5,6 @@
 // ------------------------------------------------------------------------------
 
 using System.Diagnostics;
-using Ycs.Utils;
 
 namespace Ycs.Structs
 {
@@ -28,12 +27,12 @@ namespace Ycs.Structs
             return true;
         }
 
-        internal override void Delete(Transaction transaction)
+        internal override void Delete(ITransaction transaction)
         {
             // Do nothing.
         }
 
-        internal override void Integrate(Transaction transaction, int offset)
+        internal override void Integrate(ITransaction transaction, int offset)
         {
             if (offset > 0)
             {
@@ -44,7 +43,7 @@ namespace Ycs.Structs
             transaction.Doc.Store.AddStruct(this);
         }
 
-        internal override long? GetMissing(Transaction transaction, StructStore store)
+        internal override long? GetMissing(ITransaction transaction, IStructStore store)
         {
             return null;
         }

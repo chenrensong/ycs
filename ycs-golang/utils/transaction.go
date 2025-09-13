@@ -1,475 +1,416 @@
-// ------------------------------------------------------------------------------
-//  <copyright company="Microsoft Corporation">
-//      Copyright (c) Microsoft Corporation.  All rights reserved.
-//  </copyright>
-// ------------------------------------------------------------------------------
-
 package utils
 
 import (
-	"ycs-golang/structs"
-	"ycs-golang/types"
+	"fmt"
+	"sort"
+	"sync"
+
+	"github.com/chenrensong/ygo/structs"
+	"github.com/chenrensong/ygo/types"
+	"github.com/chenrensong/ygo/utils"
 )
 
-// Transaction represents a transaction in the Yjs model
+// Transaction represents a set of changes to a Yjs document.
 type Transaction struct {
-	Doc                 *YDoc
-	Origin              interface{}
-	BeforeState         map[int64]int64
-	AfterState          map[int64]int64
-	Changed             map[*types.AbstractType]map[string]bool
-	ChangedParentTypes  map[*types.AbstractType][]*YEvent
-	Meta                map[string]interface{}
-	Local               bool
-	SubdocsAdded        map[*YDoc]bool
-	SubdocsRemoved      map[*YDoc]bool
-	SubdocsLoaded       map[*YDoc]bool
-	DeleteSet           *DeleteSet
-	mergeStructs        []*structs.AbstractStruct
+	doc                 *Doc
+	origin              interface{}
+	local               bool
+	beforeState         map[uint64]uint64
+	afterState          map[uint64]uint64
+	changed             map[*types.AbstractType]map[string]struct{}
+	changedParentTypes  map[*types.AbstractType][]*types.YEvent
+	meta                map[string]interface{}
+	deleteSet           *structs.DeleteSet
+	mergeStructs        []structs.AbstractStruct
+	subdocsAdded        map[*Doc]struct{}
+	subdocsRemoved      map[*Doc]struct{}
+	subdocsLoaded       map[*Doc]struct{}
+	cleanupActions      []func()
+	cleanupActionsMutex sync.Mutex
 }
 
-// NewTransaction creates a new Transaction
-func NewTransaction(doc *YDoc, origin interface{}, local bool) *Transaction {
+// NewTransaction creates a new Transaction instance.
+func NewTransaction(doc *Doc, origin interface{}, local bool) *Transaction {
 	return &Transaction{
-		Doc:                doc,
-		Origin:             origin,
-		BeforeState:        doc.Store.GetStateVector(),
-		AfterState:         make(map[int64]int64),
-		Changed:            make(map[*types.AbstractType]map[string]bool),
-		ChangedParentTypes: make(map[*types.AbstractType][]*YEvent),
-		Meta:               make(map[string]interface{}),
-		Local:              local,
-		SubdocsAdded:       make(map[*YDoc]bool),
-		SubdocsRemoved:     make(map[*YDoc]bool),
-		SubdocsLoaded:      make(map[*YDoc]bool),
-		DeleteSet:          NewDeleteSet(),
-		mergeStructs:       make([]*structs.AbstractStruct, 0),
+		doc:                doc,
+		origin:             origin,
+		local:              local,
+		beforeState:        doc.Store.GetStateVector(),
+		afterState:         make(map[uint64]uint64),
+		changed:            make(map[*types.AbstractType]map[string]struct{}),
+		changedParentTypes: make(map[*types.AbstractType][]*types.YEvent),
+		meta:               make(map[string]interface{}),
+		deleteSet:          structs.NewDeleteSet(),
+		mergeStructs:       make([]structs.AbstractStruct, 0),
+		subdocsAdded:       make(map[*Doc]struct{}),
+		subdocsRemoved:     make(map[*Doc]struct{}),
+		subdocsLoaded:      make(map[*Doc]struct{}),
 	}
 }
 
-// GetNextId returns the next ID for this transaction
-func (t *Transaction) GetNextId() ID {
-	return ID{Client: t.Doc.ClientId, Clock: t.Doc.Store.GetState(t.Doc.ClientId)}
+// Doc returns the document associated with this transaction.
+func (t *Transaction) Doc() interface{} {
+	return t.doc
 }
 
-// AddChangedTypeToTransaction adds a changed type to the transaction
-func (t *Transaction) AddChangedTypeToTransaction(typ *types.AbstractType, parentSub string) {
-	item := typ.Item
-	if item == nil || (func() bool {
-		if clock, exists := t.BeforeState[item.Id.Client]; exists && item.Id.Clock < clock && !item.Deleted {
-			return true
+// Origin returns the origin of this transaction.
+func (t *Transaction) Origin() interface{} {
+	return t.origin
+}
+
+// Local returns whether this transaction is local.
+func (t *Transaction) Local() bool {
+	return t.local
+}
+
+// DeleteSet returns the delete set for this transaction.
+func (t *Transaction) DeleteSet() interface{} {
+	return t.deleteSet
+}
+
+// AddChangedType adds a changed type to the transaction.
+func (t *Transaction) AddChangedType(type_ *types.AbstractType, parentSub string) {
+	item := type_.Item()
+	if item == nil || (t.beforeState[item.ID().Client] > item.ID().Clock && !item.Deleted()) {
+		if _, exists := t.changed[type_]; !exists {
+			t.changed[type_] = make(map[string]struct{})
 		}
-		return false
-	}()) {
-		if _, exists := t.Changed[typ]; !exists {
-			t.Changed[typ] = make(map[string]bool)
-		}
-		t.Changed[typ][parentSub] = true
+		t.changed[type_][parentSub] = struct{}{}
 	}
 }
 
-// CleanupTransactions cleans up transactions
-func CleanupTransactions(transactionCleanups []*Transaction, i int) {
-	if i < len(transactionCleanups) {
-		transaction := transactionCleanups[i]
-		doc := transaction.Doc
-		store := doc.Store
-		ds := transaction.DeleteSet
+// Cleanup cleans up the transaction.
+func (t *Transaction) Cleanup(cleanups []*Transaction, i int) {
+	if i < len(cleanups) {
+		transaction := cleanups[i]
+		doc := transaction.doc
+		store := doc.store
+		ds := transaction.deleteSet
 		mergeStructs := transaction.mergeStructs
-		actions := make([]func(), 0)
 
 		defer func() {
-			// Replace deleted items with ItemDeleted / GC.
-			// This is where content is actually removed from the Yjs Doc.
-			if doc.Gc {
-				ds.TryGcDeleteSet(store, func(item *structs.Item) bool {
-					// This is a placeholder for the GC filter function
-					return true
-				})
+			// Replace deleted items with ItemDeleted/GC
+			if doc.gc {
+				ds.TryGCDeleteSet(store, doc.gcFilter)
 			}
 
 			ds.TryMergeDeleteSet(store)
 
-			// On all affected store.clients props, try to merge.
-			for client, clock := range transaction.AfterState {
-				var beforeClock int64
-				if bc, exists := transaction.BeforeState[client]; exists {
-					beforeClock = bc
+			// On all affected store.clients props, try to merge
+			for client, clock := range transaction.afterState {
+				beforeClock, exists := transaction.beforeState[client]
+				if !exists {
+					beforeClock = 0
 				}
 
 				if beforeClock != clock {
 					structs := store.Clients[client]
-					firstChangePos := max(StructStoreFindIndexSS(structs, beforeClock), 1)
+					firstChangePos := max(structs.FindIndexSS(beforeClock), 1)
 					for j := len(structs) - 1; j >= firstChangePos; j-- {
-						TryToMergeWithLeft(structs, j)
+						structs.DeleteSet.TryToMergeWithLeft(j)
 					}
 				}
 			}
 
-			// Try to merge mergeStructs.
-			// TODO: It makes more sense to transform mergeStructs to a DS, sort it, and merge from right to left
-			//       but at the moment DS does not handle duplicates.
+			// Try to merge mergeStructs
 			for j := 0; j < len(mergeStructs); j++ {
-				client := mergeStructs[j].Id.Client
-				clock := mergeStructs[j].Id.Clock
+				client := mergeStructs[j].ID().Client
+				clock := mergeStructs[j].ID().Clock
 				structs := store.Clients[client]
-				replacedStructPos := StructStoreFindIndexSS(structs, clock)
+				replacedStructPos := structs.FindIndexSS(clock)
 
 				if replacedStructPos+1 < len(structs) {
-					TryToMergeWithLeft(structs, replacedStructPos+1)
+					structs.DeleteSet.TryToMergeWithLeft(replacedStructPos + 1)
 				}
 
 				if replacedStructPos > 0 {
-					TryToMergeWithLeft(structs, replacedStructPos)
+					structs.DeleteSet.TryToMergeWithLeft(replacedStructPos)
 				}
 			}
 
-			if !transaction.Local {
-				var afterClock, beforeClock int64
-				if ac, exists := transaction.AfterState[doc.ClientId]; exists {
-					afterClock = ac
-				} else {
-					afterClock = -1
-				}
+			if !transaction.local {
+				afterClock, afterExists := transaction.afterState[doc.ClientID]
+				beforeClock, beforeExists := transaction.beforeState[doc.ClientID]
 
-				if bc, exists := transaction.BeforeState[doc.ClientId]; exists {
-					beforeClock = bc
-				} else {
-					beforeClock = -1
+				if !afterExists {
+					afterClock = ^uint64(0)
+				}
+				if !beforeExists {
+					beforeClock = ^uint64(0)
 				}
 
 				if afterClock != beforeClock {
-					doc.ClientId = GenerateNewClientId()
-					// Debug.WriteLine($"{nameof(Transaction)}: Changed the client-id because another client seems to be using it.");
+					doc.ClientID = GenerateNewClientID()
 				}
 			}
 
-			// @todo: Merge all the transactions into one and provide send the data as a single update message.
-			doc.InvokeOnAfterTransactionCleanup(transaction)
+			doc.onAfterTransactionCleanup(transaction)
 
-			doc.InvokeUpdateV2(transaction)
+			doc.invokeUpdateV2(transaction)
 
-			for subDoc := range transaction.SubdocsAdded {
-				doc.Subdocs[subDoc] = true
+			for subDoc := range transaction.subdocsAdded {
+				doc.subdocs[subDoc] = struct{}{}
 			}
 
-			for subDoc := range transaction.SubdocsRemoved {
-				delete(doc.Subdocs, subDoc)
+			for subDoc := range transaction.subdocsRemoved {
+				delete(doc.subdocs, subDoc)
 			}
 
-			doc.InvokeSubdocsChanged(transaction.SubdocsLoaded, transaction.SubdocsAdded, transaction.SubdocsRemoved)
+			doc.invokeSubdocsChanged(transaction.subdocsLoaded, transaction.subdocsAdded, transaction.subdocsRemoved)
 
-			for subDoc := range transaction.SubdocsRemoved {
+			for subDoc := range transaction.subdocsRemoved {
 				subDoc.Destroy()
 			}
 
-			if len(transactionCleanups) <= i+1 {
-				// Clear transaction cleanups
-				doc.transactionCleanups = make([]*Transaction, 0)
-				doc.InvokeAfterAllTransactions(transactionCleanups)
+			if len(cleanups) <= i+1 {
+				doc.transactionCleanups = nil
+				doc.invokeAfterAllTransactions(cleanups)
 			} else {
-				CleanupTransactions(transactionCleanups, i+1)
+				CleanupTransactions(cleanups, i+1)
 			}
 		}()
 
 		ds.SortAndMergeDeleteSet()
-		transaction.AfterState = store.GetStateVector()
+		transaction.afterState = store.GetStateVector()
 		doc.transaction = nil
 
-		actions = append(actions, func() {
-			doc.InvokeOnBeforeObserverCalls(transaction)
+		t.cleanupActionsMutex.Lock()
+		defer t.cleanupActionsMutex.Unlock()
+
+		t.cleanupActions = append(t.cleanupActions, func() {
+			doc.invokeOnBeforeObserverCalls(transaction)
 		})
 
-		actions = append(actions, func() {
-			for itemType, subs := range transaction.Changed {
-				if itemType.Item == nil || !itemType.Item.Deleted {
-					itemType.CallObserver(transaction, subs)
-				}
+		for type_, subs := range transaction.changed {
+			if type_.Item() == nil || !type_.Item().Deleted() {
+				t.cleanupActions = append(t.cleanupActions, func() {
+					type_.CallObserver(transaction, subs)
+				})
 			}
-		})
+		}
 
-		actions = append(actions, func() {
-			// Deep observe events.
-			for typ, events := range transaction.ChangedParentTypes {
-				// We need to think about the possibility that the user transforms the YDoc in the event.
-				if typ.Item == nil || !typ.Item.Deleted {
-					for _, evt := range events {
-						if evt.Target.Item == nil || !evt.Target.Item.Deleted {
-							evt.CurrentTarget = typ
-						}
-					}
+		for type_, events := range transaction.changedParentTypes {
+			if type_.Item() == nil || !type_.Item().Deleted() {
+				sortedEvents := make([]*types.YEvent, len(events))
+				copy(sortedEvents, events)
+				sort.Slice(sortedEvents, func(i, j int) bool {
+					return len(sortedEvents[i].Path) < len(sortedEvents[j].Path)
+				})
 
-					// Sort events by path length so that top-level events are fired first.
-					// In Go, we need to implement our own sort function
-					// This is a simplified version - you may need to implement a proper sort
-					sortedEvents := make([]*YEvent, len(events))
-					copy(sortedEvents, events)
-
-					actions = append(actions, func() {
-						typ.CallDeepEventHandlerListeners(sortedEvents, transaction)
-					})
-				}
+				t.cleanupActions = append(t.cleanupActions, func() {
+					type_.CallDeepEventHandlerListeners(sortedEvents, transaction)
+				})
 			}
+		}
+
+		t.cleanupActions = append(t.cleanupActions, func() {
+			doc.invokeOnAfterTransaction(transaction)
 		})
 
-		actions = append(actions, func() {
-			doc.InvokeOnAfterTransaction(transaction)
-		})
-
-		CallAll(actions)
+		t.callAllCleanupActions()
 	}
 }
 
-// RedoItem redoes the effect of an operation
-func (t *Transaction) RedoItem(item *structs.Item, redoItems map[*structs.Item]bool) *structs.AbstractStruct {
-	doc := t.Doc
-	store := doc.Store
-	ownClientId := doc.ClientId
-	redone := item.Redone
+// RedoItem redoes an item in the transaction.
+func (t *Transaction) RedoItem(item *structs.Item, redoItems map[*structs.Item]struct{}) structs.AbstractStruct {
+	doc := t.doc
+	store := doc.store
+	ownClientID := doc.ClientID
+	redone := item.Redone()
 
 	if redone != nil {
 		return store.GetItemCleanStart(t, *redone)
 	}
 
 	var parentItem *structs.Item
-	if parentType, ok := item.Parent.(*types.AbstractType); ok && parentType.Item != nil {
-		parentItem = parentType.Item
+	if parent, ok := item.Parent().(*types.AbstractType); ok {
+		parentItem = parent.Item()
 	}
 
-	var left, right *structs.AbstractStruct
+	var left, right structs.AbstractStruct
 
-	if item.ParentSub == "" {
-		// Is an array item. Insert at the old position.
-		left = item.Left
+	if item.ParentSub() == "" {
+		// Is an array item, insert at old position
+		left = item.Left()
 		right = item
 	} else {
-		// Is a map item. Insert at current value.
+		// Is a map item, insert at current value
 		left = item
-		for {
-			if leftItem, ok := left.(*structs.Item); ok && leftItem.Right != nil {
-				left = leftItem.Right
-				if leftItem.Id.Client != ownClientId {
-					// It is not possible to redo this item because it conflicts with a change from another client.
-					return nil
-				}
-			} else {
-				break
+		for left != nil && left.Right() != nil {
+			left = left.Right()
+			if left.ID().Client != ownClientID {
+				// Cannot redo due to conflict
+				return nil
 			}
 		}
 
-		if leftItem, ok := left.(*structs.Item); ok && leftItem.Right != nil {
-			if parentType, ok := item.Parent.(*types.AbstractType); ok {
-				left = parentType.Map[item.ParentSub]
+		if left != nil && left.Right() != nil {
+			if parent, ok := item.Parent().(*types.AbstractType); ok {
+				left = parent.Map()[item.ParentSub()]
 			}
 		}
 
 		right = nil
 	}
 
-	// Make sure that parent is redone.
-	if parentItem != nil && parentItem.Deleted && parentItem.Redone == nil {
-		// Try to undo parent if it will be undone anyway.
-		if !redoItems[parentItem] || t.RedoItem(parentItem, redoItems) == nil {
+	// Ensure parent is redone
+	if parentItem != nil && parentItem.Deleted() && parentItem.Redone() == nil {
+		if _, exists := redoItems[parentItem]; !exists || t.RedoItem(parentItem, redoItems) == nil {
 			return nil
 		}
 	}
 
-	if parentItem != nil && parentItem.Redone != nil {
-		for parentItem.Redone != nil {
-			parentItem = store.GetItemCleanStart(t, *parentItem.Redone).(*structs.Item)
+	if parentItem != nil && parentItem.Redone() != nil {
+		for parentItem.Redone() != nil {
+			parentItem = store.GetItemCleanStart(t, *parentItem.Redone()).(*structs.Item)
 		}
 
-		// Find next cloned_redo items.
+		// Find next cloned redo items
 		for left != nil {
 			leftTrace := left
 			for leftTrace != nil {
-				var leftParentItem *structs.Item
-				if leftItem, ok := leftTrace.(*structs.Item); ok && leftItem.Parent != nil {
-					if leftParentType, ok := leftItem.Parent.(*types.AbstractType); ok && leftParentType.Item != nil {
-						leftParentItem = leftParentType.Item
+				if item, ok := leftTrace.(*structs.Item); ok {
+					if parent, ok := item.Parent().(*types.AbstractType); ok {
+						if parent.Item() == parentItem {
+							left = leftTrace
+							break
+						}
 					}
-				}
-
-				if leftParentItem != parentItem {
-					if leftItem, ok := leftTrace.(*structs.Item); ok && leftItem.Redone != nil {
-						leftTrace = store.GetItemCleanStart(t, *leftItem.Redone)
-					} else {
-						leftTrace = nil
+					leftTrace = item.Redone()
+					if leftTrace != nil {
+						leftTrace = store.GetItemCleanStart(t, *leftTrace)
 					}
 				} else {
 					break
 				}
 			}
-
 			if leftTrace != nil {
-				var leftParentItem *structs.Item
-				if leftItem, ok := leftTrace.(*structs.Item); ok && leftItem.Parent != nil {
-					if leftParentType, ok := leftItem.Parent.(*types.AbstractType); ok && leftParentType.Item != nil {
-						leftParentItem = leftParentType.Item
-					}
-				}
-
-				if leftParentItem == parentItem {
-					left = leftTrace
-					break
-				}
+				break
 			}
-
-			if leftItem, ok := left.(*structs.Item); ok {
-				left = leftItem.Left
-			} else {
-				left = nil
-			}
+			left = left.Left()
 		}
 
 		for right != nil {
 			rightTrace := right
 			for rightTrace != nil {
-				var rightParentItem *structs.Item
-				if rightItem, ok := rightTrace.(*structs.Item); ok && rightItem.Parent != nil {
-					if rightParentType, ok := rightItem.Parent.(*types.AbstractType); ok && rightParentType.Item != nil {
-						rightParentItem = rightParentType.Item
+				if item, ok := rightTrace.(*structs.Item); ok {
+					if parent, ok := item.Parent().(*types.AbstractType); ok {
+						if parent.Item() == parentItem {
+							right = rightTrace
+							break
+						}
 					}
-				}
-
-				if rightParentItem != parentItem {
-					if rightItem, ok := rightTrace.(*structs.Item); ok && rightItem.Redone != nil {
-						rightTrace = store.GetItemCleanStart(t, *rightItem.Redone)
-					} else {
-						rightTrace = nil
+					rightTrace = item.Redone()
+					if rightTrace != nil {
+						rightTrace = store.GetItemCleanStart(t, *rightTrace)
 					}
 				} else {
 					break
 				}
 			}
-
 			if rightTrace != nil {
-				var rightParentItem *structs.Item
-				if rightItem, ok := rightTrace.(*structs.Item); ok && rightItem.Parent != nil {
-					if rightParentType, ok := rightItem.Parent.(*types.AbstractType); ok && rightParentType.Item != nil {
-						rightParentItem = rightParentType.Item
-					}
-				}
-
-				if rightParentItem == parentItem {
-					right = rightTrace
-					break
-				}
+				break
 			}
-
-			if rightItem, ok := right.(*structs.Item); ok {
-				right = rightItem.Right
-			} else {
-				right = nil
-			}
+			right = right.Right()
 		}
 	}
 
-	nextClock := store.GetState(ownClientId)
-	nextId := ID{Client: ownClientId, Clock: nextClock}
+	nextClock := store.GetState(ownClientID)
+	nextID := utils.NewID(ownClientID, nextClock)
+
+	var parent interface{}
+	if parentItem == nil {
+		parent = item.Parent()
+	} else {
+		if content, ok := parentItem.Content().(*types.ContentType); ok {
+			parent = content.Type()
+		}
+	}
 
 	redoneItem := structs.NewItem(
-		nextId,
+		nextID,
 		left,
-		func() *ID {
-			if leftItem, ok := left.(*structs.Item); ok {
-				return leftItem.LastId()
-			}
-			return nil
-		}(),
+		left.LastID(),
 		right,
-		func() *ID {
-			if right != nil {
-				return right.Id
-			}
-			return nil
-		}(),
-		func() interface{} {
-			if parentItem == nil {
-				return item.Parent
-			}
-			if contentType, ok := parentItem.Content.(*structs.ContentType); ok {
-				return contentType.Type
-			}
-			return nil
-		}(),
-		item.ParentSub,
-		item.Content.Copy())
+		right.ID(),
+		parent,
+		item.ParentSub(),
+		item.Content().Copy(),
+	)
 
-	item.Redone = &nextId
-
+	item.SetRedone(&nextID)
 	redoneItem.KeepItemAndParents(true)
 	redoneItem.Integrate(t, 0)
 
 	return redoneItem
 }
 
-// SplitSnapshotAffectedStructs splits snapshot affected structs
-func SplitSnapshotAffectedStructs(transaction *Transaction, snapshot *Snapshot) {
-	var metaObj interface{}
-	var exists bool
-	if metaObj, exists = transaction.Meta["splitSnapshotAffectedStructs"]; !exists {
-		metaObj = make(map[*Snapshot]bool)
-		transaction.Meta["splitSnapshotAffectedStructs"] = metaObj
+// SplitSnapshotAffectedStructs splits structs affected by a snapshot.
+func (t *Transaction) SplitSnapshotAffectedStructs(snapshot *utils.Snapshot) {
+	metaKey := "splitSnapshotAffectedStructs"
+	metaValue, exists := t.meta[metaKey]
+	if !exists {
+		metaValue = make(map[*utils.Snapshot]struct{})
+		t.meta[metaKey] = metaValue
 	}
 
-	meta := metaObj.(map[*Snapshot]bool)
-	store := transaction.Doc.Store
+	meta := metaValue.(map[*utils.Snapshot]struct{})
+	store := t.doc.store
 
-	// Check if we already split for this snapshot.
-	if !meta[snapshot] {
+	if _, alreadySplit := meta[snapshot]; !alreadySplit {
 		for client, clock := range snapshot.StateVector {
 			if clock < store.GetState(client) {
-				store.GetItemCleanStart(transaction, ID{Client: client, Clock: clock})
+				store.GetItemCleanStart(t, utils.NewID(client, clock))
 			}
 		}
 
-		snapshot.DeleteSet.IterateDeletedStructs(transaction, func(item *structs.AbstractStruct) bool {
+		snapshot.DeleteSet.IterateDeletedStructs(t, func(item structs.AbstractStruct) bool {
 			return true
 		})
-		meta[snapshot] = true
+
+		meta[snapshot] = struct{}{}
 	}
 }
 
-// WriteUpdateMessageFromTransaction writes an update message from a transaction
-func (t *Transaction) WriteUpdateMessageFromTransaction(encoder IUpdateEncoder) bool {
-	// Check if there are any changes
-	hasChanges := len(t.DeleteSet.Clients) > 0
-	if !hasChanges {
-		for key, value := range t.AfterState {
-			if clockB, exists := t.BeforeState[key]; !exists || value != clockB {
-				hasChanges = true
+// WriteUpdateMessageFromTransaction writes an update message from the transaction.
+func (t *Transaction) WriteUpdateMessageFromTransaction(encoder encoding.Encoder) (bool, error) {
+	if len(t.deleteSet.Clients) == 0 {
+		allUnchanged := true
+		for client, afterClock := range t.afterState {
+			if beforeClock, exists := t.beforeState[client]; !exists || beforeClock != afterClock {
+				allUnchanged = false
 				break
 			}
 		}
-	}
-
-	if !hasChanges {
-		return false
-	}
-
-	t.DeleteSet.SortAndMergeDeleteSet()
-	// Note: EncodingUtils.WriteClientsStructs needs to be implemented
-	// EncodingUtils.WriteClientsStructs(encoder, t.Doc.Store, t.BeforeState)
-	t.DeleteSet.Write(encoder)
-
-	return true
-}
-
-// CallAll calls all functions in the list
-func CallAll(funcs []func(), index int) {
-	defer func() {
-		if r := recover(); r != nil && index < len(funcs)-1 {
-			CallAll(funcs, index+1)
+		if allUnchanged {
+			return false, nil
 		}
-	}()
-
-	for i := index; i < len(funcs); i++ {
-		funcs[i]()
 	}
+
+	t.deleteSet.SortAndMergeDeleteSet()
+	if err := encoding.WriteClientsStructs(encoder, t.doc.store, t.beforeState); err != nil {
+		return false, fmt.Errorf("failed to write clients structs: %w", err)
+	}
+
+	if err := t.deleteSet.Write(encoder); err != nil {
+		return false, fmt.Errorf("failed to write delete set: %w", err)
+	}
+
+	return true, nil
 }
 
-// Helper function to find maximum of two integers
+// callAllCleanupActions calls all cleanup actions.
+func (t *Transaction) callAllCleanupActions() {
+	t.cleanupActionsMutex.Lock()
+	defer t.cleanupActionsMutex.Unlock()
+
+	for _, action := range t.cleanupActions {
+		action()
+	}
+	t.cleanupActions = nil
+}
+
+// max returns the maximum of two integers.
 func max(a, b int) int {
 	if a > b {
 		return a

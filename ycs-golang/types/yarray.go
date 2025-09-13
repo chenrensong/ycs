@@ -1,194 +1,197 @@
 package types
 
 import (
-	"github.com/yjs/ycs-golang/structs"
-	"github.com/yjs/ycs-golang/utils"
+	"github.com/chenrensong/ygo/structs"
+	"github.com/chenrensong/ygo/utils"
 )
 
-// YArrayEvent represents an event for YArray
+const YArrayRefId = 0
+
 type YArrayEvent struct {
-	*YEvent
+	*utils.YEvent
 }
 
-// NewYArrayEvent creates a new YArrayEvent
 func NewYArrayEvent(arr *YArray, transaction *utils.Transaction) *YArrayEvent {
 	return &YArrayEvent{
-		YEvent: NewYEvent(arr.AbstractType, transaction),
+		YEvent: utils.NewYEvent(arr, transaction),
 	}
 }
 
-// YArray represents an array type
 type YArray struct {
 	*YArrayBase
-	PrelimContent []interface{}
+	_prelimContent []interface{}
 }
 
-// YArrayRefId is the reference ID for YArray
-const YArrayRefId byte = 0
-
-// NewYArray creates a new YArray
-func NewYArray(prelimContent []interface{}) *YArray {
-	content := make([]interface{}, 0)
-	if prelimContent != nil {
-		content = append(content, prelimContent...)
+func NewYArray(prelimContent ...[]interface{}) *YArray {
+	arr := &YArray{
+		YArrayBase:     NewYArrayBase(),
+		_prelimContent: make([]interface{}, 0),
 	}
-	
-	return &YArray{
-		YArrayBase:    NewYArrayBase(),
-		PrelimContent: content,
+
+	if len(prelimContent) > 0 && prelimContent[0] != nil {
+		arr._prelimContent = prelimContent[0]
 	}
+
+	return arr
 }
 
-// NewYArrayEmpty creates a new empty YArray
-func NewYArrayEmpty() *YArray {
-	return NewYArray(nil)
-}
-
-// Length returns the length of the array
-func (y *YArray) Length() int {
-	if y.PrelimContent != nil {
-		return len(y.PrelimContent)
+func (y *YArray) GetLength() int {
+	if y._prelimContent != nil {
+		return len(y._prelimContent)
 	}
 	return y.YArrayBase.Length
 }
 
-// Clone creates a clone of the array
 func (y *YArray) Clone() *YArray {
-	// In a real implementation, you would need to cast the result
-	// For now, we'll just return nil as a placeholder
-	return nil
+	return y.InternalClone().(*YArray)
 }
 
-// Integrate integrates the array
-func (y *YArray) Integrate(doc *utils.YDoc, item *structs.Item) {
-	y.YArrayBase.Integrate(doc, item)
-	y.Insert(0, y.PrelimContent)
-	y.PrelimContent = nil
-}
-
-// InternalCopy creates an internal copy of the array
 func (y *YArray) InternalCopy() *AbstractType {
-	return NewYArrayEmpty().AbstractType
+	arr := NewYArray()
+	return &arr.YArrayBase.AbstractType
 }
 
-// InternalClone creates an internal clone of the array
 func (y *YArray) InternalClone() *AbstractType {
-	arr := NewYArrayEmpty()
-	
+	arr := NewYArray()
+
 	for _, item := range y.EnumerateList() {
 		if at, ok := item.(*AbstractType); ok {
-			// In a real implementation, you would need to add the cloned type
-			// arr.Add([]interface{}{at.InternalClone()})
+			arr.Add([]interface{}{at.InternalClone()})
 		} else {
 			arr.Add([]interface{}{item})
 		}
 	}
-	
-	return arr.AbstractType
+
+	return &arr.YArrayBase.AbstractType
 }
 
-// Write writes the array to an encoder
 func (y *YArray) Write(encoder utils.IUpdateEncoder) {
 	encoder.WriteTypeRef(YArrayRefId)
 }
 
-// Read reads a YArray from a decoder
 func ReadYArray(decoder utils.IUpdateDecoder) *YArray {
-	return NewYArrayEmpty()
+	return NewYArray()
 }
 
-// CallObserver creates YArrayEvent and calls observers
+func (y *YArray) Integrate(doc *utils.YDoc, item *structs.Item) {
+	y.YArrayBase.Integrate(doc, item)
+	if y._prelimContent != nil && len(y._prelimContent) > 0 {
+		y.Insert(0, y._prelimContent)
+		y._prelimContent = nil
+	}
+}
+
 func (y *YArray) CallObserver(transaction *utils.Transaction, parentSubs map[string]struct{}) {
 	y.YArrayBase.CallObserver(transaction, parentSubs)
 	y.CallTypeObservers(transaction, NewYArrayEvent(y, transaction).YEvent)
 }
 
-// Insert inserts new content at an index
 func (y *YArray) Insert(index int, content []interface{}) {
 	if y.Doc != nil {
 		y.Doc.Transact(func(tr *utils.Transaction) {
 			y.InsertGenerics(tr, index, content)
 		})
 	} else {
-		// Insert into preliminary content
-		newContent := make([]interface{}, len(y.PrelimContent)+len(content))
-		copy(newContent, y.PrelimContent[:index])
+		if y._prelimContent == nil {
+			y._prelimContent = make([]interface{}, 0)
+		}
+
+		// Insert content at specified index in _prelimContent
+		if index > len(y._prelimContent) {
+			index = len(y._prelimContent)
+		}
+
+		// Create a new slice with the content inserted
+		newContent := make([]interface{}, len(y._prelimContent)+len(content))
+		copy(newContent, y._prelimContent[:index])
 		copy(newContent[index:], content)
-		copy(newContent[index+len(content):], y.PrelimContent[index:])
-		y.PrelimContent = newContent
+		copy(newContent[index+len(content):], y._prelimContent[index:])
+		y._prelimContent = newContent
 	}
 }
 
-// Add adds content to the end of the array
 func (y *YArray) Add(content []interface{}) {
-	y.Insert(y.Length(), content)
+	y.Insert(y.GetLength(), content)
 }
 
-// Unshift adds content to the beginning of the array
 func (y *YArray) Unshift(content []interface{}) {
 	y.Insert(0, content)
 }
 
-// Delete deletes content at the specified index with the specified length
-func (y *YArray) Delete(index, length int) {
-	if length <= 0 {
-		length = 1
+func (y *YArray) Delete(index int, length ...int) {
+	l := 1
+	if len(length) > 0 {
+		l = length[0]
 	}
-	
+
 	if y.Doc != nil {
 		y.Doc.Transact(func(tr *utils.Transaction) {
-			y.YArrayBase.Delete(tr, index, length)
+			y.YArrayBase.Delete(tr, index, l)
 		})
-	} else {
-		// Remove from preliminary content
-		if index+length <= len(y.PrelimContent) {
-			newContent := make([]interface{}, len(y.PrelimContent)-length)
-			copy(newContent, y.PrelimContent[:index])
-			copy(newContent[index:], y.PrelimContent[index+length:])
-			y.PrelimContent = newContent
+	} else if y._prelimContent != nil {
+		// Remove content from _prelimContent
+		start := index
+		end := index + l
+		if start < 0 {
+			start = 0
+		}
+		if end > len(y._prelimContent) {
+			end = len(y._prelimContent)
+		}
+		if start < end {
+			y._prelimContent = append(y._prelimContent[:start], y._prelimContent[end:]...)
 		}
 	}
 }
 
-// Slice returns a slice of the array
-func (y *YArray) Slice(start, end int) []interface{} {
-	if end == 0 {
-		end = y.Length()
+func (y *YArray) Slice(start ...int) []interface{} {
+	startIndex := 0
+	if len(start) > 0 {
+		startIndex = start[0]
 	}
+	return y.InternalSlice(startIndex, y.GetLength())
+}
+
+func (y *YArray) SliceWithEnd(start int, end int) []interface{} {
 	return y.InternalSlice(start, end)
 }
 
-// Get gets an item at the specified index
 func (y *YArray) Get(index int) interface{} {
-	marker := y.FindMarker(index)
-	n := y.Start
-	
-	if marker != nil {
-		n = marker.P
-		index -= marker.Index
+	if y._prelimContent != nil {
+		if index >= 0 && index < len(y._prelimContent) {
+			return y._prelimContent[index]
+		}
+		return nil
 	}
-	
-	for ; n != nil; n = n.Right {
-		if !n.Deleted() && n.Countable() {
+
+	marker := y.FindMarker(index)
+	n := y._start
+
+	if marker != nil {
+		n = marker.p
+		index -= marker.index
+	}
+
+	for n != nil {
+		if !n.Deleted && n.Countable {
 			if index < n.Length {
 				content := n.Content.GetContent()
-				return content[index]
+				if len(content) > index {
+					return content[index]
+				}
 			}
 			index -= n.Length
 		}
-		
-		// Type assert to Item to access Right
 		if rightItem, ok := n.Right.(*structs.Item); ok {
 			n = rightItem
 		} else {
-			break
+			n = nil
 		}
 	}
-	
+
 	return nil
 }
 
-// ToArray converts the array to a slice
 func (y *YArray) ToArray() []interface{} {
 	cs := make([]interface{}, 0)
 	for _, item := range y.EnumerateList() {
@@ -197,26 +200,28 @@ func (y *YArray) ToArray() []interface{} {
 	return cs
 }
 
-// EnumerateList enumerates the list items
 func (y *YArray) EnumerateList() []interface{} {
+	if y._prelimContent != nil {
+		return y._prelimContent
+	}
+
+	n := y._start
 	result := make([]interface{}, 0)
-	n := y.Start
-	
+
 	for n != nil {
-		if n.Countable() && !n.Deleted() {
+		if n.Countable && !n.Deleted {
 			c := n.Content.GetContent()
 			for _, item := range c {
 				result = append(result, item)
 			}
 		}
-		
-		// Type assert to Item to access Right
+
 		if rightItem, ok := n.Right.(*structs.Item); ok {
 			n = rightItem
 		} else {
-			break
+			n = nil
 		}
 	}
-	
+
 	return result
 }

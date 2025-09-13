@@ -35,12 +35,12 @@ namespace Ycs.Structs
 
         public bool MergeWith(IContent right) => false;
 
-        void IContentEx.Integrate(Transaction transaction, Item item)
+        void IContentEx.Integrate(ITransaction transaction, Item item)
         {
             Type.Integrate(transaction.Doc, item);
         }
 
-        void IContentEx.Delete(Transaction transaction)
+        void IContentEx.Delete(ITransaction transaction)
         {
             var item = Type._start;
 
@@ -56,7 +56,7 @@ namespace Ycs.Structs
                     // We try to merge all deleted items each transaction,
                     // but we have no knowledge about that this needs to merged
                     // since it is not in transaction. Hence we add it to transaction._mergeStructs.
-                    transaction._mergeStructs.Add(item);
+                    transaction.MergeStructs.Add(item);
                 }
 
                 item = item.Right as Item;
@@ -71,7 +71,7 @@ namespace Ycs.Structs
                 else
                 {
                     // Same as above.
-                    transaction._mergeStructs.Add(valueItem);
+                    transaction.MergeStructs.Add(valueItem);
                 }
             }
 

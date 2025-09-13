@@ -7,7 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Ycs.Core;
+using Ycs.Lib0;
 using Ycs.Types;
 using Ycs.Utils;
 
@@ -216,7 +216,7 @@ namespace Ycs.Structs
         /// <summary>
         /// Mark this item as Deleted.
         /// </summary>
-        internal override void Delete(Transaction transaction)
+        internal override void Delete(ITransaction transaction)
         {
             if (!Deleted)
             {
@@ -234,7 +234,7 @@ namespace Ycs.Structs
             }
         }
 
-        internal override void Integrate(Transaction transaction, int offset)
+        internal override void Integrate(ITransaction transaction, int offset)
         {
             if (offset > 0)
             {
@@ -413,7 +413,7 @@ namespace Ycs.Structs
         /// <summary>
         /// Returns the creator ClientID of the missing OP or define missing items and return null.
         /// </summary>
-        internal override long? GetMissing(Transaction transaction, StructStore store)
+        internal override long? GetMissing(ITransaction transaction, IStructStore store)
         {
             if (LeftOrigin != null && LeftOrigin.Value.Client != Id.Client && LeftOrigin.Value.Clock >= store.GetState(LeftOrigin.Value.Client))
             {
@@ -572,7 +572,7 @@ namespace Ycs.Structs
         /// <summary>
         /// Split 'leftItem' into two items.
         /// </summary>
-        public Item SplitItem(Transaction transaction, int diff)
+        public Item SplitItem(ITransaction transaction, int diff)
         {
             var client = Id.Client;
             var clock = Id.Clock;
@@ -612,7 +612,7 @@ namespace Ycs.Structs
             }
 
             // Right is more specific.
-            transaction._mergeStructs.Add(rightItem);
+            transaction.MergeStructs.Add(rightItem);
 
             // Update parent._map.
             if (rightItem.ParentSub != null && rightItem.Right == null)

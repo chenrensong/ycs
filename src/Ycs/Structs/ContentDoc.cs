@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using Ycs.Types;
 using Ycs.Utils;
 using Transaction = Ycs.Utils.Transaction;
 
@@ -63,7 +64,7 @@ namespace Ycs.Structs
             return false;
         }
 
-        void IContentEx.Integrate(Transaction transaction, Item item)
+        void IContentEx.Integrate(ITransaction transaction, Item item)
         {
             // This needs to be reflected in doc.destroy as well.
             Doc._item = item;
@@ -75,7 +76,7 @@ namespace Ycs.Structs
             }
         }
 
-        void IContentEx.Delete(Transaction transaction)
+        void IContentEx.Delete(ITransaction transaction)
         {
             if (transaction.SubdocsAdded.Contains(Doc))
             {

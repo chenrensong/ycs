@@ -1,85 +1,114 @@
+// ------------------------------------------------------------------------------
+//  <copyright company="Microsoft Corporation">
+//      Copyright (c) Microsoft Corporation.  All rights reserved.
+//  </copyright>
+// ------------------------------------------------------------------------------
+
 package structs
 
-// ContentFormat represents format content
+// ContentFormat represents a content format in the document
+// This is the Go implementation of the C# ContentFormat class
 type ContentFormat struct {
-	Key   string
-	Value interface{}
+	key   string
+	value interface{}
 }
 
-// NewContentFormat creates a new ContentFormat
-func NewContentFormat(key string, value interface{}) *ContentFormat {
+// Ref is a constant reference ID for ContentFormat
+type _ref int
+
+const (
+	RefContentFormat _ref = 6
+)
+
+// NewContentFormat creates a new instance of ContentFormat
+func NewContentFormat(key string, value interface{}) (*ContentFormat, error) {
 	return &ContentFormat{
-		Key:   key,
-		Value: value,
-	}
+		key:   key,
+		value: value,
+	}, nil
 }
 
-// Ref returns the reference type for ContentFormat
-func (c *ContentFormat) Ref() int {
-	return 6 // _ref constant from C# version
-}
-
-// Countable returns whether this content is countable
+// Countable returns false as ContentFormat is not countable
 func (c *ContentFormat) Countable() bool {
 	return false
 }
 
-// Length returns the length of this content
+// Length returns the length of the content (always 1)
 func (c *ContentFormat) Length() int {
 	return 1
 }
 
-// GetContent returns the content as a list of objects
+// Ref returns the reference ID of the content
+func (c *ContentFormat) Ref() int {
+	return int(RefContentFormat)
+}
+
+// GetContent returns the content as a read-only list
+// This operation is not supported for format content
 func (c *ContentFormat) GetContent() []interface{} {
-	// In the C# version, this throws NotImplementedException
-	// We'll return nil in Go to indicate this is not implemented
+	// Format content has no actual content
 	return nil
 }
 
 // Copy creates a copy of this content
-func (c *ContentFormat) Copy() Content {
-	return NewContentFormat(c.Key, c.Value)
+func (c *ContentFormat) Copy() IContent {
+	return &ContentFormat{
+		key:   c.key,
+		value: c.value,
+	}
 }
 
-// Splice splits this content at the specified offset
-func (c *ContentFormat) Splice(offset int) Content {
-	// In the C# version, this throws NotImplementedException
-	// We'll panic in Go to indicate this is not implemented
-	panic("splice not implemented for ContentFormat")
+// Splice splits the content at the given offset
+// This operation is not supported for format content
+func (c *ContentFormat) Splice(offset int) IContent {
+	// Format content cannot be spliced
+	return nil
 }
 
-// MergeWith merges this content with the right content
-func (c *ContentFormat) MergeWith(right Content) bool {
-	// In the C# version, this always returns false
+// MergeWith merges this content with another content
+// Returns true if the merge was successful
+func (c *ContentFormat) MergeWith(right IContent) bool {
+	// Format content cannot be merged
 	return false
 }
 
-// Integrate integrates this content
+// Integrate integrates the format content with a transaction
 func (c *ContentFormat) Integrate(transaction *Transaction, item *Item) {
-	// Search markers are currently unsupported for rich text documents.
-	// In Go, we would need to check if the parent is a YArrayBase and clear search markers
-	// (item.Parent as YArrayBase)?.ClearSearchMarkers()
+	// Search markers are currently unsupported for rich text documents
+	// Clear search markers from parent YArrayBase
+	if yArrayBase, ok := item.Parent().(*YArrayBase); ok {
+		yArrayBase.ClearSearchMarkers()
+	}
 }
 
-// Delete deletes this content
+// Delete deletes the format content
 func (c *ContentFormat) Delete(transaction *Transaction) {
-	// Do nothing
+	// Do nothing (implementation as in C#)
 }
 
-// Gc garbage collects this content
+// Gc performs garbage collection on the format content
 func (c *ContentFormat) Gc(store *StructStore) {
-	// Do nothing
+	// Do nothing (implementation as in C#)
 }
 
-// Write writes this content to an encoder
+// Write writes the format content to an update encoder
 func (c *ContentFormat) Write(encoder IUpdateEncoder, offset int) {
-	encoder.WriteKey(c.Key)
-	encoder.WriteJson(c.Value)
+	// Write the key and JSON value to the encoder
+	encoder.WriteKey(c.key)
+	encoder.WriteJson(c.value)
 }
 
-// Read reads ContentFormat from a decoder
-func ReadContentFormat(decoder IUpdateDecoder) *ContentFormat {
+// Read reads a ContentFormat from the decoder
+func (c *ContentFormat) Read(decoder IUpdateDecoder) (*ContentFormat, error) {
+	// Read the key and JSON value from the decoder
 	key := decoder.ReadKey()
-	value := decoder.ReadJson()
-	return NewContentFormat(key, value)
+	value, err := decoder.ReadJson()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContentFormat{
+		key:   key,
+		value: value,
+	}, nil
 }

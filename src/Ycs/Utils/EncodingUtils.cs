@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Ycs.Core;
+using Ycs.Lib0;
 using Ycs.Structs;
 using Ycs.Types;
 using GC = Ycs.Structs.GC;

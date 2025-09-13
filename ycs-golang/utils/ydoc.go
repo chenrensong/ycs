@@ -1,456 +1,377 @@
-// ------------------------------------------------------------------------------
-//  <copyright company="Microsoft Corporation">
-//      Copyright (c) Microsoft Corporation.  All rights reserved.
-//  </copyright>
-// ------------------------------------------------------------------------------
-
 package utils
 
 import (
 	"bytes"
+	"errors"
 	"math/rand"
+	"sync"
 	"time"
-	"ycs-golang/structs"
-	"ycs-golang/types"
+
+	encoding "github.com/chenrensong/ygo/lib0/encoding"
+	structs "github.com/chenrensong/ygo/structs"
+	types "github.com/chenrensong/ygo/types"
 )
 
-// YDocOptions represents options for YDoc
+var (
+	ErrTypeMismatch     = errors.New("type with this name already defined with different constructor")
+	ErrUnknownType      = errors.New("unknown type")
+	ErrInvalidOperation = errors.New("invalid operation")
+)
+
+// YDocOptions contains configuration options for a YDoc
 type YDocOptions struct {
-	Gc       bool
-	GcFilter func(*structs.Item) bool
-	Guid     string
+	GC       bool
+	GCFilter func(item *structs.Item) bool
+	GUID     string
 	Meta     map[string]string
 	AutoLoad bool
 }
 
-// Clone clones the YDocOptions
-func (opts *YDocOptions) Clone() *YDocOptions {
-	clone := &YDocOptions{
-		Gc:       opts.Gc,
-		Guid:     opts.Guid,
-		AutoLoad: opts.AutoLoad,
+// Clone creates a deep copy of YDocOptions
+func (o *YDocOptions) Clone() *YDocOptions {
+	meta := make(map[string]string)
+	for k, v := range o.Meta {
+		meta[k] = v
 	}
-	
-	if opts.Meta != nil {
-		clone.Meta = make(map[string]string)
-		for k, v := range opts.Meta {
-			clone.Meta[k] = v
-		}
+	return &YDocOptions{
+		GC:       o.GC,
+		GCFilter: o.GCFilter,
+		GUID:     o.GUID,
+		Meta:     meta,
+		AutoLoad: o.AutoLoad,
 	}
-	
-	if opts.GcFilter != nil {
-		clone.GcFilter = opts.GcFilter
-	}
-	
-	return clone
 }
 
-// Write writes the options to an encoder
-func (opts *YDocOptions) Write(encoder IUpdateEncoder, offset int) {
-	dict := make(map[string]interface{})
-	dict["gc"] = opts.Gc
-	dict["guid"] = opts.Guid
-	dict["autoLoad"] = opts.AutoLoad
-
-	if opts.Meta != nil {
-		dict["meta"] = opts.Meta
-	}
-
-	// Note: encoder.WriteAny needs to be implemented
-	// encoder.WriteAny(dict)
-}
-
-// Read reads options from a decoder
-func ReadYDocOptions(decoder IUpdateDecoder) *YDocOptions {
-	// Note: decoder.ReadAny needs to be implemented
-	// dict := decoder.ReadAny().(map[string]interface{})
-	
-	result := &YDocOptions{
-		Gc:       true, // Default value
-		Guid:     generateGUID(), // Default value
-		AutoLoad: false, // Default value
-	}
-	
-	// Placeholder for reading from decoder
-	// if val, exists := dict["gc"]; exists {
-	//     result.Gc = val.(bool)
-	// }
-	// 
-	// if val, exists := dict["guid"]; exists {
-	//     result.Guid = val.(string)
-	// } else {
-	//     result.Guid = generateGUID()
-	// }
-	// 
-	// if val, exists := dict["meta"]; exists {
-	//     result.Meta = val.(map[string]string)
-	// }
-	// 
-	// if val, exists := dict["autoLoad"]; exists {
-	//     result.AutoLoad = val.(bool)
-	// }
-	
-	return result
-}
-
-// DefaultGcFilter is the default garbage collection filter
-func DefaultGcFilter(item *structs.Item) bool {
-	return true
-}
-
-// YDoc represents a Yjs document
+// YDoc represents a Yjs document that handles the state of shared data
 type YDoc struct {
-	opts                  *YDocOptions
-	ClientId              int64
-	Store                 *StructStore
-	transactionCleanups   []*Transaction
-	transaction           *Transaction
-	Subdocs               map[*YDoc]bool
-	item                  *structs.Item
-	share                 map[string]*types.AbstractType
-	ShouldLoad            bool
-	
+	opts *YDocOptions
+
+	mu                  sync.RWMutex
+	transaction         *Transaction
+	transactionCleanups []*Transaction
+	item                *structs.Item
+	share               map[string]*types.AbstractType
+	clientID            uint64
+	store               *structs.StructStore
+	subdocs             map[*YDoc]struct{}
+	shouldLoad          bool
+
 	// Event handlers
-	BeforeObserverCalls        []func(*Transaction)
-	BeforeTransaction          []func(*Transaction)
-	AfterTransaction           []func(*Transaction)
-	AfterTransactionCleanup    []func(*Transaction)
-	BeforeAllTransactions      []func()
-	AfterAllTransactions       []func([]*Transaction)
-	UpdateV2                   []func([]byte, interface{}, *Transaction)
-	Destroyed                  []func()
-	SubdocsChanged             []func(map[*YDoc]bool, map[*YDoc]bool, map[*YDoc]bool)
+	beforeObserverCalls     func(*Transaction)
+	beforeTransaction       func(*Transaction)
+	afterTransaction        func(*Transaction)
+	afterTransactionCleanup func(*Transaction)
+	beforeAllTransactions   func()
+	afterAllTransactions    func([]*Transaction)
+	updateV2                func([]byte, interface{}, *Transaction)
+	destroyed               func()
+	subdocsChanged          func(map[*YDoc]struct{}, map[*YDoc]struct{}, map[*YDoc]struct{})
 }
 
-// NewYDoc creates a new YDoc
+// NewYDoc creates a new YDoc instance
 func NewYDoc(opts *YDocOptions) *YDoc {
 	if opts == nil {
 		opts = &YDocOptions{
-			Gc:       true,
-			GcFilter: DefaultGcFilter,
-			Guid:     generateGUID(),
-			Meta:     nil,
+			GC:       true,
+			GUID:     newGUID(),
 			AutoLoad: false,
 		}
 	}
-	
-	doc := &YDoc{
+
+	return &YDoc{
 		opts:                opts,
-		transactionCleanups: make([]*Transaction, 0),
+		clientID:            generateNewClientID(),
 		share:               make(map[string]*types.AbstractType),
-		Store:               NewStructStore(),
-		Subdocs:             make(map[*YDoc]bool),
-		ShouldLoad:          opts.AutoLoad,
+		store:               structs.NewStructStore(),
+		subdocs:             make(map[*YDoc]struct{}),
+		shouldLoad:          opts.AutoLoad,
+		transactionCleanups: make([]*Transaction, 0),
 	}
-	
-	doc.ClientId = GenerateNewClientId()
-	return doc
 }
 
-// Guid returns the document's GUID
-func (doc *YDoc) Guid() string {
-	return doc.opts.Guid
+func newGUID() string {
+	// Implement GUID generation
+	return ""
 }
 
-// Gc returns whether garbage collection is enabled
-func (doc *YDoc) Gc() bool {
-	return doc.opts.Gc
-}
-
-// GcFilter returns the garbage collection filter
-func (doc *YDoc) GcFilter() func(*structs.Item) bool {
-	return doc.opts.GcFilter
-}
-
-// AutoLoad returns whether auto load is enabled
-func (doc *YDoc) AutoLoad() bool {
-	return doc.opts.AutoLoad
-}
-
-// Meta returns the document's metadata
-func (doc *YDoc) Meta() map[string]string {
-	return doc.opts.Meta
-}
-
-// GenerateNewClientId generates a new client ID
-func GenerateNewClientId() int64 {
-	// Seed the random number generator
+func generateNewClientID() uint64 {
 	rand.Seed(time.Now().UnixNano())
-	return int64(rand.Intn(2147483647)) // Max value for 32-bit integer
+	return rand.Uint64()
 }
 
-// generateGUID generates a new GUID
-func generateGUID() string {
-	// This is a simplified GUID generation
-	// In a real implementation, you might want to use a proper GUID library
-	return "guid-" + time.Now().String()
-}
+// Load requests to load data into this subdocument
+func (d *YDoc) Load() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
-// Load loads the document
-func (doc *YDoc) Load() {
-	item := doc.item
-	if item != nil && !doc.ShouldLoad {
-		if parent, ok := item.Parent.(*types.AbstractType); ok {
-			parent.Doc.Transact(func(tr *Transaction) {
-				tr.SubdocsLoaded[doc] = true
+	if d.item != nil && !d.shouldLoad {
+		if parent, ok := d.item.Parent.(*types.AbstractType); ok {
+			parent.Doc().Transact(func(tr *Transaction) {
+				tr.SubdocsLoaded[d] = struct{}{}
 			}, nil, true)
 		}
 	}
-	doc.ShouldLoad = true
+	d.shouldLoad = true
 }
 
-// CreateSnapshot creates a snapshot of the document
-func (doc *YDoc) CreateSnapshot() *Snapshot {
-	return NewSnapshot(NewDeleteSetFromStructStore(doc.Store), doc.Store.GetStateVector())
+// CreateSnapshot creates a snapshot of the current document state
+func (d *YDoc) CreateSnapshot() *Snapshot {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return NewSnapshot(structs.NewDeleteSet(d.store), d.store.GetStateVector())
 }
 
-// GetSubdocGuids gets the GUIDs of subdocuments
-func (doc *YDoc) GetSubdocGuids() []string {
-	guids := make([]string, 0, len(doc.Subdocs))
-	for subdoc := range doc.Subdocs {
-		guids = append(guids, subdoc.Guid())
+// GetSubdocGUIDs returns GUIDs of all subdocuments
+func (d *YDoc) GetSubdocGUIDs() []string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	guids := make([]string, 0, len(d.subdocs))
+	for subdoc := range d.subdocs {
+		guids = append(guids, subdoc.opts.GUID)
 	}
 	return guids
 }
 
-// Destroy destroys the document
-func (doc *YDoc) Destroy() {
-	for subdoc := range doc.Subdocs {
+// Destroy destroys the document and all its subdocuments
+func (d *YDoc) Destroy() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Destroy all subdocs first
+	for subdoc := range d.subdocs {
 		subdoc.Destroy()
 	}
 
-	item := doc.item
-	if item != nil {
-		doc.item = nil
-		// Note: ContentDoc type needs to be implemented
-		// content := item.Content.(*ContentDoc)
-
-		if item.Deleted {
-			// if content != nil {
-			//     content.Doc = nil
-			// }
+	if d.item != nil {
+		content, ok := d.item.Content.(*types.ContentDoc)
+		if d.item.Deleted {
+			if ok {
+				content.Doc = nil
+			}
 		} else {
-			// Debug.Assert(content != nil)
-			// newOpts := content.Opts
-			// newOpts.Guid = doc.Guid()
-
-			// content.Doc = NewYDoc(newOpts)
-			// content.Doc.item = item
+			if !ok {
+				panic("invalid content type")
+			}
+			newOpts := content.Opts.Clone()
+			newOpts.GUID = d.opts.GUID
+			content.Doc = NewYDoc(newOpts)
+			content.Doc.item = d.item
 		}
 
-		if parent, ok := item.Parent.(*types.AbstractType); ok {
-			parent.Doc.Transact(func(tr *Transaction) {
-				// if !item.Deleted {
-				//     Debug.Assert(content != nil)
-				//     tr.SubdocsAdded[content.Doc] = true
-				// }
-
-				tr.SubdocsRemoved[doc] = true
+		if parent, ok := d.item.Parent.(*types.AbstractType); ok {
+			parent.Doc().Transact(func(tr *Transaction) {
+				if !d.item.Deleted {
+					tr.SubdocsAdded[content.Doc] = struct{}{}
+				}
+				tr.SubdocsRemoved[d] = struct{}{}
 			}, nil, true)
 		}
 	}
 
-	doc.InvokeDestroyed()
+	d.invokeDestroyed()
 }
 
 // Transact executes a function as a transaction
-func (doc *YDoc) Transact(fun func(*Transaction), origin interface{}, local bool) {
+func (d *YDoc) Transact(fun func(*Transaction), origin interface{}, local bool) {
+	d.mu.Lock()
 	initialCall := false
-	if doc.transaction == nil {
+	if d.transaction == nil {
 		initialCall = true
-		doc.transaction = NewTransaction(doc, origin, local)
-		doc.transactionCleanups = append(doc.transactionCleanups, doc.transaction)
-		if len(doc.transactionCleanups) == 1 {
-			doc.InvokeBeforeAllTransactions()
+		d.transaction = NewTransaction(d, origin, local)
+		d.transactionCleanups = append(d.transactionCleanups, d.transaction)
+		if len(d.transactionCleanups) == 1 {
+			d.invokeBeforeAllTransactions()
 		}
-
-		doc.InvokeOnBeforeTransaction(doc.transaction)
+		d.invokeBeforeTransaction(d.transaction)
 	}
+	d.mu.Unlock()
 
 	defer func() {
-		if initialCall && len(doc.transactionCleanups) > 0 && doc.transactionCleanups[0] == doc.transaction {
-			// The first transaction ended, now process observer calls.
-			// Observer call may create new transactions for which we need to call the observers and do cleanup.
-			// We don't want to nest these calls, so we execute these calls one after another.
-			// Also we need to ensure that all cleanups are called, even if the observers throw errors.
-			CleanupTransactions(doc.transactionCleanups, 0)
+		d.mu.Lock()
+		defer d.mu.Unlock()
+
+		if initialCall && len(d.transactionCleanups) > 0 && d.transactionCleanups[0] == d.transaction {
+			CleanupTransactions(d.transactionCleanups, 0)
 		}
 	}()
 
-	fun(doc.transaction)
+	fun(d.transaction)
 }
 
-// GetArray gets an array from the document
-func (doc *YDoc) GetArray(name string) *types.YArray {
-	return doc.Get(name).(*types.YArray)
+// GetArray returns or creates a YArray with the given name
+func (d *YDoc) GetArray(name string) *types.YArray {
+	return d.Get(name).(*types.YArray)
 }
 
-// GetMap gets a map from the document
-func (doc *YDoc) GetMap(name string) *types.YMap {
-	return doc.Get(name).(*types.YMap)
+// GetMap returns or creates a YMap with the given name
+func (d *YDoc) GetMap(name string) *types.YMap {
+	return d.Get(name).(*types.YMap)
 }
 
-// GetText gets a text from the document
-func (doc *YDoc) GetText(name string) *types.YText {
-	return doc.Get(name).(*types.YText)
+// GetText returns or creates a YText with the given name
+func (d *YDoc) GetText(name string) *types.YText {
+	return d.Get(name).(*types.YText)
 }
 
-// Get gets a type from the document
-func (doc *YDoc) Get(name string) interface{} {
-	if typ, exists := doc.share[name]; exists {
+// Get returns or creates a shared type with the given name
+func (d *YDoc) Get(name string) types.AbstractType {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	typ, exists := d.share[name]
+	if !exists {
+		// Default to YMap if no type specified
+		typ = types.NewYMap()
+		typ.Integrate(d, nil)
+		d.share[name] = typ
 		return typ
 	}
 
-	// Create a new abstract type
-	// Note: This is a simplified implementation
-	// In a real implementation, you would need to handle different types
-	typ := types.NewAbstractType()
-	typ.Integrate(doc, nil)
-	doc.share[name] = typ
-	return typ
+	// Handle type conversion if needed
+	switch t := typ.(type) {
+	case *types.YArray:
+		return t
+	case *types.YMap:
+		return t
+	case *types.YText:
+		return t
+	default:
+		// If the existing type is just AbstractType, we can convert it
+		if _, ok := typ.(*types.AbstractType); ok {
+			newType := types.NewYMap() // Default to YMap
+			newType.SetMap(t.Map())
+			newType.SetStart(t.Start())
+			newType.SetLength(t.Length())
+			d.share[name] = newType
+			newType.Integrate(d, nil)
+			return newType
+		}
+		panic(ErrTypeMismatch)
+	}
 }
 
-// ApplyUpdateV2 applies an update from a stream
-func (doc *YDoc) ApplyUpdateV2(input []byte, transactionOrigin interface{}, local bool) {
-	doc.Transact(func(tr *Transaction) {
-		// Note: UpdateDecoderV2 needs to be implemented
-		// structDecoder := NewUpdateDecoderV2(bytes.NewReader(input))
-		// defer structDecoder.Dispose()
-		
-		// EncodingUtils.ReadStructs(structDecoder, tr, doc.Store)
-		// doc.Store.ReadAndApplyDeleteSet(structDecoder, tr)
-	}, transactionOrigin, local)
+// ApplyUpdateV2 applies an update to the document
+func (d *YDoc) ApplyUpdateV2(update []byte, origin interface{}, local bool) {
+	d.Transact(func(tr *Transaction) {
+		decoder, err := NewUpdateDecoderV2(bytes.NewReader(update), false)
+		if err != nil {
+			panic(err) // Handle error appropriately in production code
+		}
+		ReadStructs(decoder, tr, d.store)
+		d.store.ReadAndApplyDeleteSet(decoder, tr)
+	}, origin, local)
 }
 
 // EncodeStateAsUpdateV2 encodes the document state as an update
-func (doc *YDoc) EncodeStateAsUpdateV2(encodedTargetStateVector []byte) []byte {
-	// Note: UpdateEncoderV2 needs to be implemented
-	// encoder := NewUpdateEncoderV2()
-	// defer encoder.Dispose()
-	
-	// var targetStateVector map[int64]int64
-	// if encodedTargetStateVector == nil {
-	//     targetStateVector = make(map[int64]int64)
-	// } else {
-	//     // Note: EncodingUtils.DecodeStateVector needs to be implemented
-	//     // targetStateVector = EncodingUtils.DecodeStateVector(bytes.NewReader(encodedTargetStateVector))
-	// }
-	// 
-	// doc.WriteStateAsUpdate(encoder, targetStateVector)
-	// return encoder.ToArray()
-	
-	return []byte{} // Placeholder
-}
+func (d *YDoc) EncodeStateAsUpdateV2(encodedTargetStateVector []byte) []byte {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 
-// EncodeStateVectorV2 encodes the document state vector
-func (doc *YDoc) EncodeStateVectorV2() []byte {
-	// Note: DSEncoderV2 needs to be implemented
-	// encoder := NewDSEncoderV2()
-	// defer encoder.Dispose()
-	
-	// doc.WriteStateVector(encoder)
-	// return encoder.ToArray()
-	
-	return []byte{} // Placeholder
-}
-
-// WriteStateAsUpdate writes the document state as an update
-func (doc *YDoc) WriteStateAsUpdate(encoder IUpdateEncoder, targetStateVector map[int64]int64) {
-	// Note: EncodingUtils.WriteClientsStructs needs to be implemented
-	// EncodingUtils.WriteClientsStructs(encoder, doc.Store, targetStateVector)
-	// NewDeleteSetFromStructStore(doc.Store).Write(encoder)
-}
-
-// WriteStateVector writes the document state vector
-func (doc *YDoc) WriteStateVector(encoder IDSDecoder) {
-	// Note: EncodingUtils.WriteStateVector needs to be implemented
-	// EncodingUtils.WriteStateVector(encoder, doc.Store.GetStateVector())
-}
-
-// InvokeSubdocsChanged invokes the subdocs changed event
-func (doc *YDoc) InvokeSubdocsChanged(loaded, added, removed map[*YDoc]bool) {
-	for _, handler := range doc.SubdocsChanged {
-		handler(loaded, added, removed)
+	encoder := encoding.NewUpdateEncoderV2()
+	var targetStateVector map[uint64]uint64
+	if encodedTargetStateVector != nil {
+		targetStateVector = encoding.DecodeStateVector(bytes.NewReader(encodedTargetStateVector))
+	} else {
+		targetStateVector = make(map[uint64]uint64)
 	}
+	d.writeStateAsUpdate(encoder, targetStateVector)
+	return encoder.ToArray()
 }
 
-// InvokeOnBeforeObserverCalls invokes the before observer calls event
-func (doc *YDoc) InvokeOnBeforeObserverCalls(transaction *Transaction) {
-	for _, handler := range doc.BeforeObserverCalls {
-		handler(transaction)
-	}
+// EncodeStateVectorV2 encodes the state vector
+func (d *YDoc) EncodeStateVectorV2() []byte {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	encoder := encoding.NewDSEncoderV2()
+	d.writeStateVector(encoder)
+	return encoder.ToArray()
 }
 
-// InvokeAfterAllTransactions invokes the after all transactions event
-func (doc *YDoc) InvokeAfterAllTransactions(transactions []*Transaction) {
-	for _, handler := range doc.AfterAllTransactions {
-		handler(transactions)
-	}
+// writeStateAsUpdate writes the document state as an update
+func (d *YDoc) writeStateAsUpdate(encoder encoding.UpdateEncoder, targetStateVector map[uint64]uint64) {
+	encoding.WriteClientsStructs(encoder, d.store, targetStateVector)
+	structs.NewDeleteSet(d.store).Write(encoder)
 }
 
-// InvokeOnBeforeTransaction invokes the before transaction event
-func (doc *YDoc) InvokeOnBeforeTransaction(transaction *Transaction) {
-	for _, handler := range doc.BeforeTransaction {
-		handler(transaction)
-	}
+// writeStateVector writes the state vector
+func (d *YDoc) writeStateVector(encoder encoding.DSEncoder) {
+	encoding.WriteStateVector(encoder, d.store.GetStateVector())
 }
 
-// InvokeOnAfterTransaction invokes the after transaction event
-func (doc *YDoc) InvokeOnAfterTransaction(transaction *Transaction) {
-	for _, handler := range doc.AfterTransaction {
-		handler(transaction)
-	}
-}
-
-// InvokeOnAfterTransactionCleanup invokes the after transaction cleanup event
-func (doc *YDoc) InvokeOnAfterTransactionCleanup(transaction *Transaction) {
-	for _, handler := range doc.AfterTransactionCleanup {
-		handler(transaction)
-	}
-}
-
-// InvokeBeforeAllTransactions invokes the before all transactions event
-func (doc *YDoc) InvokeBeforeAllTransactions() {
-	for _, handler := range doc.BeforeAllTransactions {
-		handler()
-	}
-}
-
-// InvokeDestroyed invokes the destroyed event
-func (doc *YDoc) InvokeDestroyed() {
-	for _, handler := range doc.Destroyed {
-		handler()
-	}
-}
-
-// InvokeUpdateV2 invokes the update V2 event
-func (doc *YDoc) InvokeUpdateV2(transaction *Transaction) {
-	for _, handler := range doc.UpdateV2 {
-		// Note: UpdateEncoderV2 needs to be implemented
-		// encoder := NewUpdateEncoderV2()
-		// defer encoder.Dispose()
-		
-		// hasContent := transaction.WriteUpdateMessageFromTransaction(encoder)
-		// if hasContent {
-		//     handler(encoder.ToArray(), transaction.Origin, transaction)
-		// }
-	}
-}
-
-// CloneOptionsWithNewGuid clones the options with a new GUID
-func (doc *YDoc) CloneOptionsWithNewGuid() *YDocOptions {
-	newOpts := doc.opts.Clone()
-	newOpts.Guid = generateGUID()
+// cloneOptionsWithNewGUID clones the options with a new GUID
+func (d *YDoc) cloneOptionsWithNewGUID() *YDocOptions {
+	newOpts := d.opts.Clone()
+	newOpts.GUID = newGUID()
 	return newOpts
 }
 
-// FindRootTypeKey finds the root type key
-func (doc *YDoc) FindRootTypeKey(typ *types.AbstractType) string {
-	for key, value := range doc.share {
-		if value == typ {
-			return key
+// findRootTypeKey finds the root type key for a type
+func (d *YDoc) findRootTypeKey(typ *types.AbstractType) string {
+	for name, t := range d.share {
+		if typ.Equals(t) {
+			return name
 		}
 	}
-	
-	panic("Type not found")
+	panic(ErrUnknownType)
+}
+
+// Event invocation methods
+func (d *YDoc) invokeSubdocsChanged(loaded, added, removed map[*YDoc]struct{}) {
+	if d.subdocsChanged != nil {
+		d.subdocsChanged(loaded, added, removed)
+	}
+}
+
+func (d *YDoc) invokeBeforeObserverCalls(tr *Transaction) {
+	if d.beforeObserverCalls != nil {
+		d.beforeObserverCalls(tr)
+	}
+}
+
+func (d *YDoc) invokeAfterAllTransactions(transactions []*Transaction) {
+	if d.afterAllTransactions != nil {
+		d.afterAllTransactions(transactions)
+	}
+}
+
+func (d *YDoc) invokeBeforeTransaction(tr *Transaction) {
+	if d.beforeTransaction != nil {
+		d.beforeTransaction(tr)
+	}
+}
+
+func (d *YDoc) invokeAfterTransaction(tr *Transaction) {
+	if d.afterTransaction != nil {
+		d.afterTransaction(tr)
+	}
+}
+
+func (d *YDoc) invokeAfterTransactionCleanup(tr *Transaction) {
+	if d.afterTransactionCleanup != nil {
+		d.afterTransactionCleanup(tr)
+	}
+}
+
+func (d *YDoc) invokeBeforeAllTransactions() {
+	if d.beforeAllTransactions != nil {
+		d.beforeAllTransactions()
+	}
+}
+
+func (d *YDoc) invokeDestroyed() {
+	if d.destroyed != nil {
+		d.destroyed()
+	}
+}
+
+func (d *YDoc) invokeUpdateV2(tr *Transaction) {
+	if d.updateV2 != nil {
+		encoder := encoding.NewUpdateEncoderV2()
+		if hasContent := tr.WriteUpdateMessageFromTransaction(encoder); hasContent {
+			d.updateV2(encoder.ToArray(), tr.Origin, tr)
+		}
+	}
 }

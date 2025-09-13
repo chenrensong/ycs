@@ -1,141 +1,171 @@
+// ------------------------------------------------------------------------------
+//  <copyright company="Microsoft Corporation">
+//      Copyright (c) Microsoft Corporation.  All rights reserved.
+//  </copyright>
+// ------------------------------------------------------------------------------
+
 package structs
 
 import (
 	"encoding/json"
 )
 
-// ContentJson represents JSON content
+// ContentJson represents JSON content in the document
+// This is the Go implementation of the C# ContentJson class
 type ContentJson struct {
 	content []interface{}
 }
 
-// NewContentJson creates a new ContentJson from a slice of interface{}
-func NewContentJson(data []interface{}) *ContentJson {
-	contentCopy := make([]interface{}, len(data))
-	copy(contentCopy, data)
+// Ref is a constant reference ID for ContentJson
+type _ref int
+
+const (
+	RefContentJson _ref = 2
+)
+
+// NewContentJson creates a new instance of ContentJson
+// data is the JSON content
+func NewContentJson(data []interface{}) (*ContentJson, error) {
 	return &ContentJson{
-		content: contentCopy,
-	}
+		content: data,
+	}, nil
 }
 
-// NewContentJsonFromContent creates a new ContentJson from another ContentJson's content
-func NewContentJsonFromContent(other []interface{}) *ContentJson {
-	return &ContentJson{
-		content: other,
-	}
+// NewContentJsonFromInterfaceSlice creates a new instance of ContentJson from a slice of interfaces
+func NewContentJsonFromInterfaceSlice(data []interface{}) (*ContentJson, error) {
+	return NewContentJson(data)
 }
 
-// Ref returns the reference type for ContentJson
+// Ref returns the reference ID of the content
 func (c *ContentJson) Ref() int {
-	return 2 // _ref constant from C# version
+	return int(RefContentJson)
 }
 
-// Countable returns whether this content is countable
+// Countable returns true as ContentJson is countable
 func (c *ContentJson) Countable() bool {
 	return true
 }
 
-// Length returns the length of this content
+// Length returns the length of the JSON content
 func (c *ContentJson) Length() int {
+	if c.content == nil {
+		return 0
+	}
 	return len(c.content)
 }
 
-// GetContent returns the content as a list of objects
+// GetContent returns the JSON content as a read-only list
 func (c *ContentJson) GetContent() []interface{} {
-	contentCopy := make([]interface{}, len(c.content))
-	copy(contentCopy, c.content)
-	return contentCopy
-}
-
-// Copy creates a copy of this content
-func (c *ContentJson) Copy() Content {
-	contentCopy := make([]interface{}, len(c.content))
-	copy(contentCopy, c.content)
-	return NewContentJsonFromContent(contentCopy)
-}
-
-// Splice splits this content at the specified offset
-func (c *ContentJson) Splice(offset int) Content {
-	rightContent := make([]interface{}, len(c.content)-offset)
-	copy(rightContent, c.content[offset:])
-	
-	right := NewContentJsonFromContent(rightContent)
-	
-	// Remove the content from the original
-	c.content = c.content[:offset]
-	
-	return right
-}
-
-// MergeWith merges this content with the right content
-func (c *ContentJson) MergeWith(right Content) bool {
-	// In Go, we use type assertion to check the type
-	if rightJson, ok := right.(*ContentJson); ok {
-		c.content = append(c.content, rightJson.content...)
-		return true
+	if c.content == nil {
+		return nil
 	}
-	return false
+	return c.content
 }
 
-// Integrate integrates this content
+// Copy creates a copy of this JSON content
+func (c *ContentJson) Copy() IContent {
+	newContent := make([]interface{}, len(c.content))
+	copy(newContent, c.content)
+	return &ContentJson{
+		content: newContent,
+	}
+}
+
+// Splice splits the JSON content at the given offset
+// Returns the right part of the split
+func (c *ContentJson) Splice(offset int) IContent {
+	if offset < 0 || offset >= len(c.content) {
+		return nil // Or return an error
+	}
+
+	// Create a new content with the right part
+	rightContent := c.content[offset:]
+
+	// Remove the right part from this content
+	c.content = c.content[:offset]
+
+	return &ContentJson{
+		content: rightContent,
+	}
+}
+
+// MergeWith merges this JSON content with another content
+// Returns true if the merge was successful
+func (c *ContentJson) MergeWith(right IContent) bool {
+	// Assert that right is ContentJson
+	rightJson, ok := right.(*ContentJson)
+	if !ok {
+		return false
+	}
+
+	// Add the right content to this content
+	c.content = append(c.content, rightJson.content...)
+	return true
+}
+
+// Integrate integrates the JSON content with a transaction
 func (c *ContentJson) Integrate(transaction *Transaction, item *Item) {
-	// Do nothing
+	// Do nothing (implementation as in C#)
 }
 
-// Delete deletes this content
+// Delete deletes the JSON content
 func (c *ContentJson) Delete(transaction *Transaction) {
-	// Do nothing
+	// Do nothing (implementation as in C#)
 }
 
-// Gc garbage collects this content
+// Gc performs garbage collection on the JSON content
 func (c *ContentJson) Gc(store *StructStore) {
-	// Do nothing
+	// Do nothing (implementation as in C#)
 }
 
-// Write writes this content to an encoder
+// Write writes the JSON content to an update encoder
 func (c *ContentJson) Write(encoder IUpdateEncoder, offset int) {
 	length := len(c.content)
 	encoder.WriteLength(length)
-	
+
 	for i := offset; i < length; i++ {
-		// Serialize the object to JSON
-		jsonBytes, err := json.Marshal(c.content[i])
+		// Serialize the JSON content to a string
+		jsonStr, err := json.Marshal(c.content[i])
 		if err != nil {
-			// If marshaling fails, write "undefined" as in the C# version
-			encoder.WriteString("undefined")
-			continue
+			// Handle the error
+			return // Or panic if needed
 		}
-		
-		jsonStr := string(jsonBytes)
-		encoder.WriteString(jsonStr)
+		encoder.WriteString(string(jsonStr))
 	}
 }
 
-// Read reads ContentJson from a decoder
-func ReadContentJson(decoder IUpdateDecoder) *ContentJson {
-	length := decoder.ReadLength()
+// Read reads a ContentJson from the decoder
+func (c *ContentJson) Read(decoder IUpdateDecoder) (*ContentJson, error) {
+	// Read the length
+	length, err := decoder.ReadLength()
+	if err != nil {
+		return nil, err
+	}
+
 	content := make([]interface{}, length)
 
 	for i := 0; i < length; i++ {
-		jsonStr := decoder.ReadString()
-		
-		// Check if the string is "undefined"
+		// Read the JSON string
+		jsonStr, err := decoder.ReadString()
+		if err != nil {
+			return nil, err
+		}
+
+		// Handle undefined values
 		if jsonStr == "undefined" {
 			content[i] = nil
-			continue
+		} else {
+			// Deserialize the JSON string
+			var jsonObj interface{}
+			err := json.Unmarshal([]byte(jsonStr), &jsonObj)
+			if err != nil {
+				return nil, err
+			}
+			content[i] = jsonObj
 		}
-		
-		// Deserialize the JSON string
-		var jsonObj interface{}
-		err := json.Unmarshal([]byte(jsonStr), &jsonObj)
-		if err != nil {
-			// If unmarshaling fails, store nil
-			content[i] = nil
-			continue
-		}
-		
-		content[i] = jsonObj
 	}
 
-	return NewContentJsonFromContent(content)
+	return &ContentJson{
+		content: content,
+	}, nil
 }

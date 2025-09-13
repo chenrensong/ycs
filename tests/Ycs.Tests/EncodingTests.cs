@@ -7,7 +7,7 @@
 using System;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Ycs.Core;
+using Ycs.Lib0;
 using Ycs.Utils;
 
 namespace Ycs

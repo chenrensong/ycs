@@ -2,424 +2,536 @@ package types
 
 import (
 	"strings"
-	"github.com/yjs/ycs-golang/structs"
-	"github.com/yjs/ycs-golang/utils"
+
+	"github.com/chenrensong/ygo/utils"
 )
 
-// YTextEvent represents an event for YText
-type YTextEvent struct {
-	*YEvent
-	KeysChanged map[string]struct{}
-	ChildListChanged bool
-	delta       []Delta
+const YTextRefId = 2
+
+// Delta represents a delta operation for text changes
+type Delta struct {
+	Insert     interface{}            `json:"insert,omitempty"`
+	Delete     *int                   `json:"delete,omitempty"`
+	Retain     *int                   `json:"retain,omitempty"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
-// NewYTextEvent creates a new YTextEvent
+// YTextChangeType represents the type of text change
+type YTextChangeType int
+
+const (
+	YTextChangeTypeAdded YTextChangeType = iota
+	YTextChangeTypeRemoved
+)
+
+const ChangeKey = "ychange"
+
+// YTextChangeAttributes represents change attributes
+type YTextChangeAttributes struct {
+	Type  YTextChangeType
+	User  uint64
+	State YTextChangeType
+}
+
+// YTextEvent represents an event for YText changes
+type YTextEvent struct {
+	*utils.YEvent
+	KeysChanged      map[string]struct{}
+	ChildListChanged bool
+	delta            []Delta
+}
+
 func NewYTextEvent(text *YText, transaction *utils.Transaction, subs map[string]struct{}) *YTextEvent {
-	keysChanged := make(map[string]struct{})
-	childListChanged := false
-	
+	event := &YTextEvent{
+		YEvent:           utils.NewYEvent(&text.YArrayBase.AbstractType, transaction),
+		KeysChanged:      make(map[string]struct{}),
+		ChildListChanged: false,
+	}
+
 	if len(subs) > 0 {
 		for sub := range subs {
 			if sub == "" {
-				childListChanged = true
+				event.ChildListChanged = true
 			} else {
-				keysChanged[sub] = struct{}{}
+				event.KeysChanged[sub] = struct{}{}
 			}
 		}
 	}
-	
-	return &YTextEvent{
-		YEvent:           NewYEvent(text.AbstractType, transaction),
-		KeysChanged:      keysChanged,
-		ChildListChanged: childListChanged,
-	}
+
+	return event
 }
 
-// Delta returns the changes in the delta format
-func (y *YTextEvent) Delta() []Delta {
-	if y.delta == nil {
-		doc := y.Target.Doc
-		y.delta = make([]Delta, 0)
-		
-		doc.Transact(func(transaction *utils.Transaction) {
-			delta := y.delta
-			
-			// Saves all current attributes for insert.
-			currentAttributes := make(map[string]interface{})
-			oldAttributes := make(map[string]interface{})
-			item := y.Target.Start
-			var action *string
-			attributes := make(map[string]interface{})
-			
-			var insert interface{} = ""
-			retain := 0
-			deleteLen := 0
-			
-			addOp := func() {
-				if action != nil {
-					var op Delta
-					
-					switch *action {
-					case "delete":
-						op = Delta{Delete: &deleteLen}
-						deleteLen = 0
-					case "insert":
-						op = Delta{Insert: insert}
-						if len(currentAttributes) > 0 {
-							op.Attributes = make(map[string]interface{})
-							for k, v := range currentAttributes {
-								if v != nil {
-									op.Attributes[k] = v
-								}
-							}
-						}
-					case "retain":
-						op = Delta{Retain: &retain}
-						if len(attributes) > 0 {
-							op.Attributes = make(map[string]interface{})
-							for k, v := range attributes {
-								op.Attributes[k] = v
-							}
-						}
-						retain = 0
-					}
-					
-					delta = append(delta, op)
-					action = nil
-				}
-			}
-			
-			for item != nil {
-				switch content := item.Content.(type) {
-				case *structs.ContentEmbed:
-					if y.Adds(item.AbstractStruct) {
-						if !y.Deletes(item.AbstractStruct) {
-							addOp()
-							actionStr := "insert"
-							action = &actionStr
-							insert = content.Embed
-							addOp()
-						}
-					} else if y.Deletes(item.AbstractStruct) {
-						actionStr := "delete"
-						if action == nil || *action != actionStr {
-							addOp()
-							action = &actionStr
-						}
-						deleteLen++
-					} else if !item.Deleted() {
-						actionStr := "retain"
-						if action == nil || *action != actionStr {
-							addOp()
-							action = &actionStr
-						}
-						retain++
-					}
-				case *structs.ContentString:
-					if y.Adds(item.AbstractStruct) {
-						if !y.Deletes(item.AbstractStruct) {
-							actionStr := "insert"
-							if action == nil || *action != actionStr {
-								addOp()
-								action = &actionStr
-							}
-							
-							insertStr, ok := insert.(string)
-							if !ok {
-								insertStr = ""
-							}
-							insert = insertStr + content.GetString()
-						}
-					} else if y.Deletes(item.AbstractStruct) {
-						actionStr := "delete"
-						if action == nil || *action != actionStr {
-							addOp()
-							action = &actionStr
-						}
-						deleteLen += item.Length
-					} else if !item.Deleted() {
-						actionStr := "retain"
-						if action == nil || *action != actionStr {
-							addOp()
-							action = &actionStr
-						}
-						retain += item.Length
-					}
-				case *structs.ContentFormat:
-					if y.Adds(item.AbstractStruct) {
-						if !y.Deletes(item.AbstractStruct) {
-							var curVal interface{}
-							if val, ok := currentAttributes[content.Key]; ok {
-								curVal = val
-							}
-							
-							if !EqualAttrs(curVal, content.Value) {
-								actionStr := "retain"
-								if action != nil && *action == actionStr {
-									addOp()
-								}
-								
-								var oldVal interface{}
-								if val, ok := oldAttributes[content.Key]; ok {
-									oldVal = val
-								}
-								
-								if EqualAttrs(content.Value, oldVal) {
-									delete(attributes, content.Key)
-								} else {
-									attributes[content.Key] = content.Value
-								}
-							} else {
-								item.Delete(transaction)
-							}
-						}
-					} else if y.Deletes(item.AbstractStruct) {
-						oldAttributes[content.Key] = content.Value
-						
-						var curVal interface{}
-						if val, ok := currentAttributes[content.Key]; ok {
-							curVal = val
-						}
-						
-						if !EqualAttrs(curVal, content.Value) {
-							actionStr := "retain"
-							if action != nil && *action == actionStr {
-								addOp()
-							}
-							attributes[content.Key] = curVal
-						}
-					} else if !item.Deleted() {
-						oldAttributes[content.Key] = content.Value
-						
-						if attr, ok := attributes[content.Key]; ok {
-							if !EqualAttrs(attr, content.Value) {
-								actionStr := "retain"
-								if action != nil && *action == actionStr {
-									addOp()
-								}
-								
-								if content.Value == nil {
-									attributes[content.Key] = nil
-								} else {
-									delete(attributes, content.Key)
-								}
-							} else {
-								item.Delete(transaction)
-							}
-						}
-					}
-					
-					if !item.Deleted() {
-						actionStr := "insert"
-						if action != nil && *action == actionStr {
-							addOp()
-						}
-						
-						UpdateCurrentAttributes(currentAttributes, content)
-					}
-				}
-				
-				// Type assert to Item to access Right
-				if rightItem, ok := item.Right.(*structs.Item); ok {
-					item = rightItem
-				} else {
-					break
-				}
-			}
-			
-			addOp()
-			
-			// Remove trailing retain operations with attributes
-			for len(delta) > 0 {
-				lastOp := delta[len(delta)-1]
-				if lastOp.Retain != nil && lastOp.Attributes != nil {
-					// Retain delta's if they don't assign attributes.
-					delta = delta[:len(delta)-1]
-				} else {
-					break
-				}
-			}
-			
-			y.delta = delta
-		})
+// ItemTextListPosition represents a position in the text list
+type ItemTextListPosition struct {
+	Left              *structs.Item
+	Right             *structs.Item
+	Index             int
+	CurrentAttributes map[string]interface{}
+}
+
+func NewItemTextListPosition(left *structs.Item, right *structs.Item, index int, currentAttributes map[string]interface{}) *ItemTextListPosition {
+	return &ItemTextListPosition{
+		Left:              left,
+		Right:             right,
+		Index:             index,
+		CurrentAttributes: currentAttributes,
 	}
-	
-	return y.delta
 }
 
 // YText represents a text type with formatting information
 type YText struct {
 	*YArrayBase
-	Pending []func()
+	_prelimContent []interface{}
+	_pending       []func()
 }
 
-// YTextRefId is the reference ID for YText
-const YTextRefId int = 2
-
-// NewYText creates a new YText
-func NewYText(str string) *YText {
-	pending := make([]func(), 0)
-	if str != "" {
-		pending = append(pending, func() { 
-			// Insert(0, str) - we can't call this directly due to circular dependency
-		})
-	}
-	
+func NewYText() *YText {
 	return &YText{
 		YArrayBase: NewYArrayBase(),
-		Pending:    pending,
+		_pending:   make([]func(), 0),
 	}
 }
 
-// NewYTextEmpty creates a new empty YText
-func NewYTextEmpty() *YText {
-	return NewYText("")
-}
-
-// ApplyDelta applies delta operations to the text
-func (y *YText) ApplyDelta(delta []Delta, sanitize bool) {
-	if y.Doc != nil {
-		y.Doc.Transact(func(tr *utils.Transaction) {
-			// Implementation would go here
-		})
-	} else {
-		y.Pending = append(y.Pending, func() { 
-			y.ApplyDelta(delta, sanitize) 
-		})
-	}
-}
-
-// Insert inserts text at the specified index
-func (y *YText) Insert(index int, text string, attributes map[string]interface{}) {
-	if text == "" {
-		return
-	}
-	
-	doc := y.Doc
-	if doc != nil {
-		doc.Transact(func(tr *utils.Transaction) {
-			// Implementation would go here
-		})
-	} else {
-		y.Pending = append(y.Pending, func() { 
-			y.Insert(index, text, attributes) 
-		})
-	}
-}
-
-// Delete deletes text at the specified index with the specified length
-func (y *YText) Delete(index, length int) {
-	if length == 0 {
-		return
-	}
-	
-	if y.Doc != nil {
-		y.Doc.Transact(func(tr *utils.Transaction) {
-			// Implementation would go here
-		})
-	} else {
-		y.Pending = append(y.Pending, func() { 
-			y.Delete(index, length) 
-		})
-	}
-}
-
-// Format formats text at the specified index with the specified length
-func (y *YText) Format(index, length int, attributes map[string]interface{}) {
-	if length == 0 {
-		return
-	}
-	
-	if y.Doc != nil {
-		y.Doc.Transact(func(tr *utils.Transaction) {
-			// Implementation would go here
-		})
-	} else {
-		y.Pending = append(y.Pending, func() { 
-			y.Format(index, length, attributes) 
-		})
-	}
-}
-
-// ToString returns the text as a string
-func (y *YText) ToString() string {
-	var sb strings.Builder
-	
-	n := y.Start
-	for n != nil {
-		if !n.Deleted() && n.Countable() {
-			if cs, ok := n.Content.(*structs.ContentString); ok {
-				cs.AppendToBuilder(&sb)
-			}
-		}
-		
-		// Type assert to Item to access Right
-		if rightItem, ok := n.Right.(*structs.Item); ok {
-			n = rightItem
-		} else {
-			break
-		}
-	}
-	
-	return sb.String()
-}
-
-// Integrate integrates the text
-func (y *YText) Integrate(doc *utils.YDoc, item *structs.Item) {
-	y.YArrayBase.Integrate(doc, item)
-	
-	for _, c := range y.Pending {
-		c()
-	}
-	
-	y.Pending = nil
-}
-
-// CallObserver creates YTextEvent and calls observers
-func (y *YText) CallObserver(transaction *utils.Transaction, parentSubs map[string]struct{}) {
-	y.YArrayBase.CallObserver(transaction, parentSubs)
-	
-	evt := NewYTextEvent(y, transaction, parentSubs)
-	
-	// If a remote change happened, we try to cleanup potential formatting duplicates.
-	if !transaction.Local {
-		// Implementation would go here
-	}
-	
-	y.CallTypeObservers(transaction, evt.YEvent)
-}
-
-// Write writes the text to an encoder
 func (y *YText) Write(encoder utils.IUpdateEncoder) {
 	encoder.WriteTypeRef(YTextRefId)
 }
 
-// Read reads a YText from a decoder
-func ReadYText(decoder utils.IUpdateDecoder) *YText {
-	return NewYTextEmpty()
+func ReadYText(decoder utils.IUpdateEncoder) *YText {
+	return NewYText()
 }
 
-// EqualAttrs checks if two attributes are equal
-func EqualAttrs(attr1, attr2 interface{}) bool {
-	// In Go, we need to handle nil values differently than in C#
-	if attr1 == nil && attr2 == nil {
+func (y *YText) Insert(index int, text string, attributes ...map[string]interface{}) {
+	if text == "" {
+		return
+	}
+
+	var attrs map[string]interface{}
+	if len(attributes) > 0 {
+		attrs = attributes[0]
+	}
+
+	if y.Doc != nil {
+		y.Doc.Transact(func(tr *utils.Transaction) {
+			pos := y.FindPosition(tr, index)
+			if attrs == nil {
+				attrs = make(map[string]interface{})
+				for k, v := range pos.CurrentAttributes {
+					attrs[k] = v
+				}
+			}
+			y.InsertText(tr, pos, text, attrs)
+		})
+	} else {
+		y._pending = append(y._pending, func() {
+			y.Insert(index, text, attrs)
+		})
+	}
+}
+
+func (y *YText) InsertEmbed(index int, embed interface{}, attributes ...map[string]interface{}) {
+	var attrs map[string]interface{}
+	if len(attributes) > 0 {
+		attrs = attributes[0]
+	} else {
+		attrs = make(map[string]interface{})
+	}
+
+	if y.Doc != nil {
+		y.Doc.Transact(func(tr *utils.Transaction) {
+			pos := y.FindPosition(tr, index)
+			y.InsertText(tr, pos, embed, attrs)
+		})
+	} else {
+		y._pending = append(y._pending, func() {
+			y.InsertEmbed(index, embed, attrs)
+		})
+	}
+}
+
+func (y *YText) Delete(start, length int) {
+	if length == 0 {
+		return
+	}
+
+	if y.Doc != nil {
+		y.Doc.Transact(func(tr *utils.Transaction) {
+			pos := y.FindPosition(tr, start)
+			y.DeleteText(tr, pos, length)
+		})
+	} else {
+		y._pending = append(y._pending, func() {
+			y.Delete(start, length)
+		})
+	}
+}
+
+func (y *YText) Format(start, length int, attributes map[string]interface{}) {
+	if length == 0 {
+		return
+	}
+
+	if y.Doc != nil {
+		y.Doc.Transact(func(tr *utils.Transaction) {
+			pos := y.FindPosition(tr, start)
+			if pos.Right == nil {
+				return
+			}
+			y.FormatText(tr, pos, length, attributes)
+		})
+	} else {
+		y._pending = append(y._pending, func() {
+			y.Format(start, length, attributes)
+		})
+	}
+}
+
+func (y *YText) Get() string {
+	var sb strings.Builder
+
+	n := y._start
+	for n != nil {
+		if !n.Deleted && n.Countable {
+			if cs, ok := n.Content.(*structs.ContentString); ok {
+				sb.WriteString(cs.GetString())
+			}
+		}
+		if rightItem, ok := n.Right.(*structs.Item); ok {
+			n = rightItem
+		} else {
+			n = nil
+		}
+	}
+
+	return sb.String()
+}
+
+func (y *YText) ToString() string {
+	return y.Get()
+}
+
+func (y *YText) Clone() *YText {
+	return y.InternalClone().(*YText)
+}
+
+func (y *YText) InternalCopy() *AbstractType {
+	text := NewYText()
+	return &text.YArrayBase.AbstractType
+}
+
+func (y *YText) InternalClone() *AbstractType {
+	text := NewYText()
+	content := y.Get()
+	if content != "" {
+		text.Insert(0, content)
+	}
+	return &text.YArrayBase.AbstractType
+}
+
+func (y *YText) Integrate(doc *utils.YDoc, item *structs.Item) {
+	y.YArrayBase.Integrate(doc, item)
+
+	// Execute pending operations
+	for _, pending := range y._pending {
+		pending()
+	}
+	y._pending = nil
+}
+
+func (y *YText) CallObserver(transaction *utils.Transaction, parentSubs map[string]struct{}) {
+	y.YArrayBase.CallObserver(transaction, parentSubs)
+	y.CallTypeObservers(transaction, NewYTextEvent(y, transaction, parentSubs).YEvent)
+}
+
+func (y *YText) FindPosition(transaction *utils.Transaction, index int) *ItemTextListPosition {
+	currentAttributes := make(map[string]interface{})
+
+	if y._start == nil {
+		return NewItemTextListPosition(nil, nil, 0, currentAttributes)
+	}
+
+	var left *structs.Item
+	right := y._start
+	currentIndex := 0
+
+	for right != nil && currentIndex < index {
+		if !right.Deleted && right.Countable {
+			if currentIndex+right.Length <= index {
+				currentIndex += right.Length
+				left = right
+				if rightItem, ok := right.Right.(*structs.Item); ok {
+					right = rightItem
+				} else {
+					right = nil
+				}
+			} else {
+				// Need to split the item
+				if transaction != nil {
+					splitPos := index - currentIndex
+					transaction.Doc.Store.GetItemCleanStart(transaction, utils.NewID(right.Id.Client, right.Id.Clock+splitPos))
+				}
+				break
+			}
+		} else {
+			// Handle format items
+			if cf, ok := right.Content.(*structs.ContentFormat); ok && !right.Deleted {
+				UpdateCurrentAttributes(currentAttributes, cf)
+			}
+			left = right
+			if rightItem, ok := right.Right.(*structs.Item); ok {
+				right = rightItem
+			} else {
+				right = nil
+			}
+		}
+	}
+
+	return NewItemTextListPosition(left, right, index, currentAttributes)
+}
+
+func (y *YText) InsertText(transaction *utils.Transaction, pos *ItemTextListPosition, content interface{}, attributes map[string]interface{}) {
+	// Insert format items for attributes that differ from current
+	for key, value := range attributes {
+		if currentValue, exists := pos.CurrentAttributes[key]; !exists || !EqualAttrs(currentValue, value) {
+			// Insert format item
+			var lastId *utils.ID
+			if pos.Left != nil {
+				lastId = pos.Left.LastId
+			}
+
+			formatItem := structs.NewItem(
+				utils.NewID(transaction.Doc.ClientId, transaction.Doc.Store.GetState(transaction.Doc.ClientId)),
+				pos.Left, lastId, pos.Right, nil, y, "",
+				structs.NewContentFormat(key, value),
+			)
+			formatItem.Integrate(transaction, 0)
+			pos.Left = formatItem
+		}
+	}
+
+	// Insert the actual content
+	var contentStruct structs.IContent
+	if text, ok := content.(string); ok {
+		contentStruct = structs.NewContentString(text)
+	} else {
+		contentStruct = structs.NewContentEmbed(content)
+	}
+
+	var lastId *utils.ID
+	if pos.Left != nil {
+		lastId = pos.Left.LastId
+	}
+
+	item := structs.NewItem(
+		utils.NewID(transaction.Doc.ClientId, transaction.Doc.Store.GetState(transaction.Doc.ClientId)),
+		pos.Left, lastId, pos.Right, nil, y, "",
+		contentStruct,
+	)
+	item.Integrate(transaction, 0)
+}
+
+func (y *YText) DeleteText(transaction *utils.Transaction, pos *ItemTextListPosition, length int) {
+	remaining := length
+	current := pos.Right
+
+	for current != nil && remaining > 0 {
+		if !current.Deleted && current.Countable {
+			if current.Length <= remaining {
+				current.Delete(transaction)
+				remaining -= current.Length
+			} else {
+				// Split and delete part of the item
+				transaction.Doc.Store.GetItemCleanStart(transaction, utils.NewID(current.Id.Client, current.Id.Clock+remaining))
+				current.Delete(transaction)
+				remaining = 0
+			}
+		}
+		if rightItem, ok := current.Right.(*structs.Item); ok {
+			current = rightItem
+		} else {
+			current = nil
+		}
+	}
+}
+
+func (y *YText) FormatText(transaction *utils.Transaction, pos *ItemTextListPosition, length int, attributes map[string]interface{}) {
+	remaining := length
+	current := pos.Right
+
+	for current != nil && remaining > 0 {
+		if !current.Deleted && current.Countable {
+			// Apply formatting attributes
+			for key, value := range attributes {
+				var lastId *utils.ID
+				if current != nil {
+					lastId = current.LastId
+				}
+
+				formatItem := structs.NewItem(
+					utils.NewID(transaction.Doc.ClientId, transaction.Doc.Store.GetState(transaction.Doc.ClientId)),
+					current, lastId, current.Right, nil, y, "",
+					structs.NewContentFormat(key, value),
+				)
+				formatItem.Integrate(transaction, 0)
+			}
+
+			if current.Length <= remaining {
+				remaining -= current.Length
+			} else {
+				remaining = 0
+			}
+		}
+		if rightItem, ok := current.Right.(*structs.Item); ok {
+			current = rightItem
+		} else {
+			current = nil
+		}
+	}
+}
+
+func (y *YText) ToDelta() []Delta {
+	deltas := make([]Delta, 0)
+	currentAttributes := make(map[string]interface{})
+	var str strings.Builder
+
+	packStr := func() {
+		if str.Len() > 0 {
+			delta := Delta{Insert: str.String()}
+			if len(currentAttributes) > 0 {
+				delta.Attributes = make(map[string]interface{})
+				for k, v := range currentAttributes {
+					if v != nil {
+						delta.Attributes[k] = v
+					}
+				}
+			}
+			deltas = append(deltas, delta)
+			str.Reset()
+		}
+	}
+
+	n := y._start
+	for n != nil {
+		if !n.Deleted {
+			switch content := n.Content.(type) {
+			case *structs.ContentString:
+				str.WriteString(content.GetString())
+			case *structs.ContentEmbed:
+				packStr()
+				delta := Delta{Insert: content.Embed}
+				if len(currentAttributes) > 0 {
+					delta.Attributes = make(map[string]interface{})
+					for k, v := range currentAttributes {
+						delta.Attributes[k] = v
+					}
+				}
+				deltas = append(deltas, delta)
+			case *structs.ContentFormat:
+				packStr()
+				UpdateCurrentAttributes(currentAttributes, content)
+			}
+		}
+		if rightItem, ok := n.Right.(*structs.Item); ok {
+			n = rightItem
+		} else {
+			n = nil
+		}
+	}
+
+	packStr()
+	return deltas
+}
+
+func (y *YText) ApplyDelta(delta []Delta, sanitize ...bool) {
+	shouldSanitize := false
+	if len(sanitize) > 0 {
+		shouldSanitize = sanitize[0]
+	}
+
+	if y.Doc != nil {
+		y.Doc.Transact(func(tr *utils.Transaction) {
+			curPos := NewItemTextListPosition(nil, y._start, 0, make(map[string]interface{}))
+
+			for i, op := range delta {
+				if op.Insert != nil {
+					insertStr, isString := op.Insert.(string)
+					var ins interface{} = op.Insert
+
+					if !shouldSanitize && isString && i == len(delta)-1 && curPos.Right == nil && strings.HasSuffix(insertStr, "\n") {
+						ins = insertStr[:len(insertStr)-1]
+					}
+
+					if !isString || len(ins.(string)) > 0 {
+						attrs := op.Attributes
+						if attrs == nil {
+							attrs = make(map[string]interface{})
+						}
+						y.InsertText(tr, curPos, ins, attrs)
+					}
+				} else if op.Retain != nil {
+					attrs := op.Attributes
+					if attrs == nil {
+						attrs = make(map[string]interface{})
+					}
+					y.FormatText(tr, curPos, *op.Retain, attrs)
+				} else if op.Delete != nil {
+					y.DeleteText(tr, curPos, *op.Delete)
+				}
+			}
+		})
+	} else {
+		y._pending = append(y._pending, func() {
+			y.ApplyDelta(delta, shouldSanitize)
+		})
+	}
+}
+
+// Helper functions
+func UpdateCurrentAttributes(currentAttributes map[string]interface{}, contentFormat *structs.ContentFormat) {
+	if contentFormat.Value == nil {
+		delete(currentAttributes, contentFormat.Key)
+	} else {
+		currentAttributes[contentFormat.Key] = contentFormat.Value
+	}
+}
+
+func EqualAttrs(a, b interface{}) bool {
+	if a == nil && b == nil {
 		return true
 	}
-	if attr1 == nil || attr2 == nil {
+	if a == nil || b == nil {
 		return false
 	}
-	
-	// For now, we'll just use simple equality
-	// In a real implementation, you might need more complex comparison
-	return attr1 == attr2
+	return a == b
 }
 
-// UpdateCurrentAttributes updates the current attributes with a format
-func UpdateCurrentAttributes(attributes map[string]interface{}, format *structs.ContentFormat) {
-	if format.Value == nil {
-		delete(attributes, format.Key)
+func (y *YText) SetAttribute(name string, value interface{}) {
+	if y.Doc != nil {
+		y.Doc.Transact(func(tr *utils.Transaction) {
+			y.TypeMapSet(tr, name, value)
+		})
 	} else {
-		attributes[format.Key] = format.Value
+		y._pending = append(y._pending, func() {
+			y.SetAttribute(name, value)
+		})
 	}
+}
+
+func (y *YText) RemoveAttribute(name string) {
+	if y.Doc != nil {
+		y.Doc.Transact(func(tr *utils.Transaction) {
+			y.TypeMapDelete(tr, name)
+		})
+	} else {
+		y._pending = append(y._pending, func() {
+			y.RemoveAttribute(name)
+		})
+	}
+}
+
+func (y *YText) Observe(observer func()) {
+	// Implementation for observing changes to the text
+}
+
+func (y *YText) Unobserve(observer func()) {
+	// Implementation for stopping observation of changes
 }

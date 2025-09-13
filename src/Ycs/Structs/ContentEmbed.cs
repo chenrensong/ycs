@@ -40,12 +40,12 @@ namespace Ycs.Structs
             return false;
         }
 
-        void IContentEx.Integrate(Transaction transaction, Item item)
+        void IContentEx.Integrate(ITransaction transaction, Item item)
         {
             // Do nothing.
         }
 
-        void IContentEx.Delete(Transaction transaction)
+        void IContentEx.Delete(ITransaction transaction)
         {
             // Do nothing.
         }

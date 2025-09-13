@@ -1,84 +1,113 @@
+// ------------------------------------------------------------------------------
+//  <copyright company="Microsoft Corporation">
+//      Copyright (c) Microsoft Corporation.  All rights reserved.
+//  </copyright>
+// ------------------------------------------------------------------------------
+
 package structs
 
-// ContentDeleted represents deleted content
+// ContentDeleted represents deleted content in the document
+// This is the Go implementation of the C# ContentDeleted class
 type ContentDeleted struct {
-	Length int
+	length int
 }
 
-// NewContentDeleted creates a new ContentDeleted
-func NewContentDeleted(length int) *ContentDeleted {
+// Ref is a constant reference ID for ContentDeleted
+type _ref int
+
+const (
+	RefContentDeleted _ref = 1
+)
+
+// NewContentDeleted creates a new instance of ContentDeleted
+func NewContentDeleted(length int) (*ContentDeleted, error) {
 	return &ContentDeleted{
-		Length: length,
-	}
+		length: length,
+	}, nil
 }
 
-// Ref returns the reference type for ContentDeleted
-func (c *ContentDeleted) Ref() int {
-	return 1 // _ref constant from C# version
-}
-
-// Countable returns whether this content is countable
+// Countable returns false as ContentDeleted is not countable
 func (c *ContentDeleted) Countable() bool {
 	return false
 }
 
-// Length returns the length of this content
+// Length returns the length of the deleted content
 func (c *ContentDeleted) Length() int {
-	return c.Length
+	return c.length
 }
 
-// GetContent returns the content as a list of objects
+// Ref returns the reference ID of the content
+func (c *ContentDeleted) Ref() int {
+	return int(RefContentDeleted)
+}
+
+// GetContent returns the content as a read-only list
+// This operation is not supported for deleted content
 func (c *ContentDeleted) GetContent() []interface{} {
-	// In Go, we return nil to represent the NotImplementedException
+	// Deleted content has no actual content
 	return nil
 }
 
-// Copy creates a copy of this content
-func (c *ContentDeleted) Copy() Content {
-	return NewContentDeleted(c.Length)
+// Copy creates a copy of this deleted content
+func (c *ContentDeleted) Copy() IContent {
+	return &ContentDeleted{
+		length: c.length,
+	}
 }
 
-// Splice splits this content at the specified offset
-func (c *ContentDeleted) Splice(offset int) Content {
-	right := NewContentDeleted(c.Length - offset)
-	c.Length = offset
+// Splice splits the deleted content at the given offset
+func (c *ContentDeleted) Splice(offset int) IContent {
+	right, _ := NewContentDeleted(c.length - offset)
+	c.length = offset
 	return right
 }
 
-// MergeWith merges this content with the right content
-func (c *ContentDeleted) MergeWith(right Content) bool {
-	// In Go, we use type assertion to check the type
-	if _, ok := right.(*ContentDeleted); ok {
-		c.Length += right.Length()
-		return true
+// MergeWith merges this deleted content with another content
+// Returns true if the merge was successful
+func (c *ContentDeleted) MergeWith(right IContent) bool {
+	// We expect to merge with another ContentDeleted
+	rightContentDeleted, ok := right.(*ContentDeleted)
+	if !ok {
+		return false
 	}
-	return false
+
+	// Merge the lengths
+	c.length += rightContentDeleted.length
+	return true
 }
 
-// Integrate integrates this content
+// Integrate integrates the deleted content with a transaction
 func (c *ContentDeleted) Integrate(transaction *Transaction, item *Item) {
-	// In a real implementation, you would need to add to the delete set
-	// transaction.DeleteSet.Add(item.Id.Client, item.Id.Clock, c.Length)
+	// Add to delete set and mark item as deleted
+	transaction.DeleteSet.Add(item.Id.Client, item.Id.Clock, c.length)
 	item.MarkDeleted()
 }
 
-// Delete deletes this content
+// Delete deletes the content
 func (c *ContentDeleted) Delete(transaction *Transaction) {
-	// Do nothing
+	// Do nothing (implementation as in C#)
 }
 
-// Gc garbage collects this content
+// Gc performs garbage collection on the deleted content
 func (c *ContentDeleted) Gc(store *StructStore) {
-	// Do nothing
+	// Do nothing (implementation as in C#)
 }
 
-// Write writes this content to an encoder
+// Write writes the deleted content to an update encoder
 func (c *ContentDeleted) Write(encoder IUpdateEncoder, offset int) {
-	encoder.WriteLength(c.Length - offset)
+	// Write the length to the encoder
+	encoder.WriteLength(c.length - offset)
 }
 
-// Read reads ContentDeleted from a decoder
-func ReadContentDeleted(decoder IUpdateDecoder) *ContentDeleted {
-	length := decoder.ReadLength()
-	return NewContentDeleted(length)
+// Read reads a ContentDeleted from the decoder
+func (c *ContentDeleted) Read(decoder IUpdateDecoder) (*ContentDeleted, error) {
+	// Read the length from the decoder
+	length, err := decoder.ReadLength()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContentDeleted{
+		length: length,
+	}, nil
 }

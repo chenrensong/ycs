@@ -1,163 +1,153 @@
+// ------------------------------------------------------------------------------
+//  <copyright company="Microsoft Corporation">
+//      Copyright (c) Microsoft Corporation.  All rights reserved.
+//  </copyright>
+// ------------------------------------------------------------------------------
+
 package structs
 
-// ContentDoc represents document content
+import (
+	"errors"
+)
+
+// ContentDoc represents a document content type
+// This is the Go implementation of the C# ContentDoc class
 type ContentDoc struct {
-	Doc  *YDoc
-	Opts *YDocOptions
+	doc  *YDoc
+	opts *YDocOptions
 }
 
-// NewContentDoc creates a new ContentDoc
-func NewContentDoc(doc *YDoc) *ContentDoc {
-	// In the C# version, there's a check to ensure the document hasn't been integrated yet
-	// We'll skip that for now in this Go implementation
-	
+// Ref is a constant reference ID for ContentDoc
+type _ref int
+
+const (
+	RefContentDoc _ref = 9
+)
+
+// NewContentDoc creates a new instance of ContentDoc
+func NewContentDoc(doc *YDoc) (*ContentDoc, error) {
+	if doc.GetItem() != nil {
+		return nil, errors.New("this document was already integrated as a sub-document. You should create a second instance instead with the same guid")
+	}
+
+	// Create a new instance with the same GUID
 	opts := NewYDocOptions()
-	
-	// Copy options from the document
-	if !doc.Gc {
-		opts.Gc = false
+	if !doc.Gc() {
+		opts.SetGc(false)
 	}
-	
-	if doc.AutoLoad {
-		opts.AutoLoad = true
+	if doc.AutoLoad() {
+		opts.SetAutoLoad(true)
 	}
-	
-	if doc.Meta != nil {
-		opts.Meta = doc.Meta
+	if doc.Meta() != nil {
+		opts.SetMeta(doc.Meta())
 	}
-	
+
 	return &ContentDoc{
-		Doc:  doc,
-		Opts: opts,
-	}
+		doc:  doc,
+		opts: opts,
+	}, nil
 }
 
-// Ref returns the reference type for ContentDoc
+// Ref returns the reference ID of the content
 func (c *ContentDoc) Ref() int {
-	return 9 // _ref constant from C# version
+	return int(RefContentDoc)
 }
 
-// Countable returns whether this content is countable
+// Countable returns true as ContentDoc is countable
 func (c *ContentDoc) Countable() bool {
 	return true
 }
 
-// Length returns the length of this content
+// Length returns the length of the content (always 1)
 func (c *ContentDoc) Length() int {
 	return 1
 }
 
-// GetContent returns the content as a list of objects
+// GetContent returns the content as a read-only list
 func (c *ContentDoc) GetContent() []interface{} {
-	return []interface{}{c.Doc}
+	return []interface{}{c.doc}
 }
 
 // Copy creates a copy of this content
-func (c *ContentDoc) Copy() Content {
-	return NewContentDoc(c.Doc)
+func (c *ContentDoc) Copy() IContent {
+	// Create a new ContentDoc with the same document
+	copyDoc, _ := NewContentDoc(c.doc)
+	return copyDoc
 }
 
-// Splice splits this content at the specified offset
-func (c *ContentDoc) Splice(offset int) Content {
-	// In the C# version, this throws NotImplementedException
-	// We'll panic in Go to indicate this is not implemented
-	panic("splice not implemented for ContentDoc")
+// Splice splits the content at the given offset
+// This operation is not supported for ContentDoc
+func (c *ContentDoc) Splice(offset int) IContent {
+	// Document content cannot be spliced
+	return nil // Or return self if needed
 }
 
-// MergeWith merges this content with the right content
-func (c *ContentDoc) MergeWith(right Content) bool {
-	// In the C# version, this always returns false
+// MergeWith merges this content with another content
+// Returns true if the merge was successful
+func (c *ContentDoc) MergeWith(right IContent) bool {
+	// Document content cannot be merged
 	return false
 }
 
-// Integrate integrates this content
+// Integrate integrates the content with a transaction
 func (c *ContentDoc) Integrate(transaction *Transaction, item *Item) {
-	// This needs to be reflected in doc.destroy as well.
-	c.Doc.Item = item
-	transaction.SubdocsAdded = append(transaction.SubdocsAdded, c.Doc)
-	
-	if c.Doc.ShouldLoad {
-		transaction.SubdocsLoaded = append(transaction.SubdocsLoaded, c.Doc)
+	// Set the item reference in the document
+	c.doc.SetItem(item)
+	// Add to transaction's subdocs added
+	transaction.SubdocsAdded.Add(c.doc)
+
+	// If document should load, add to loaded subdocs
+	if c.doc.ShouldLoad() {
+		transaction.SubdocsLoaded.Add(c.doc)
 	}
 }
 
-// Delete deletes this content
+// Delete deletes the content
 func (c *ContentDoc) Delete(transaction *Transaction) {
-	// In a real implementation, you would need to check if the document is in SubdocsAdded
-	// and remove it or add it to SubdocsRemoved
-	
-	// This is a simplified implementation
-	found := false
-	for i, doc := range transaction.SubdocsAdded {
-		if doc == c.Doc {
-			// Remove from SubdocsAdded
-			transaction.SubdocsAdded = append(transaction.SubdocsAdded[:i], transaction.SubdocsAdded[i+1:]...)
-			found = true
-			break
-		}
-	}
-	
-	if !found {
-		// Add to SubdocsRemoved
-		transaction.SubdocsRemoved = append(transaction.SubdocsRemoved, c.Doc)
+	// Handle subdocument removal
+	if transaction.SubdocsAdded.Contains(c.doc) {
+		transaction.SubdocsAdded.Remove(c.doc)
+	} else {
+		transaction.SubdocsRemoved.Add(c.doc)
 	}
 }
 
-// Gc garbage collects this content
+// Gc performs garbage collection on the content
 func (c *ContentDoc) Gc(store *StructStore) {
-	// Do nothing
+	// Do nothing (implementation as in C#)
 }
 
-// Write writes this content to an encoder
+// Write writes the document content to an update encoder
 func (c *ContentDoc) Write(encoder IUpdateEncoder, offset int) {
-	// 32 digits separated by hyphens, no braces.
-	encoder.WriteString(c.Doc.Guid)
-	c.Opts.Write(encoder, offset)
+	// Write the document GUID
+	encoder.WriteString(c.doc.Guid())
+
+	// Write the document options
+	opts, _ := c.opts.Write(encoder, offset)
 }
 
-// Read reads ContentDoc from a decoder
-func ReadContentDoc(decoder IUpdateDecoder) *ContentDoc {
-	guidStr := decoder.ReadString()
-	
-	opts := ReadYDocOptions(decoder)
-	opts.Guid = guidStr
-	
-	// In a real implementation, you would need to create a new YDoc with the options
-	// doc := NewYDoc(opts)
-	// return NewContentDoc(doc)
-	
-	return nil // Placeholder
-}
-
-// Placeholder types that would need to be implemented elsewhere
-type YDoc struct {
-	Guid      string
-	Gc        bool
-	AutoLoad  bool
-	ShouldLoad bool
-	Meta      interface{}
-	Item      *Item
-}
-
-type YDocOptions struct {
-	Guid     string
-	Gc       bool
-	AutoLoad bool
-	Meta     interface{}
-}
-
-func NewYDocOptions() *YDocOptions {
-	return &YDocOptions{
-		Gc:       true,
-		AutoLoad: false,
+// Read reads a ContentDoc from the decoder
+func (c *ContentDoc) Read(decoder IUpdateDecoder) (*ContentDoc, error) {
+	// Read the document GUID
+	guidStr, err := decoder.ReadString()
+	if err != nil {
+		return nil, err
 	}
-}
 
-func ReadYDocOptions(decoder IUpdateDecoder) *YDocOptions {
-	// Placeholder implementation
-	return NewYDocOptions()
-}
+	// Read document options
+	opts, err := YDocOptionsRead(decoder)
+	if err != nil {
+		return nil, err
+	}
 
-func (o *YDocOptions) Write(encoder IUpdateEncoder, offset int) {
-	// Placeholder implementation
+	// Set GUID in options
+	opts.SetGuid(guidStr)
+
+	// Create new document
+	doc := NewYDoc(opts)
+
+	return &ContentDoc{
+		doc:  doc,
+		opts: opts,
+	}, nil
 }
