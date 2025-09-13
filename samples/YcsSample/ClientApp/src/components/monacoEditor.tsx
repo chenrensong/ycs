@@ -8,15 +8,18 @@ export const YjsMonacoEditor = () => {
   const yText = yDoc.getText('monaco');
 
   const setMonacoEditor = React.useState<monaco.editor.ICodeEditor>()[1];
-  const setMonacoBinding = React.useState<monaco.editor.ICodeEditor>()[1];
+  const setMonacoBinding = React.useState<yMonaco.MonacoBinding>()[1];
 
   const _onEditorDidMount = React.useCallback(
     (editor: monaco.editor.ICodeEditor, monacoParam: typeof monaco): void => {
       editor.focus();
       editor.setValue('');
 
-      setMonacoEditor(editor);
-      setMonacoBinding(new yMonaco.MonacoBinding(yText, editor.getModel(), new Set([editor]), yjsConnector.awareness));
+      const model = editor.getModel();
+      if (model) {
+        setMonacoEditor(editor);
+        setMonacoBinding(new yMonaco.MonacoBinding(yText, model as any, new Set([editor as any]), yjsConnector.awareness));
+      }
     },
     [yjsConnector.awareness, yText, setMonacoEditor, setMonacoBinding]
   );

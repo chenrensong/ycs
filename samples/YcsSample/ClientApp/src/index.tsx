@@ -2,20 +2,16 @@ import './styles/index.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { BrowserRouter } from 'react-router-dom';
 import { App } from './app';
 import { YjsContextProvider } from './context/yjsContext';
 import reportWebVitals from './util/reportWebVitals';
 
-const baseUrl = document.getElementsByTagName('base')[0].getAttribute('href') ?? undefined;
 const rootElement = document.getElementById('root');
 
 ReactDOM.render(
   <YjsContextProvider baseUrl={'https://localhost:5001/hubs/ycs'}>
     <React.StrictMode>
-      <BrowserRouter basename={baseUrl}>
-        <App />
-      </BrowserRouter>
+      <App />
     </React.StrictMode>
   </YjsContextProvider>,
   rootElement

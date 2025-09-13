@@ -1,115 +1,97 @@
+// ------------------------------------------------------------------------------
+//  Copyright (c) Microsoft Corporation.  All rights reserved.
+// ------------------------------------------------------------------------------
+
 package protocols
 
 import (
-	"bytes"
-	"errors"
-	"io"
+	"fmt"
 
-	lib0 "github.com/chenrensong/ygo/lib0"
-	utils "github.com/chenrensong/ygo/utils"
+	"github.com/chenrensong/ygo/lib0"
+	"github.com/chenrensong/ygo/types"
 )
 
 const (
-	MessageYjsSyncStep1 = 0
-	MessageYjsSyncStep2 = 1
-	MessageYjsUpdate    = 2
+	MessageYjsSyncStep1 uint32 = 0
+	MessageYjsSyncStep2 uint32 = 1
+	MessageYjsUpdate    uint32 = 2
 )
 
-// WriteSyncStep1 writes the initial sync message with the document's state vector.
-func WriteSyncStep1(writer io.Writer, doc *utils.YDoc) error {
-	buf := &bytes.Buffer{}
-	if err := lib0.WriteVarUint(buf, MessageYjsSyncStep1); err != nil {
+// WriteSyncStep1 writes sync step 1 message to stream
+func WriteSyncStep1(stream lib0.StreamWriter, doc *types.YDoc) error {
+	if err := lib0.WriteVarUint(stream, MessageYjsSyncStep1); err != nil {
 		return err
 	}
-	sv := doc.EncodeStateVectorV2()
-	if err := lib0.WriteVarUint8Array(buf, sv); err != nil {
+	sv, err := doc.EncodeStateVectorV2()
+	if err != nil {
 		return err
 	}
-	_, err := writer.Write(buf.Bytes())
-	return err
+	return lib0.WriteVarUint8Array(stream, sv)
 }
 
-// WriteSyncStep2 writes the response to a sync step 1 message with the document updates.
-func WriteSyncStep2(writer io.Writer, doc *utils.YDoc, encodedStateVector []byte) error {
-	buf := &bytes.Buffer{}
-	if err := lib0.WriteVarUint(buf, MessageYjsSyncStep2); err != nil {
+// WriteSyncStep2 writes sync step 2 message to stream
+func WriteSyncStep2(stream lib0.StreamWriter, doc *types.YDoc, encodedStateVector []byte) error {
+	if err := lib0.WriteVarUint(stream, MessageYjsSyncStep2); err != nil {
 		return err
 	}
-	update := doc.EncodeStateAsUpdateV2(encodedStateVector)
-	if err := lib0.WriteVarUint8Array(buf, update); err != nil {
+	update, err := doc.EncodeStateAsUpdateV2(encodedStateVector)
+	if err != nil {
 		return err
 	}
-	_, err := writer.Write(buf.Bytes())
-	return err
+	return lib0.WriteVarUint8Array(stream, update)
 }
 
-// ReadSyncStep1 reads a sync step 1 message and responds with step 2.
-func ReadSyncStep1(reader io.Reader, writer io.Writer, doc *utils.YDoc) error {
-	buf := &bytes.Buffer{}
-	if _, err := io.Copy(buf, reader); err != nil {
-		return err
-	}
-	encodedStateVector, err := lib0.ReadVarUint8Array(buf)
+// ReadSyncStep1 reads sync step 1 message and writes response
+func ReadSyncStep1(reader lib0.StreamReader, writer lib0.StreamWriter, doc *types.YDoc) error {
+	encodedStateVector, err := lib0.ReadVarUint8Array(reader)
 	if err != nil {
 		return err
 	}
 	return WriteSyncStep2(writer, doc, encodedStateVector)
 }
 
-// ReadSyncStep2 reads and applies updates from a sync step 2 message.
-func ReadSyncStep2(reader io.Reader, doc *utils.YDoc, transactionOrigin interface{}) error {
-	buf := &bytes.Buffer{}
-	if _, err := io.Copy(buf, reader); err != nil {
-		return err
-	}
-	update, err := lib0.ReadVarUint8Array(buf)
+// ReadSyncStep2 reads sync step 2 message and applies update
+func ReadSyncStep2(stream lib0.StreamReader, doc *types.YDoc, transactionOrigin interface{}) error {
+	update, err := lib0.ReadVarUint8Array(stream)
 	if err != nil {
 		return err
 	}
-	updateReader := bytes.NewReader(update)
-	doc.ApplyUpdateV2(updateReader, transactionOrigin, false)
-	return nil
+	return doc.ApplyUpdateV2Bytes(update, transactionOrigin, false)
 }
 
-// WriteUpdate writes an update message.
-func WriteUpdate(writer io.Writer, update []byte) error {
-	buf := &bytes.Buffer{}
-	if err := lib0.WriteVarUint(buf, MessageYjsUpdate); err != nil {
+// WriteUpdate writes update message to stream
+func WriteUpdate(stream lib0.StreamWriter, update []byte) error {
+	if err := lib0.WriteVarUint(stream, MessageYjsUpdate); err != nil {
 		return err
 	}
-	if err := lib0.WriteVarUint8Array(buf, update); err != nil {
-		return err
-	}
-	_, err := writer.Write(buf.Bytes())
-	return err
+	return lib0.WriteVarUint8Array(stream, update)
 }
 
-// ReadUpdate reads and applies an update message.
-func ReadUpdate(reader io.Reader, doc *utils.YDoc, transactionOrigin interface{}) error {
-	return ReadSyncStep2(reader, doc, transactionOrigin)
+// ReadUpdate reads update message and applies it
+func ReadUpdate(stream lib0.StreamReader, doc *types.YDoc, transactionOrigin interface{}) error {
+	return ReadSyncStep2(stream, doc, transactionOrigin)
 }
 
-// ReadSyncMessage reads and processes a sync message.
-func ReadSyncMessage(reader io.Reader, writer io.Writer, doc *utils.YDoc, transactionOrigin interface{}) (uint32, error) {
-	buf := &bytes.Buffer{}
-	if _, err := io.Copy(buf, reader); err != nil {
-		return 0, err
-	}
-	messageType, err := lib0.ReadVarUint(buf)
+// ReadSyncMessage reads and processes sync message, returns message type
+func ReadSyncMessage(reader lib0.StreamReader, writer lib0.StreamWriter, doc *types.YDoc, transactionOrigin interface{}) (uint32, error) {
+	messageType, err := lib0.ReadVarUint(reader)
 	if err != nil {
 		return 0, err
 	}
 
 	switch messageType {
 	case MessageYjsSyncStep1:
-		err = ReadSyncStep1(buf, writer, doc)
+		err = ReadSyncStep1(reader, writer, doc)
 	case MessageYjsSyncStep2:
-		err = ReadSyncStep2(buf, doc, transactionOrigin)
+		err = ReadSyncStep2(reader, doc, transactionOrigin)
 	case MessageYjsUpdate:
-		err = ReadUpdate(buf, doc, transactionOrigin)
+		err = ReadUpdate(reader, doc, transactionOrigin)
 	default:
-		err = errors.New("unknown message type")
+		return 0, fmt.Errorf("unknown message type: %d", messageType)
 	}
 
-	return messageType, err
+	if err != nil {
+		return 0, err
+	}
+	return messageType, nil
 }

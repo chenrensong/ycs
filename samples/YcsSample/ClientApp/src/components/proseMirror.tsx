@@ -8,16 +8,16 @@ import { useYjs } from '../hooks/useYjs';
 
 export const ProseMirror = (props) => {
   const { yDoc, yjsConnector } = useYjs();
-  const yText = yDoc.getText('prosemirror');
+  const yXmlFragment = yDoc.getXmlFragment('prosemirror');
 
-  const viewHost = React.useRef(null);
-  const view = React.useRef(null);
+  const viewHost = React.useRef<HTMLDivElement>(null);
+  const view = React.useRef<EditorView | null>(null);
 
   React.useEffect(() => {
     const state = EditorState.create({
       schema,
       plugins: [
-        ySyncPlugin(yText),
+        ySyncPlugin(yXmlFragment),
         yCursorPlugin(yjsConnector.awareness),
         yUndoPlugin(),
         keymap({
