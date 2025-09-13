@@ -23,3 +23,5 @@ obj/
 
 # ESLint cache
 .eslintcache
+/.kiro/specs/ycs-golang-translation
+/.vscode
