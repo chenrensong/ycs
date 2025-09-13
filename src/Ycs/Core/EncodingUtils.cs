@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------------------------
+﻿﻿﻿// ------------------------------------------------------------------------------
 //  <copyright company="Microsoft Corporation">
 //      Copyright (c) Microsoft Corporation.  All rights reserved.
 //  </copyright>
@@ -31,33 +31,27 @@ namespace Ycs.Core
     /// </summary>
     internal static class EncodingUtils
     {
+        private static IContentReaderRegistry _contentReaderRegistry;
+        
+        public static void SetContentReaderRegistry(IContentReaderRegistry registry)
+        {
+            _contentReaderRegistry = registry;
+        }
+        
         public static IContent ReadItemContent(IUpdateDecoder decoder, byte info)
         {
-            switch (info & Bits.Bits5)
+            var contentRef = (int)(info & Bits.Bits5);
+            if (contentRef == 0) // GC
             {
-                case 0: // GC
-                    throw new Exception("GC is not ItemContent");
-                case 1: // Deleted
-                    return ContentDeleted.Read(decoder);
-                case 2: // JSON
-                    return ContentJson.Read(decoder);
-                case 3: // Binary
-                    return ContentBinary.Read(decoder);
-                case 4: // String
-                    return ContentString.Read(decoder);
-                case 5: // Embed
-                    return ContentEmbed.Read(decoder);
-                case 6: // Format
-                    return ContentFormat.Read(decoder);
-                case 7: // Type
-                    return ContentType.Read(decoder);
-                case 8: // Any
-                    return ContentAny.Read(decoder);
-                case 9: // Doc
-                    return ContentDoc.Read(decoder);
-                default:
-                    throw new InvalidOperationException($"Content type not recognized: {info}");
+                throw new Exception("GC is not ItemContent");
             }
+            
+            if (_contentReaderRegistry == null)
+            {
+                throw new InvalidOperationException("ContentReaderRegistry not initialized. Call YcsBootstrap.Initialize() first.");
+            }
+            
+            return _contentReaderRegistry.ReadContent(contentRef, decoder);
         }
 
         /// <summary>

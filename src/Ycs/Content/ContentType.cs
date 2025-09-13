@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------------------------
+﻿﻿﻿// ------------------------------------------------------------------------------
 //  <copyright company="Microsoft Corporation">
 //      Copyright (c) Microsoft Corporation.  All rights reserved.
 //  </copyright>
@@ -7,13 +7,19 @@
 using System;
 using System.Collections.Generic;
 using Ycs.Contracts;
-using Ycs.Types;
 
 namespace Ycs.Content
 {
     public class ContentType : IContentEx
     {
         internal const int _ref = 7;
+        
+        private static ITypeReaderRegistry _typeReaderRegistry;
+        
+        public static void SetTypeReaderRegistry(ITypeReaderRegistry registry)
+        {
+            _typeReaderRegistry = registry;
+        }
 
         internal ContentType(IAbstractType type)
         {
@@ -109,21 +115,14 @@ namespace Ycs.Content
 
         internal static ContentType Read(IUpdateDecoder decoder)
         {
-            var typeRef = decoder.ReadTypeRef();
-            switch (typeRef)
+            if (_typeReaderRegistry == null)
             {
-                case YArray.YArrayRefId:
-                    var arr = YArray.Read(decoder);
-                    return new ContentType(arr);
-                case YMap.YMapRefId:
-                    var map = YMap.Read(decoder);
-                    return new ContentType(map);
-                case YText.YTextRefId:
-                    var text = YText.Read(decoder);
-                    return new ContentType(text);
-                default:
-                    throw new NotImplementedException($"Type {typeRef} not implemented");
+                throw new InvalidOperationException("TypeReaderRegistry not initialized. Call ContentType.SetTypeReaderRegistry() first.");
             }
+            
+            var typeRef = decoder.ReadTypeRef();
+            var type = _typeReaderRegistry.ReadType(typeRef, decoder);
+            return new ContentType(type);
         }
     }
 }

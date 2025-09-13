@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Ycs.Contracts;
-using Ycs.Types;
 using Ycs.Content;
 
 namespace Ycs.Core
@@ -37,8 +36,15 @@ namespace Ycs.Core
         public ITransaction Transaction { get; }
     }
 
+    public interface IYArrayBase
+    {
+        void ClearSearchMarkers();
+    }
+
     public class AbstractType : IAbstractType
     {
+        internal static IContentFactory ContentFactory { get; set; }
+
         public IItem Item { get; set; }
         public IItem Start { get; set; }
         public IDictionary<string, IItem> Map { get; set; } = new Dictionary<string, IItem>();
@@ -141,30 +147,7 @@ namespace Ycs.Core
 
             var doc = transaction.Doc;
             var ownClientId = doc.ClientId;
-            IContent content;
-
-            if (value == null)
-            {
-                content = new ContentAny(new object[] { value });
-            }
-            else
-            {
-                switch (value)
-                {
-                    case YDoc d:
-                        content = new ContentDoc(d);
-                        break;
-                    case AbstractType at:
-                        content = new ContentType(at);
-                        break;
-                    case byte[] ba:
-                        content = new ContentBinary(ba);
-                        break;
-                    default:
-                        content = new ContentAny(new[] { value });
-                        break;
-                }
-            }
+            IContent content = ContentFactory?.CreateContent(value) ?? throw new InvalidOperationException("ContentFactory not initialized. Call YcsBootstrap.Initialize() first.");
 
             var newItem = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, null, null, this, key, content);
             newItem.Integrate(transaction, 0);

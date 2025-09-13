@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------------------------
+﻿﻿﻿﻿// ------------------------------------------------------------------------------
 //  <copyright company="Microsoft Corporation">
 //      Copyright (c) Microsoft Corporation.  All rights reserved.
 //  </copyright>
@@ -7,7 +7,6 @@
 using System;
 using System.Collections.Generic;
 using Ycs.Contracts;
-using Ycs.Types;
 
 namespace Ycs.Content
 {
@@ -15,7 +14,7 @@ namespace Ycs.Content
     {
         internal const int _ref = 9;
 
-        internal ContentDoc(YDoc doc)
+        internal ContentDoc(IYDoc doc)
         {
             if (doc.Item != null)
             {
@@ -46,7 +45,7 @@ namespace Ycs.Content
         public bool Countable => true;
         public int Length => 1;
 
-        public YDoc Doc { get; internal set; }
+        public IYDoc Doc { get; internal set; }
         public YDocOptions Opts { get; internal set; } = new YDocOptions();
 
         public IReadOnlyList<object> GetContent() => new[] { Doc };
@@ -99,6 +98,13 @@ namespace Ycs.Content
             Opts.Write(encoder, offset);
         }
 
+        private static Func<YDocOptions, IYDoc> _docFactory;
+        
+        internal static void SetDocFactory(Func<YDocOptions, IYDoc> factory)
+        {
+            _docFactory = factory;
+        }
+        
         internal static ContentDoc Read(IUpdateDecoder decoder)
         {
             var guidStr = decoder.ReadString();
@@ -106,7 +112,12 @@ namespace Ycs.Content
             var opts = YDocOptions.Read(decoder);
             opts.Guid = guidStr;
 
-            return new ContentDoc(new YDoc(opts));
+            if (_docFactory == null)
+            {
+                throw new InvalidOperationException("DocFactory not initialized. Call YcsBootstrap.Initialize() first.");
+            }
+            
+            return new ContentDoc(_docFactory(opts));
         }
     }
 }

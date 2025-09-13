@@ -15,7 +15,7 @@ using Ycs.Content;
 
 namespace Ycs.Types
 {
-    public abstract class YArrayBase : AbstractType, IEnumerable<object>
+    public abstract class YArrayBase : AbstractType, IYArrayBase, IEnumerable<object>
     {
         protected sealed class ArraySearchMarker
         {
@@ -149,7 +149,7 @@ namespace Ycs.Types
             return EnumerateContent().GetEnumerator();
         }
 
-        internal void ClearSearchMarkers()
+        public void ClearSearchMarkers()
         {
             _searchMarkers.Clear();
         }
@@ -237,7 +237,7 @@ namespace Ycs.Types
             {
                 if (jsonContent.Count > 0)
                 {
-                    left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentAny(jsonContent.ToList()));
+                    left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactory.CreateContentAny(jsonContent.ToList()));
                     left.Integrate(transaction, 0);
                     jsonContent.Clear();
                 }
@@ -249,17 +249,17 @@ namespace Ycs.Types
                 {
                     case byte[] arr:
                         packJsonContent();
-                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentBinary(arr));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactory.CreateContentBinary(arr));
                         left.Integrate(transaction, 0);
                         break;
                     case YDoc d:
                         packJsonContent();
-                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentDoc(d));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactory.CreateContentDoc(d));
                         left.Integrate(transaction, 0);
                         break;
                     case AbstractType at:
                         packJsonContent();
-                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentType(at));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactory.CreateContentType(at));
                         left.Integrate(transaction, 0);
                         break;
                     default:

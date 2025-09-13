@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Ycs;
 using YcsSample.Hubs;
 using YcsSample.Middleware;
 
@@ -44,6 +45,8 @@ namespace YcsSample
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
+
+            YcsBootstrap.Initialize();
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
