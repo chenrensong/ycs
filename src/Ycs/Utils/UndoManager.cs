@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Ycs.Contracts;
 using Ycs.Structs;
 using Ycs.Types;
 
@@ -193,7 +194,7 @@ namespace Ycs.Utils
             return res;
         }
 
-        private void OnAfterTransaction(object sender, Transaction transaction)
+        private void OnAfterTransaction(object sender, ITransaction transaction)
         {
             // Only track certain transactions.
             if (!_scope.Any(type => transaction.ChangedParentTypes.ContainsKey(type)) ||
@@ -260,7 +261,7 @@ namespace Ycs.Utils
             StackItem result = null;
 
             // Keep a reference to the transaction so we can fire the event with the 'changedParentTypes'.
-            Transaction tr = null;
+            ITransaction tr = null;
 
             _doc.Transact(transaction =>
             {
@@ -290,11 +291,11 @@ namespace Ycs.Utils
                         {
                             // Make sure structs don't overlap with the range of created operations [stackItem.start, stackItem.start + stackItem.end).
                             // This must be executed before deleted structs are iterated.
-                            _doc.Store.GetItemCleanStart(transaction, new ID(client, startClock));
+                            _doc.Store.GetItemCleanStart(transaction, new StructID(client, startClock));
 
                             if (endClock < _doc.Store.GetState(client))
                             {
-                                _doc.Store.GetItemCleanStart(transaction, new ID(client, endClock));
+                                _doc.Store.GetItemCleanStart(transaction, new StructID(client, endClock));
                             }
 
                             _doc.Store.IterateStructs(transaction, structs, startClock, len, str =>
@@ -309,12 +310,12 @@ namespace Ycs.Utils
 
                                         if (diff > 0)
                                         {
-                                            item = _doc.Store.GetItemCleanStart(transaction, new ID(item.Id.Client, item.Id.Clock + diff)) as Item;
+                                            item = _doc.Store.GetItemCleanStart(transaction, new StructID(item.Id.Client, item.Id.Clock + diff)) as Item;
                                         }
 
                                         if (item.Length > len)
                                         {
-                                            _doc.Store.GetItemCleanStart(transaction, new ID(item.Id.Client, endClock));
+                                            _doc.Store.GetItemCleanStart(transaction, new StructID(item.Id.Client, endClock));
                                         }
 
                                         str = it = item as Item;
@@ -408,7 +409,7 @@ namespace Ycs.Utils
                     return true;
                 }
 
-                child = (child.Parent as AbstractType)._item;
+                child = (child.Parent as AbstractType).Item;
             }
 
             return false;

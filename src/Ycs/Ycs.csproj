@@ -26,8 +26,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-		<InternalsVisibleTo Include="Ycs.Benchmarks"/>
-		<InternalsVisibleTo Include="Ycs.Tests"/>
+		<InternalsVisibleTo Include="Ycs.Benchmarks" />
+		<InternalsVisibleTo Include="Ycs.Tests" />
 	</ItemGroup>
 
 	<ItemGroup>

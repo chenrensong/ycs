@@ -9,7 +9,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Ycs.Structs;
+using Ycs.Contracts;
 using Ycs.Types;
 
 namespace Ycs
@@ -299,7 +299,7 @@ namespace Ycs
             map1.Set("map", _map1);
 
             int calls = 0;
-            ID? dmapId = null;
+            StructID? dmapId = null;
 
             map1.DeepEventHandler += (s, e) =>
             {
@@ -310,7 +310,7 @@ namespace Ycs
                     Assert.IsTrue(evt.Changes.Keys.ContainsKey("deepmap"));
                     Assert.AreEqual(1, evt.Path.Count);
                     Assert.AreEqual("map", evt.Path.First());
-                    dmapId = ((evt.Target as YMap).Get("deepmap") as YMap)._item?.Id;
+                    dmapId = ((evt.Target as YMap).Get("deepmap") as YMap).Item?.Id;
                 }
             };
 
@@ -329,9 +329,9 @@ namespace Ycs
             var dmap3 = _map3.Get("deepmap") as YMap;
 
             Assert.IsTrue(calls > 0);
-            Assert.IsTrue(ID.Equals(dmap1._item?.Id, dmap2._item?.Id));
-            Assert.IsTrue(ID.Equals(dmap1._item?.Id, dmap3._item?.Id));
-            Assert.IsTrue(ID.Equals(dmap1._item?.Id, dmapId));
+            Assert.IsTrue(StructID.Equals(dmap1.Item?.Id, dmap2.Item?.Id));
+            Assert.IsTrue(StructID.Equals(dmap1.Item?.Id, dmap3.Item?.Id));
+            Assert.IsTrue(StructID.Equals(dmap1.Item?.Id, dmapId));
 
             CompareUsers();
         }

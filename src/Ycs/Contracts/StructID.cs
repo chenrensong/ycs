@@ -9,9 +9,9 @@ using System.Diagnostics;
 using System.IO;
 using Ycs.Lib0;
 
-namespace Ycs.Structs
+namespace Ycs.Contracts
 {
-    public struct ID : IEquatable<ID>
+    public struct StructID : IEquatable<StructID>
     {
         /// <summary>
         /// Client id.
@@ -23,7 +23,7 @@ namespace Ycs.Structs
         /// </summary>
         public long Clock;
 
-        public ID(long client, long clock)
+        public StructID(long client, long clock)
         {
             Debug.Assert(client >= 0, "Client should not be negative, as it causes client encoder to fail");
             Debug.Assert(clock >= 0);
@@ -32,12 +32,12 @@ namespace Ycs.Structs
             Clock = clock;
         }
 
-        public bool Equals(ID other)
+        public bool Equals(StructID other)
         {
             return Client == other.Client && Clock == other.Clock;
         }
 
-        public static bool Equals(ID? a, ID? b)
+        public static bool Equals(StructID? a, StructID? b)
         {
             return a == null && b == null || a != null && b != null && a.Value.Equals(b.Value);
         }
@@ -48,12 +48,12 @@ namespace Ycs.Structs
             writer.WriteVarUint((uint)Clock);
         }
 
-        public static ID Read(Stream reader)
+        public static StructID Read(Stream reader)
         {
             var client = reader.ReadVarUint();
             var clock = reader.ReadVarUint();
             Debug.Assert(client >= 0 && clock >= 0);
-            return new ID(client, clock);
+            return new StructID(client, clock);
         }
     }
 }

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Ycs.Contracts;
 using Ycs.Structs;
 using Ycs.Types;
 using Ycs.Utils;
@@ -241,7 +242,7 @@ namespace Ycs
             }
         }
 
-        internal void CompareStructStores(StructStore ss1, StructStore ss2)
+        internal void CompareStructStores(IStructStore ss1, IStructStore ss2)
         {
             Assert.AreEqual(ss1.Clients.Count, ss2.Clients.Count);
 
@@ -260,7 +261,7 @@ namespace Ycs
 
                     // Checks for abstract struct.
                     if (!s1.GetType().IsAssignableFrom(s2.GetType()) ||
-                        !ID.Equals(s1.Id, s2.Id) ||
+                        !StructID.Equals(s1.Id, s2.Id) ||
                         s1.Deleted != s2.Deleted ||
                         s1.Length != s2.Length)
                     {
@@ -270,10 +271,10 @@ namespace Ycs
                     if (s1 is Item s1Item)
                     {
                         if (!(s2 is Item s2Item) ||
-                            !((s1Item.Left == null && s2Item.Left == null) || (s1Item.Left != null && s2Item.Left != null && ID.Equals((s1Item.Left as Item)?.LastId, (s2Item.Left as Item)?.LastId))) ||
+                            !((s1Item.Left == null && s2Item.Left == null) || (s1Item.Left != null && s2Item.Left != null && StructID.Equals((s1Item.Left as Item)?.LastId, (s2Item.Left as Item)?.LastId))) ||
                             !CompareItemIds(s1Item.Right as Item, s2Item.Right as Item) ||
-                            !ID.Equals(s1Item.LeftOrigin, s2Item.LeftOrigin) ||
-                            !ID.Equals(s1Item.RightOrigin, s2Item.RightOrigin) ||
+                            !StructID.Equals(s1Item.LeftOrigin, s2Item.LeftOrigin) ||
+                            !StructID.Equals(s1Item.RightOrigin, s2Item.RightOrigin) ||
                             !string.Equals(s1Item.ParentSub, s2Item.ParentSub))
                         {
                             Assert.Fail("Items don't match");
@@ -315,7 +316,7 @@ namespace Ycs
 
         protected bool CompareItemIds(Item a, Item b)
         {
-            var result = a == b || (a != null && b != null & ID.Equals(a.Id, b.Id));
+            var result = a == b || (a != null && b != null & StructID.Equals(a.Id, b.Id));
             Assert.IsTrue(result);
             return result;
         }

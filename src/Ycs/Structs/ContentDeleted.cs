@@ -7,7 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Ycs.Utils;
+using Ycs.Contracts;
 
 namespace Ycs.Structs
 {
@@ -54,7 +54,7 @@ namespace Ycs.Structs
             // Do nothing.
         }
 
-        void IContentEx.Gc(StructStore store)
+        void IContentEx.Gc(IStructStore store)
         {
             // Do nothing.
         }

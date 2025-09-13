@@ -6,9 +6,8 @@
 
 using System;
 using System.Collections.Generic;
+using Ycs.Contracts;
 using Ycs.Types;
-using Ycs.Utils;
-using Transaction = Ycs.Utils.Transaction;
 
 namespace Ycs.Structs
 {
@@ -88,7 +87,7 @@ namespace Ycs.Structs
             }
         }
 
-        void IContentEx.Gc(StructStore store)
+        void IContentEx.Gc(IStructStore store)
         {
             // Do nothing.
         }

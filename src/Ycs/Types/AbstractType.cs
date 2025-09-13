@@ -8,64 +8,64 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Ycs.Structs;
+using Ycs.Contracts;
 using Ycs.Utils;
 
 namespace Ycs.Types
 {
     public class YEventArgs
     {
-        internal YEventArgs(YEvent evt, Transaction transaction)
+        public YEventArgs(YEvent evt, ITransaction transaction)
         {
             Event = evt;
             Transaction = transaction;
         }
 
         public YEvent Event { get; }
-        public Transaction Transaction { get; }
+        public ITransaction Transaction { get; }
     }
 
     public class YDeepEventArgs
     {
-        internal YDeepEventArgs(IList<YEvent> events, Transaction transaction)
+        public YDeepEventArgs(IList<YEvent> events, ITransaction transaction)
         {
             Events = events;
             Transaction = transaction;
         }
 
         public IList<YEvent> Events { get; }
-        public Transaction Transaction { get; }
+        public ITransaction Transaction { get; }
     }
 
     public class AbstractType
     {
-        internal Item _item = null;
-        internal Item _start = null;
-        internal IDictionary<string, Item> _map = new Dictionary<string, Item>();
+        public Item Item { get; set; }
+        public Item Start { get; set; }
+        public IDictionary<string, Item> Map { get; set; } = new Dictionary<string, Item>();
 
         public event EventHandler<YEventArgs> EventHandler;
         public event EventHandler<YDeepEventArgs> DeepEventHandler;
 
         public YDoc Doc { get; protected set; }
-        public AbstractType Parent => _item != null ? _item.Parent as AbstractType : null;
+        public AbstractType Parent => Item != null ? Item.Parent as AbstractType : null;
 
-        public virtual int Length { get; internal set; }
+        public virtual int Length { get; set; }
 
-        internal virtual void Integrate(YDoc doc, Item item)
+        public virtual void Integrate(YDoc doc, Item item)
         {
             Doc = doc;
-            _item = item;
+            Item = item;
         }
+        public virtual AbstractType InternalCopy() { throw new NotImplementedException(); }
+        public virtual AbstractType InternalClone() { throw new NotImplementedException(); }
 
-        internal virtual AbstractType InternalCopy() { throw new NotImplementedException(); }
-        internal virtual AbstractType InternalClone() { throw new NotImplementedException(); }
-
-        internal virtual void Write(IUpdateEncoder encoder) { throw new NotImplementedException(); }
+        public virtual void Write(IUpdateEncoder encoder) { throw new NotImplementedException(); }
 
         /// <summary>
         /// Call event listeners with an event. This will also add an event to all parents
         /// for observeDeep handlers.
         /// </summary>
-        internal virtual void CallTypeObservers(Transaction transaction, YEvent evt)
+        public virtual void CallTypeObservers(ITransaction transaction, YEvent evt)
         {
             var type = this;
 
@@ -79,12 +79,12 @@ namespace Ycs.Types
 
                 values.Add(evt);
 
-                if (type._item == null)
+                if (type.Item == null)
                 {
                     break;
                 }
 
-                type = type._item.Parent as AbstractType;
+                type = type.Item.Parent as AbstractType;
             }
 
             InvokeEventHandlers(evt, transaction);
@@ -94,14 +94,14 @@ namespace Ycs.Types
         /// Creates YEvent and calls all type observers.
         /// Must be implemented by each type.
         /// </summary>
-        internal virtual void CallObserver(Transaction transaction, ISet<string> parentSubs)
+        public virtual void CallObserver(ITransaction transaction, ISet<string> parentSubs)
         {
             // Do nothing.
         }
 
-        internal Item _First()
+        public Item _First()
         {
-            var n = _start;
+            var n = Start;
             while (n != null && n.Deleted)
             {
                 n = n.Right as Item;
@@ -109,32 +109,32 @@ namespace Ycs.Types
             return n;
         }
 
-        internal void InvokeEventHandlers(YEvent evt, Transaction transaction)
+        public void InvokeEventHandlers(YEvent evt, ITransaction transaction)
         {
             EventHandler?.Invoke(this, new YEventArgs(evt, transaction));
         }
 
-        internal void CallDeepEventHandlerListeners(IList<YEvent> events, Transaction transaction)
+        public void CallDeepEventHandlerListeners(IList<YEvent> events, ITransaction transaction)
         {
             DeepEventHandler?.Invoke(this, new YDeepEventArgs(events, transaction));
         }
 
-        internal string FindRootTypeKey()
+        public string FindRootTypeKey()
         {
             return Doc.FindRootTypeKey(this);
         }
 
-        protected void TypeMapDelete(Transaction transaction, string key)
+        protected void TypeMapDelete(ITransaction transaction, string key)
         {
-            if (_map.TryGetValue(key, out var c))
+            if (Map.TryGetValue(key, out var c))
             {
                 c.Delete(transaction);
             }
         }
 
-        protected void TypeMapSet(Transaction transaction, string key, object value)
+        protected void TypeMapSet(ITransaction transaction, string key, object value)
         {
-            if (!_map.TryGetValue(key, out var left))
+            if (!Map.TryGetValue(key, out var left))
             {
                 left = null;
             }
@@ -166,13 +166,13 @@ namespace Ycs.Types
                 }
             }
 
-            var newItem = new Item(new ID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, null, null, this, key, content);
+            var newItem = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, null, null, this, key, content);
             newItem.Integrate(transaction, 0);
         }
 
         protected bool TryTypeMapGet(string key, out object value)
         {
-            if (_map.TryGetValue(key, out var val) && !val.Deleted)
+            if (Map.TryGetValue(key, out var val) && !val.Deleted)
             {
                 value = val.Content.GetContent()[val.Length - 1];
                 return true;
@@ -184,7 +184,7 @@ namespace Ycs.Types
 
         protected object TypeMapGetSnapshot(string key, Snapshot snapshot)
         {
-            if (!_map.TryGetValue(key, out var v))
+            if (!Map.TryGetValue(key, out var v))
             {
                 v = null;
             }
@@ -197,8 +197,8 @@ namespace Ycs.Types
             return v != null && v.IsVisible(snapshot) ? v.Content.GetContent()[v.Length - 1] : null;
         }
 
-        protected IEnumerable<KeyValuePair<string, Item>> TypeMapEnumerate() => _map.Where(kvp => !kvp.Value.Deleted);
-        
+        protected IEnumerable<KeyValuePair<string, Item>> TypeMapEnumerate() => Map.Where(kvp => !kvp.Value.Deleted);
+
         protected IEnumerable<KeyValuePair<string, object>> TypeMapEnumerateValues()
         {
             foreach (var kvp in TypeMapEnumerate())

@@ -8,12 +8,12 @@ using System.Collections.Generic;
 using Ycs.Structs;
 using Ycs.Types;
 
-namespace Ycs.Structs
+namespace Ycs.Contracts
 {
     public interface ITransaction
     {
-        IDictionary<long, long> AfterState { get; }
-        IDictionary<long, long> BeforeState { get; }
+        IDictionary<long, long> AfterState { get; set; }
+        IDictionary<long, long> BeforeState { get; set; }
         IDictionary<AbstractType, ISet<string>> Changed { get; }
         IDictionary<AbstractType, IList<YEvent>> ChangedParentTypes { get; }
         DeleteSet DeleteSet { get; }
@@ -27,7 +27,7 @@ namespace Ycs.Structs
         IList<AbstractStruct> MergeStructs { get; }
 
         void AddChangedTypeToTransaction(AbstractType type, string parentSub);
-        ID GetNextId();
+        StructID GetNextId();
         AbstractStruct RedoItem(Item item, ISet<Item> redoItems);
         bool WriteUpdateMessageFromTransaction(IUpdateEncoder encoder);
     }

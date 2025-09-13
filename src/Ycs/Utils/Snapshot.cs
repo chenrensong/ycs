@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Structs;
 using Ycs.Types;
@@ -53,7 +54,7 @@ namespace Ycs.Utils
 
                         if (clock < originDoc.Store.GetState(client))
                         {
-                            tr.Doc.Store.GetItemCleanStart(tr, new ID(client, clock));
+                            tr.Doc.Store.GetItemCleanStart(tr, new StructID(client, clock));
                         }
 
                         var structs = originDoc.Store.Clients[client];

@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Ycs.Contracts;
 using Ycs.Structs;
 using Ycs.Types;
 
@@ -53,12 +54,12 @@ namespace Ycs.Utils
         /// <summary>
         /// Holds the state before the transaction started.
         /// </summary>
-        public IDictionary<long, long> BeforeState { get; }
+        public IDictionary<long, long> BeforeState { get; set; }
 
         /// <summary>
         /// Holds the state after the transaction.
         /// </summary>
-        public IDictionary<long, long> AfterState { get; private set; }
+        public IDictionary<long, long> AfterState { get; set; }
 
         /// <summary>
         /// All types that were directly modified (property added or child
@@ -94,9 +95,9 @@ namespace Ycs.Utils
         /// </summary>
         public DeleteSet DeleteSet { get; }
 
-        public ID GetNextId()
+        public StructID GetNextId()
         {
-            return new ID(Doc.ClientId, Doc.Store.GetState(Doc.ClientId));
+            return new StructID(Doc.ClientId, Doc.Store.GetState(Doc.ClientId));
         }
 
         /// <summary>
@@ -105,7 +106,7 @@ namespace Ycs.Utils
         /// </summary>
         public void AddChangedTypeToTransaction(AbstractType type, string parentSub)
         {
-            var item = type._item;
+            var item = type.Item;
             if (item == null || (BeforeState.TryGetValue(item.Id.Client, out var clock) && item.Id.Clock < clock && !item.Deleted))
             {
                 if (!Changed.TryGetValue(type, out var set))
@@ -118,7 +119,7 @@ namespace Ycs.Utils
             }
         }
 
-        public static void CleanupTransactions(IList<Transaction> transactionCleanups, int i)
+        public static void CleanupTransactions(IList<ITransaction> transactionCleanups, int i)
         {
             if (i < transactionCleanups.Count)
             {
@@ -126,7 +127,7 @@ namespace Ycs.Utils
                 var doc = transaction.Doc;
                 var store = doc.Store;
                 var ds = transaction.DeleteSet;
-                var mergeStructs = transaction._mergeStructs;
+                var mergeStructs = transaction.MergeStructs;
                 var actions = new List<Action>();
 
                 try
@@ -147,7 +148,7 @@ namespace Ycs.Utils
                             var itemType = kvp.Key;
                             var subs = kvp.Value;
 
-                            if (itemType._item == null || !itemType._item.Deleted)
+                            if (itemType.Item == null || !itemType.Item.Deleted)
                             {
                                 itemType.CallObserver(transaction, subs);
                             }
@@ -163,11 +164,11 @@ namespace Ycs.Utils
                             var events = kvp.Value;
 
                             // We need to think about the possibility that the user transforms the YDoc in the event.
-                            if (type._item == null || !type._item.Deleted)
+                            if (type.Item == null || !type.Item.Deleted)
                             {
                                 foreach (var evt in events)
                                 {
-                                    if (evt.Target._item == null || !evt.Target._item.Deleted)
+                                    if (evt.Target.Item == null || !evt.Target.Item.Deleted)
                                     {
                                         evt.CurrentTarget = type;
                                     }
@@ -316,7 +317,7 @@ namespace Ycs.Utils
                 return store.GetItemCleanStart(this, redone.Value);
             }
 
-            var parentItem = (item.Parent as AbstractType)?._item;
+            var parentItem = (item.Parent as AbstractType)?.Item;
             AbstractStruct left;
             AbstractStruct right;
 
@@ -342,7 +343,7 @@ namespace Ycs.Utils
 
                 if ((left as Item)?.Right != null)
                 {
-                    left = (item.Parent as AbstractType)?._map[item.ParentSub];
+                    left = (item.Parent as AbstractType)?.Map[item.ParentSub];
                 }
 
                 right = null;
@@ -369,12 +370,12 @@ namespace Ycs.Utils
                 while (left != null)
                 {
                     var leftTrace = left;
-                    while (leftTrace != null && ((leftTrace as Item)?.Parent as AbstractType)?._item != parentItem)
+                    while (leftTrace != null && ((leftTrace as Item)?.Parent as AbstractType)?.Item != parentItem)
                     {
                         leftTrace = (leftTrace as Item).Redone == null ? null : store.GetItemCleanStart(this, (leftTrace as Item).Redone.Value);
                     }
 
-                    if (leftTrace != null && ((leftTrace as Item)?.Parent as AbstractType)?._item == parentItem)
+                    if (leftTrace != null && ((leftTrace as Item)?.Parent as AbstractType)?.Item == parentItem)
                     {
                         left = leftTrace;
                         break;
@@ -386,12 +387,12 @@ namespace Ycs.Utils
                 while (right != null)
                 {
                     var rightTrace = right;
-                    while (rightTrace != null && ((rightTrace as Item)?.Parent as AbstractType)?._item != parentItem)
+                    while (rightTrace != null && ((rightTrace as Item)?.Parent as AbstractType)?.Item != parentItem)
                     {
                         rightTrace = (rightTrace as Item).Redone == null ? null : store.GetItemCleanStart(this, (rightTrace as Item).Redone.Value);
                     }
 
-                    if (rightTrace != null && ((rightTrace as Item)?.Parent as AbstractType)?._item == parentItem)
+                    if (rightTrace != null && ((rightTrace as Item)?.Parent as AbstractType)?.Item == parentItem)
                     {
                         right = rightTrace;
                         break;
@@ -402,7 +403,7 @@ namespace Ycs.Utils
             }
 
             var nextClock = store.GetState(ownClientId);
-            var nextId = new ID(ownClientId, nextClock);
+            var nextId = new StructID(ownClientId, nextClock);
 
             var redoneItem = new Item(
                 nextId,
@@ -422,7 +423,7 @@ namespace Ycs.Utils
             return redoneItem;
         }
 
-        public static void SplitSnapshotAffectedStructs(Transaction transaction, Snapshot snapshot)
+        public static void SplitSnapshotAffectedStructs(ITransaction transaction, Snapshot snapshot)
         {
             if (!transaction.Meta.TryGetValue("splitSnapshotAffectedStructs", out var metaObj))
             {
@@ -443,7 +444,7 @@ namespace Ycs.Utils
 
                     if (clock < store.GetState(client))
                     {
-                        store.GetItemCleanStart(transaction, new ID(client, clock));
+                        store.GetItemCleanStart(transaction, new StructID(client, clock));
                     }
                 }
 

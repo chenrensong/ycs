@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Structs;
 
@@ -135,13 +136,13 @@ namespace Ycs.Utils
             }
         }
 
-        public void WriteLeftId(ID id)
+        public void WriteLeftId(StructID id)
         {
             _clientEncoder.Write((uint)id.Client);
             _leftClockEncoder.Write(id.Clock);
         }
 
-        public void WriteRightId(ID id)
+        public void WriteRightId(StructID id)
         {
             _clientEncoder.Write((uint)id.Client);
             _rightClockEncoder.Write(id.Clock);

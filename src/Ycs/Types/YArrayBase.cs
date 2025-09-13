@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Ycs.Structs;
+using Ycs.Contracts;
 using Ycs.Utils;
 
 namespace Ycs.Types
@@ -156,7 +157,7 @@ namespace Ycs.Types
         /// <summary>
         /// Creates YArrayEvent and calls observers.
         /// </summary>
-        internal override void CallObserver(Transaction transaction, ISet<string> parentSubs)
+        public override void CallObserver(ITransaction transaction, ISet<string> parentSubs)
         {
             if (!transaction.Local)
             {
@@ -164,7 +165,7 @@ namespace Ycs.Types
             }
         }
 
-        protected void InsertGenerics(Transaction transaction, int index, ICollection<object> content)
+        protected void InsertGenerics(ITransaction transaction, int index, ICollection<object> content)
         {
             if (index == 0)
             {
@@ -179,7 +180,7 @@ namespace Ycs.Types
 
             int startIndex = index;
             var marker = FindMarker(index);
-            var n = _start;
+            var n = Start;
 
             if (marker != null)
             {
@@ -204,7 +205,7 @@ namespace Ycs.Types
                         if (index < n.Length)
                         {
                             // insert in-between
-                            transaction.Doc.Store.GetItemCleanStart(transaction, new ID(n.Id.Client, n.Id.Clock + index));
+                            transaction.Doc.Store.GetItemCleanStart(transaction, new StructID(n.Id.Client, n.Id.Clock + index));
                         }
 
                         break;
@@ -222,13 +223,13 @@ namespace Ycs.Types
             InsertGenericsAfter(transaction, n, content);
         }
 
-        protected void InsertGenericsAfter(Transaction transaction, Item referenceItem, ICollection<object> content)
+        protected void InsertGenericsAfter(ITransaction transaction, Item referenceItem, ICollection<object> content)
         {
             var left = referenceItem;
             var doc = transaction.Doc;
             var ownClientId = doc.ClientId;
             var store = doc.Store;
-            var right = referenceItem == null ? _start : referenceItem.Right as Item;
+            var right = referenceItem == null ? Start : referenceItem.Right as Item;
 
             var jsonContent = new List<object>();
 
@@ -236,7 +237,7 @@ namespace Ycs.Types
             {
                 if (jsonContent.Count > 0)
                 {
-                    left = new Item(new ID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentAny(jsonContent.ToList()));
+                    left = new Item(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentAny(jsonContent.ToList()));
                     left.Integrate(transaction, 0);
                     jsonContent.Clear();
                 }
@@ -248,17 +249,17 @@ namespace Ycs.Types
                 {
                     case byte[] arr:
                         packJsonContent();
-                        left = new Item(new ID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentBinary(arr));
+                        left = new Item(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentBinary(arr));
                         left.Integrate(transaction, 0);
                         break;
                     case YDoc d:
                         packJsonContent();
-                        left = new Item(new ID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentDoc(d));
+                        left = new Item(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentDoc(d));
                         left.Integrate(transaction, 0);
                         break;
                     case AbstractType at:
                         packJsonContent();
-                        left = new Item(new ID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentType(at));
+                        left = new Item(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentType(at));
                         left.Integrate(transaction, 0);
                         break;
                     default:
@@ -270,7 +271,7 @@ namespace Ycs.Types
             packJsonContent();
         }
 
-        protected void Delete(Transaction transaction, int index, int length)
+        protected void Delete(ITransaction transaction, int index, int length)
         {
             if (length == 0)
             {
@@ -280,7 +281,7 @@ namespace Ycs.Types
             int startIndex = index;
             int startLength = length;
             var marker = FindMarker(index);
-            var n = _start;
+            var n = Start;
 
             if (marker != null)
             {
@@ -295,7 +296,7 @@ namespace Ycs.Types
                 {
                     if (index < n.Length)
                     {
-                        transaction.Doc.Store.GetItemCleanStart(transaction, new ID(n.Id.Client, n.Id.Clock + index));
+                        transaction.Doc.Store.GetItemCleanStart(transaction, new StructID(n.Id.Client, n.Id.Clock + index));
                     }
 
                     index -= n.Length;
@@ -309,7 +310,7 @@ namespace Ycs.Types
                 {
                     if (length < n.Length)
                     {
-                        transaction.Doc.Store.GetItemCleanStart(transaction, new ID(n.Id.Client, n.Id.Clock + length));
+                        transaction.Doc.Store.GetItemCleanStart(transaction, new StructID(n.Id.Client, n.Id.Clock + length));
                     }
 
                     n.Delete(transaction);
@@ -361,7 +362,7 @@ namespace Ycs.Types
             Debug.Assert(length >= 0);
 
             var cs = new List<object>();
-            var n = _start;
+            var n = Start;
 
             while (n != null && length > 0)
             {
@@ -393,7 +394,7 @@ namespace Ycs.Types
         protected void ForEach(Action<object, int, YArrayBase> fun)
         {
             int index = 0;
-            var n = _start;
+            var n = Start;
 
             while (n != null)
             {
@@ -413,7 +414,7 @@ namespace Ycs.Types
         protected void ForEachSnapshot(Action<object, int, YArrayBase> fun, Snapshot snapshot)
         {
             int index = 0;
-            var n = _start;
+            var n = Start;
 
             while (n != null)
             {
@@ -432,7 +433,7 @@ namespace Ycs.Types
 
         protected IEnumerable<object> EnumerateContent()
         {
-            var n = _start;
+            var n = Start;
             while (n != null)
             {
                 while (n != null && n.Deleted)
@@ -468,13 +469,13 @@ namespace Ycs.Types
         /// </summary>
         protected ArraySearchMarker FindMarker(int index)
         {
-            if (_start == null || index == 0 || _searchMarkers == null || _searchMarkers.Count == 0)
+            if (Start == null || index == 0 || _searchMarkers == null || _searchMarkers.Count == 0)
             {
                 return null;
             }
 
             var marker = _searchMarkers.Count == 0 ? null : _searchMarkers._searchMarkers.Aggregate((a, b) => Math.Abs(index - a.Index) < Math.Abs(index - b.Index) ? a : b);
-            var p = _start;
+            var p = Start;
             int pIndex = 0;
 
             if (marker != null)

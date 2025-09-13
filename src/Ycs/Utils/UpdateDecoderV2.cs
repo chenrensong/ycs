@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Structs;
 
@@ -113,16 +114,16 @@ namespace Ycs.Utils
             _lengthDecoder = new UintOptRleDecoder(Reader.ReadVarUint8ArrayAsStream());
         }
 
-        public ID ReadLeftId()
+        public StructID ReadLeftId()
         {
             CheckDisposed();
-            return new ID(_clientDecoder.Read(), _leftClockDecoder.Read());
+            return new StructID(_clientDecoder.Read(), _leftClockDecoder.Read());
         }
 
-        public ID ReadRightId()
+        public StructID ReadRightId()
         {
             CheckDisposed();
-            return new ID(_clientDecoder.Read(), _rightClockDecoder.Read());
+            return new StructID(_clientDecoder.Read(), _rightClockDecoder.Read());
         }
 
         /// <summary>

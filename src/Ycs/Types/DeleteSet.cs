@@ -7,8 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Structs;
+using Ycs.Contracts;
 using Ycs.Utils;
 
 namespace Ycs.Types
@@ -47,7 +49,7 @@ namespace Ycs.Types
             MergeDeleteSets(dss);
         }
 
-        public DeleteSet(StructStore ss)
+        public DeleteSet(IStructStore ss)
             : this()
         {
             CreateDeleteSetFromStructStore(ss);
@@ -69,7 +71,7 @@ namespace Ycs.Types
         /// <summary>
         /// Iterate over all structs that the DeleteSet gc'd.
         /// </summary>
-        public void IterateDeletedStructs(Transaction transaction, Predicate<AbstractStruct> fun)
+        public void IterateDeletedStructs(ITransaction transaction, Predicate<AbstractStruct> fun)
         {
             foreach (var kvp in Clients)
             {
@@ -110,7 +112,7 @@ namespace Ycs.Types
             return null;
         }
 
-        public bool IsDeleted(ID id)
+        public bool IsDeleted(StructID id)
         {
             return Clients.TryGetValue(id.Client, out var dis)
                    && FindIndexSS(dis, id.Clock) != null;
@@ -155,13 +157,13 @@ namespace Ycs.Types
             }
         }
 
-        public void TryGc(StructStore store, Predicate<Item> gcFilter)
+        public void TryGc(IStructStore store, Predicate<Item> gcFilter)
         {
             TryGcDeleteSet(store, gcFilter);
             TryMergeDeleteSet(store);
         }
 
-        public void TryGcDeleteSet(StructStore store, Predicate<Item> gcFilter)
+        public void TryGcDeleteSet(IStructStore store, Predicate<Item> gcFilter)
         {
             foreach (var kvp in Clients)
             {
@@ -191,7 +193,7 @@ namespace Ycs.Types
             }
         }
 
-        public void TryMergeDeleteSet(StructStore store)
+        public void TryMergeDeleteSet(IStructStore store)
         {
             // Try to merge deleted / gc'd items.
             // Merge from right to left for better efficiency and so we don't miss any merge targets.
@@ -228,9 +230,9 @@ namespace Ycs.Types
 
                     if (right is Item rightItem && rightItem.ParentSub != null)
                     {
-                        if ((rightItem.Parent as AbstractType)._map.TryGetValue(rightItem.ParentSub, out var value) && value == right)
+                        if ((rightItem.Parent as AbstractType).Map.TryGetValue(rightItem.ParentSub, out var value) && value == right)
                         {
-                            (rightItem.Parent as AbstractType)._map[rightItem.ParentSub] = left as Item;
+                            (rightItem.Parent as AbstractType).Map[rightItem.ParentSub] = left as Item;
                         }
                     }
                 }
@@ -268,7 +270,7 @@ namespace Ycs.Types
             SortAndMergeDeleteSet();
         }
 
-        private void CreateDeleteSetFromStructStore(StructStore ss)
+        private void CreateDeleteSetFromStructStore(IStructStore ss)
         {
             foreach (var kvp in ss.Clients)
             {

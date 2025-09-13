@@ -7,7 +7,7 @@
 using System;
 using System.IO;
 
-namespace Ycs.Structs
+namespace Ycs.Contracts
 {
     public interface IDSDecoder : IDisposable
     {
@@ -20,8 +20,8 @@ namespace Ycs.Structs
 
     public interface IUpdateDecoder : IDSDecoder
     {
-        ID ReadLeftId();
-        ID ReadRightId();
+        StructID ReadLeftId();
+        StructID ReadRightId();
         long ReadClient();
         byte ReadInfo();
         string ReadString();

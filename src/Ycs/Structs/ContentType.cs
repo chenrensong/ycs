@@ -7,7 +7,7 @@
 using System;
 using System.Collections.Generic;
 using Ycs.Types;
-using Ycs.Utils;
+using Ycs.Contracts;
 
 namespace Ycs.Structs
 {
@@ -42,7 +42,7 @@ namespace Ycs.Structs
 
         void IContentEx.Delete(ITransaction transaction)
         {
-            var item = Type._start;
+            var item = Type.Start;
 
             while (item != null)
             {
@@ -62,7 +62,7 @@ namespace Ycs.Structs
                 item = item.Right as Item;
             }
 
-            foreach (var valueItem in Type._map.Values)
+            foreach (var valueItem in Type.Map.Values)
             {
                 if (!valueItem.Deleted)
                 {
@@ -78,18 +78,18 @@ namespace Ycs.Structs
             transaction.Changed.Remove(Type);
         }
 
-        void IContentEx.Gc(StructStore store)
+        void IContentEx.Gc(IStructStore store)
         {
-            var item = Type._start;
+            var item = Type.Start;
             while (item != null)
             {
                 item.Gc(store, parentGCd: true);
                 item = item.Right as Item;
             }
 
-            Type._start = null;
+            Type.Start = null;
 
-            foreach (var kvp in Type._map)
+            foreach (var kvp in Type.Map)
             {
                 var valueItem = kvp.Value;
                 while (valueItem != null)
@@ -99,7 +99,7 @@ namespace Ycs.Structs
                 }
             }
 
-            Type._map.Clear();
+            Type.Map.Clear();
         }
 
         void IContentEx.Write(IUpdateEncoder encoder, int offset)

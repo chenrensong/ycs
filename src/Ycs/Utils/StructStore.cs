@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Structs;
 using Ycs.Types;
@@ -25,7 +26,7 @@ namespace Ycs.Utils
         }
 
         // TODO: [alekseyk] To private?
-        public readonly IDictionary<long, List<AbstractStruct>> Clients = new Dictionary<long, List<AbstractStruct>>();
+        public IDictionary<long, List<AbstractStruct>> Clients { get; } = new Dictionary<long, List<AbstractStruct>>();
 
         /// <summary>
         /// Store incompleted struct reads here.
@@ -195,7 +196,7 @@ namespace Ycs.Utils
         /// <summary>
         /// Expects that id is actually in store. This function throws or is an infinite loop otherwise.
         /// </summary>
-        public AbstractStruct Find(ID id)
+        public AbstractStruct Find(StructID id)
         {
             if (!Clients.TryGetValue(id.Client, out var structs))
             {
@@ -224,7 +225,7 @@ namespace Ycs.Utils
             return index;
         }
 
-        public AbstractStruct GetItemCleanStart(ITransaction transaction, ID id)
+        public AbstractStruct GetItemCleanStart(ITransaction transaction, StructID id)
         {
             if (!Clients.TryGetValue(id.Client, out var structs))
             {
@@ -236,7 +237,7 @@ namespace Ycs.Utils
             return structs[indexCleanStart];
         }
 
-        public AbstractStruct GetItemCleanEnd(ITransaction transaction, ID id)
+        public AbstractStruct GetItemCleanEnd(ITransaction transaction, StructID id)
         {
             if (!Clients.TryGetValue(id.Client, out var structs))
             {
@@ -295,9 +296,9 @@ namespace Ycs.Utils
             } while (index < structs.Count && structs[index].Id.Clock < clockEnd);
         }
 
-        public (AbstractStruct item, int diff) FollowRedone(ID id)
+        public (AbstractStruct item, int diff) FollowRedone(StructID id)
         {
-            ID? nextId = id;
+            StructID? nextId = id;
             int diff = 0;
             AbstractStruct item;
 
@@ -305,7 +306,7 @@ namespace Ycs.Utils
             {
                 if (diff > 0)
                 {
-                    nextId = new ID(nextId.Value.Client, nextId.Value.Clock + diff);
+                    nextId = new StructID(nextId.Value.Client, nextId.Value.Clock + diff);
                 }
 
                 item = Find(nextId.Value);
@@ -402,7 +403,7 @@ namespace Ycs.Utils
             }
         }
 
-        internal void MergeReadStructsIntoPendingReads(IDictionary<long, List<AbstractStruct>> clientStructsRefs)
+        public void MergeReadStructsIntoPendingReads(IDictionary<long, List<AbstractStruct>> clientStructsRefs)
         {
             var pendingClientStructRefs = _pendingClientStructRefs;
             foreach (var kvp in clientStructsRefs)
@@ -455,7 +456,7 @@ namespace Ycs.Utils
         /// This method is implemented in a way so that we can resume computation if this update causally
         /// depends on another update.
         /// </summary>
-        internal void ResumeStructIntegration(ITransaction transaction)
+        public void ResumeStructIntegration(ITransaction transaction)
         {
             // @todo: Don't forget to append stackhead at the end.
             var stack = _pendingStack;
@@ -597,7 +598,7 @@ namespace Ycs.Utils
             _pendingClientStructRefs.Clear();
         }
 
-        internal void TryResumePendingDeleteReaders(ITransaction transaction)
+        public void TryResumePendingDeleteReaders(ITransaction transaction)
         {
             var pendingReaders = _pendingDeleteReaders.ToArray();
             _pendingDeleteReaders.Clear();

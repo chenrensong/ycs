@@ -6,13 +6,13 @@
 
 using System.Collections.Generic;
 using Ycs.Structs;
-using Ycs.Utils;
+using Ycs.Contracts;
 
 namespace Ycs.Types
 {
     public class YArrayEvent : YEvent
     {
-        internal YArrayEvent(YArray arr, Transaction transaction)
+        internal YArrayEvent(YArray arr, ITransaction transaction)
             : base(arr, transaction)
         {
             // Do nothing.
@@ -40,19 +40,19 @@ namespace Ycs.Types
 
         public YArray Clone() => InternalClone() as YArray;
 
-        internal override void Integrate(YDoc doc, Item item)
+        public override void Integrate(YDoc doc, Item item)
         {
             base.Integrate(doc, item);
             Insert(0, _prelimContent);
             _prelimContent = null;
         }
 
-        internal override AbstractType InternalCopy()
+        public override AbstractType InternalCopy()
         {
             return new YArray();
         }
 
-        internal override AbstractType InternalClone()
+        public override AbstractType InternalClone()
         {
             var arr = new YArray();
 
@@ -71,12 +71,12 @@ namespace Ycs.Types
             return arr;
         }
 
-        internal override void Write(IUpdateEncoder encoder)
+        public override void Write(IUpdateEncoder encoder)
         {
             encoder.WriteTypeRef(YArrayRefId);
         }
 
-        internal static YArray Read(IUpdateDecoder decoder)
+        public static YArray Read(IUpdateDecoder decoder)
         {
             return new YArray();
         }
@@ -84,7 +84,7 @@ namespace Ycs.Types
         /// <summary>
         /// Creates YArrayEvent and calls observers.
         /// </summary>
-        internal override void CallObserver(Transaction transaction, ISet<string> parentSubs)
+        public override void CallObserver(ITransaction transaction, ISet<string> parentSubs)
         {
             base.CallObserver(transaction, parentSubs);
             CallTypeObservers(transaction, new YArrayEvent(this, transaction));
@@ -140,7 +140,7 @@ namespace Ycs.Types
         public object Get(int index)
         {
             var marker = FindMarker(index);
-            var n = _start;
+            var n = Start;
 
             if (marker != null)
             {
@@ -173,7 +173,7 @@ namespace Ycs.Types
 
         private IEnumerable<object> EnumerateList()
         {
-            var n = _start;
+            var n = Start;
 
             while (n != null)
             {

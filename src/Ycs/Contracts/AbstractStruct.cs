@@ -4,23 +4,23 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
+using System;
 using System.Diagnostics;
+using Ycs.Types;
 
-namespace Ycs.Structs
+namespace Ycs.Contracts
 {
     public abstract class AbstractStruct
     {
-        protected AbstractStruct(ID id, int length)
+        protected AbstractStruct(StructID id, int length)
         {
             Debug.Assert(length >= 0);
 
             Id = id;
             Length = length;
         }
-
-        public ID Id { get; protected set; }
-        public int Length { get; protected set; }
-
+        public StructID Id { get; set; }
+        public int Length { get; set; }
         public abstract bool Deleted { get; }
 
         internal abstract bool MergeWith(AbstractStruct right);
@@ -28,5 +28,7 @@ namespace Ycs.Structs
         internal abstract void Integrate(ITransaction transaction, int offset);
         internal abstract long? GetMissing(ITransaction transaction, IStructStore store);
         internal abstract void Write(IUpdateEncoder encoder, int offset);
+
+     
     }
 }

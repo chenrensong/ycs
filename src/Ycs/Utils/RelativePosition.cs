@@ -6,6 +6,7 @@
 
 using System;
 using System.IO;
+using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Structs;
 using Ycs.Types;
@@ -26,8 +27,8 @@ namespace Ycs.Utils
     /// </summary>
     internal class RelativePosition : IEquatable<RelativePosition>
     {
-        public readonly ID? Item;
-        public readonly ID? TypeId;
+        public readonly StructID? Item;
+        public readonly StructID? TypeId;
         public readonly string TName;
 
         /// <summary>
@@ -41,18 +42,18 @@ namespace Ycs.Utils
         /// </summary>
         public int Assoc;
 
-        public RelativePosition(AbstractType type, ID? item, int assoc = 0)
+        public RelativePosition(AbstractType type, StructID? item, int assoc = 0)
         {
             Item = item;
             Assoc = assoc;
 
-            if (type._item == null)
+            if (type.Item == null)
             {
                 TName = type.FindRootTypeKey();
             }
             else
             {
-                TypeId = new ID(type._item.Id.Client, type._item.Id.Clock);
+                TypeId = new StructID(type.Item.Id.Client, type.Item.Id.Clock);
             }
         }
 
@@ -65,7 +66,7 @@ namespace Ycs.Utils
         }
         */
 
-        private RelativePosition(ID? typeId, string tname, ID? item, int assoc)
+        private RelativePosition(StructID? typeId, string tname, StructID? item, int assoc)
         {
             TypeId = typeId;
             TName = tname;
@@ -82,8 +83,8 @@ namespace Ycs.Utils
 
             return other != null
                 && string.Equals(TName, other.TName)
-                && ID.Equals(Item, other.Item)
-                && ID.Equals(TypeId, other.TypeId)
+                && StructID.Equals(Item, other.Item)
+                && StructID.Equals(TypeId, other.TypeId)
                 && Assoc == other.Assoc;
         }
 
@@ -97,13 +98,13 @@ namespace Ycs.Utils
                 // Associated with the left character or the beginning of a type, decrement index if possible.
                 if (index == 0)
                 {
-                    return new RelativePosition(type, type._item?.Id, assoc);
+                    return new RelativePosition(type, type.Item?.Id, assoc);
                 }
 
                 index--;
             }
 
-            var t = type._start;
+            var t = type.Start;
             while (t != null)
             {
                 if (!t.Deleted && t.Countable)
@@ -111,7 +112,7 @@ namespace Ycs.Utils
                     if (t.Length > index)
                     {
                         // Case 1: found position somewhere in the linked list.
-                        return new RelativePosition(type, new ID(t.Id.Client, t.Id.Clock + index), assoc);
+                        return new RelativePosition(type, new StructID(t.Id.Client, t.Id.Clock + index), assoc);
                     }
 
                     index -= t.Length;
@@ -126,7 +127,7 @@ namespace Ycs.Utils
                 t = t.Right as Item;
             }
 
-            return new RelativePosition(type, type._item?.Id, assoc);
+            return new RelativePosition(type, type.Item?.Id, assoc);
         }
 
         public void Write(Stream writer)
@@ -167,15 +168,15 @@ namespace Ycs.Utils
 
         public static RelativePosition Read(Stream reader)
         {
-            ID? itemId = null;
-            ID? typeId = null;
+            StructID? itemId = null;
+            StructID? typeId = null;
             string tName = null;
 
             switch (reader.ReadVarUint())
             {
                 case 0:
                     // Case 1: Found position somewhere in the linked list.
-                    itemId = ID.Read(reader);
+                    itemId = StructID.Read(reader);
                     break;
                 case 1:
                     // Case 2: Found position at the end of the list and type is stored in y.share.
@@ -183,7 +184,7 @@ namespace Ycs.Utils
                     break;
                 case 2:
                     // Case 3: Found position at the end of the list and type is attached to an item.
-                    typeId = ID.Read(reader);
+                    typeId = StructID.Read(reader);
                     break;
                 default:
                     throw new Exception();

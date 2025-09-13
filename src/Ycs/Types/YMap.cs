@@ -8,7 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Ycs.Structs;
-using Ycs.Utils;
+using Ycs.Contracts;
 
 namespace Ycs.Types
 {
@@ -19,7 +19,7 @@ namespace Ycs.Types
     {
         public readonly ISet<string> KeysChanged;
 
-        internal YMapEvent(YMap map, Transaction transaction, ISet<string> subs)
+        internal YMapEvent(YMap map, ITransaction transaction, ISet<string> subs)
             : base(map, transaction)
         {
             KeysChanged = subs;
@@ -90,7 +90,7 @@ namespace Ycs.Types
 
         public bool ContainsKey(string key)
         {
-            return _map.TryGetValue(key, out var val) && !val.Deleted;
+            return Map.TryGetValue(key, out var val) && !val.Deleted;
         }
 
         public IEnumerable<string> Keys() => TypeMapEnumerate().Select(kvp => kvp.Key);
@@ -99,12 +99,12 @@ namespace Ycs.Types
 
         public YMap Clone() => InternalClone() as YMap;
 
-        internal override AbstractType InternalCopy()
+        public override AbstractType InternalCopy()
         {
             return new YMap();
         }
 
-        internal override AbstractType InternalClone()
+        public override AbstractType InternalClone()
         {
             var map = new YMap();
 
@@ -117,7 +117,7 @@ namespace Ycs.Types
             return map;
         }
 
-        internal override void Integrate(YDoc doc, Item item)
+        public override void Integrate(YDoc doc, Item item)
         {
             base.Integrate(doc, item);
 
@@ -129,12 +129,12 @@ namespace Ycs.Types
             _prelimContent = null;
         }
 
-        internal override void CallObserver(Transaction transaction, ISet<string> parentSubs)
+        public override void CallObserver(ITransaction transaction, ISet<string> parentSubs)
         {
             CallTypeObservers(transaction, new YMapEvent(this, transaction, parentSubs));
         }
 
-        internal override void Write(IUpdateEncoder encoder)
+        public override void Write(IUpdateEncoder encoder)
         {
             encoder.WriteTypeRef(YMapRefId);
         }

@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Ycs.Structs;
+using Ycs.Contracts;
 using Ycs.Utils;
 
 namespace Ycs.Types
@@ -79,8 +80,8 @@ namespace Ycs.Types
         public IDictionary<string, string> Meta => _opts.Meta;
 
         internal bool ShouldLoad;
-        internal readonly IList<Transaction> _transactionCleanups;
-        internal Transaction _transaction;
+        internal readonly IList<ITransaction> _transactionCleanups;
+        internal ITransaction _transaction;
         internal readonly ISet<YDoc> Subdocs;
 
         // If this document is a subdocument - a document integrated into another document - them _item is defined.
@@ -98,7 +99,7 @@ namespace Ycs.Types
         public YDoc(YDocOptions opts = null)
         {
             _opts = opts ?? new YDocOptions();
-            _transactionCleanups = new List<Transaction>();
+            _transactionCleanups = new List<ITransaction>();
 
             ClientId = GenerateNewClientId();
             _share = new Dictionary<string, AbstractType>();
@@ -178,18 +179,18 @@ namespace Ycs.Types
             InvokeDestroyed();
         }
 
-        public event EventHandler<Transaction> BeforeObserverCalls;
-        public event EventHandler<Transaction> BeforeTransaction;
-        public event EventHandler<Transaction> AfterTransaction;
-        public event EventHandler<Transaction> AfterTransactionCleanup;
+        public event EventHandler<ITransaction> BeforeObserverCalls;
+        public event EventHandler<ITransaction> BeforeTransaction;
+        public event EventHandler<ITransaction> AfterTransaction;
+        public event EventHandler<ITransaction> AfterTransactionCleanup;
         public event EventHandler BeforeAllTransactions;
-        public event EventHandler<IList<Transaction>> AfterAllTransactions;
-        public event EventHandler<(byte[] data, object origin, Transaction transaction)> UpdateV2;
+        public event EventHandler<IList<ITransaction>> AfterAllTransactions;
+        public event EventHandler<(byte[] data, object origin, ITransaction transaction)> UpdateV2;
         public event EventHandler Destroyed;
         public event EventHandler<(ISet<YDoc> Loaded, ISet<YDoc> Added, ISet<YDoc> Removed)> SubdocsChanged;
 
         public int ClientId { get; internal set; }
-        internal StructStore Store { get; private set; }
+        internal IStructStore Store { get; private set; }
 
         /// <summary>
         /// Changes that happen inside of a transaction are bundled.
@@ -198,9 +199,9 @@ namespace Ycs.Types
         /// other peers.
         /// </summary>
         /// <param name="fun">The function that should be executed as a transaction.</param>
-        /// <param name="origin">Transaction owner. Will be stored in 'transaction.origin'.</param>
+        /// <param name="origin">ITransaction owner. Will be stored in 'transaction.origin'.</param>
         /// <param name="local"></param>
-        public void Transact(Action<Transaction> fun, object origin = null, bool local = true)
+        public void Transact(Action<ITransaction> fun, object origin = null, bool local = true)
         {
             bool initialCall = false;
             if (_transaction == null)
@@ -264,9 +265,9 @@ namespace Ycs.Types
                 if (type.GetType() == typeof(AbstractType))
                 {
                     var t = new T();
-                    t._map = type._map;
+                    t.Map = type.Map;
 
-                    foreach (var kvp in type._map)
+                    foreach (var kvp in type.Map)
                     {
                         var n = kvp.Value;
                         for (; n != null; n = n.Left as Item)
@@ -275,8 +276,8 @@ namespace Ycs.Types
                         }
                     }
 
-                    t._start = type._start;
-                    for (var n = t._start; n != null; n = n.Right as Item)
+                    t.Start = type.Start;
+                    for (var n = t.Start; n != null; n = n.Right as Item)
                     {
                         n.Parent = t;
                     }
@@ -368,27 +369,27 @@ namespace Ycs.Types
             SubdocsChanged?.Invoke(this, (loaded, added, removed));
         }
 
-        internal void InvokeOnBeforeObserverCalls(Transaction transaction)
+        internal void InvokeOnBeforeObserverCalls(ITransaction transaction)
         {
             BeforeObserverCalls?.Invoke(this, transaction);
         }
 
-        internal void InvokeAfterAllTransactions(IList<Transaction> transactions)
+        internal void InvokeAfterAllTransactions(IList<ITransaction> transactions)
         {
             AfterAllTransactions?.Invoke(this, transactions);
         }
 
-        internal void InvokeOnBeforeTransaction(Transaction transaction)
+        internal void InvokeOnBeforeTransaction(ITransaction transaction)
         {
             BeforeTransaction?.Invoke(this, transaction);
         }
 
-        internal void InvokeOnAfterTransaction(Transaction transaction)
+        internal void InvokeOnAfterTransaction(ITransaction transaction)
         {
             AfterTransaction?.Invoke(this, transaction);
         }
 
-        internal void InvokeOnAfterTransactionCleanup(Transaction transaction)
+        internal void InvokeOnAfterTransactionCleanup(ITransaction transaction)
         {
             AfterTransactionCleanup?.Invoke(this, transaction);
         }
@@ -403,7 +404,7 @@ namespace Ycs.Types
             Destroyed?.Invoke(this, null);
         }
 
-        internal void InvokeUpdateV2(Transaction transaction)
+        internal void InvokeUpdateV2(ITransaction transaction)
         {
             var handler = UpdateV2;
             if (handler != null)

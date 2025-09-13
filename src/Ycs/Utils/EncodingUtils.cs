@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Structs;
 using Ycs.Types;
@@ -65,7 +66,7 @@ namespace Ycs.Utils
         /// <br/>
         /// This is called when data is received from a remote peer.
         /// </summary>
-        public static void ReadStructs(IUpdateDecoder decoder, Transaction transaction, StructStore store)
+        public static void ReadStructs(IUpdateDecoder decoder, ITransaction transaction, IStructStore store)
         {
             var clientStructRefs = ReadClientStructRefs(decoder, transaction.Doc);
             store.MergeReadStructsIntoPendingReads(clientStructRefs);
@@ -96,7 +97,7 @@ namespace Ycs.Utils
             }
         }
 
-        public static void WriteClientsStructs(IUpdateEncoder encoder, StructStore store, IDictionary<long, long> _sm)
+        public static void WriteClientsStructs(IUpdateEncoder encoder, IStructStore store, IDictionary<long, long> _sm)
         {
             // We filter all valid _sm entries into sm.
             var sm = new Dictionary<long, long>();
@@ -157,9 +158,9 @@ namespace Ycs.Utils
                     if ((Bits.Bits5 & info) != 0)
                     {
                         // The item that was originally to the left of this item.
-                        var leftOrigin = (info & Bit.Bit8) == Bit.Bit8 ? (ID?)decoder.ReadLeftId() : null;
+                        var leftOrigin = (info & Bit.Bit8) == Bit.Bit8 ? (StructID?)decoder.ReadLeftId() : null;
                         // The item that was originally to the right of this item.
-                        var rightOrigin = (info & Bit.Bit7) == Bit.Bit7 ? (ID?)decoder.ReadRightId() : null;
+                        var rightOrigin = (info & Bit.Bit7) == Bit.Bit7 ? (StructID?)decoder.ReadRightId() : null;
                         var cantCopyParentInfo = (info & (Bit.Bit7 | Bit.Bit8)) == 0;
                         var hasParentYKey = cantCopyParentInfo ? decoder.ReadParentInfo() : false;
 
@@ -169,7 +170,7 @@ namespace Ycs.Utils
                         var parentYKey = cantCopyParentInfo && hasParentYKey ? decoder.ReadString() : null;
 
                         var str = new Item(
-                            new ID(client, clock),
+                            new StructID(client, clock),
                             null, // left
                             leftOrigin,
                             null, // right
@@ -185,7 +186,7 @@ namespace Ycs.Utils
                     else
                     {
                         var length = decoder.ReadLength();
-                        refs.Add(new GC(new ID(client, clock), length));
+                        refs.Add(new GC(new StructID(client, clock), length));
                         clock += length;
                     }
                 }

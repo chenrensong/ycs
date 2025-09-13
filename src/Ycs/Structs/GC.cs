@@ -5,6 +5,7 @@
 // ------------------------------------------------------------------------------
 
 using System.Diagnostics;
+using Ycs.Contracts;
 
 namespace Ycs.Structs
 {
@@ -12,7 +13,7 @@ namespace Ycs.Structs
     {
         internal const byte StructGCRefNumber = 0;
 
-        internal GC(ID id, int length)
+        internal GC(StructID id, int length)
             : base(id, length)
         {
             // Do nothing.
@@ -36,7 +37,7 @@ namespace Ycs.Structs
         {
             if (offset > 0)
             {
-                Id = new ID(Id.Client, Id.Clock + offset);
+                Id = new StructID(Id.Client, Id.Clock + offset);
                 Length -= offset;
             }
 

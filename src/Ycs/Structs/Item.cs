@@ -7,8 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Types;
+using Ycs.Contracts;
 using Ycs.Utils;
 
 namespace Ycs.Structs
@@ -26,7 +28,7 @@ namespace Ycs.Structs
 
         private InfoEnum _info;
 
-        internal Item(ID id, AbstractStruct left, ID? leftOrigin, AbstractStruct right, ID? rightOrigin, object parent, string parentSub, IContent content)
+        internal Item(StructID id, AbstractStruct left, StructID? leftOrigin, AbstractStruct right, StructID? rightOrigin, object parent, string parentSub, IContent content)
             : base(id, content.Length)
         {
             LeftOrigin = leftOrigin;
@@ -44,7 +46,7 @@ namespace Ycs.Structs
         /// <summary>
         /// The item that was originally to the left of this item.
         /// </summary>
-        public ID? LeftOrigin { get; internal set; }
+        public StructID? LeftOrigin { get; internal set; }
 
         /// <summary>
         /// The item that is currently to the left of this item.
@@ -54,7 +56,7 @@ namespace Ycs.Structs
         /// <summary>
         /// The item that was originally to the right of this item.
         /// </summary>
-        public ID? RightOrigin { get; internal set; }
+        public StructID? RightOrigin { get; internal set; }
 
         /// <summary>
         /// The item that is currently to the right of this item.
@@ -77,7 +79,7 @@ namespace Ycs.Structs
         /// <summary>
         /// Refers to the type that undid this operation.
         /// </summary>
-        public ID? Redone { get; internal set; }
+        public StructID? Redone { get; internal set; }
 
         internal IContentEx Content { get; set; }
 
@@ -137,7 +139,7 @@ namespace Ycs.Structs
         /// <summary>
         /// Computes the last content address of this Item.
         /// </summary>
-        public ID LastId => Length == 1 ? Id : new ID(Id.Client, Id.Clock + Length - 1);
+        public StructID LastId => Length == 1 ? Id : new StructID(Id.Client, Id.Clock + Length - 1);
 
         /// <summary>
         /// Returns the next non-deleted item.
@@ -184,9 +186,9 @@ namespace Ycs.Structs
         {
             var rightItem = right as Item;
 
-            if (ID.Equals(rightItem?.LeftOrigin, LastId) &&
+            if (StructID.Equals(rightItem?.LeftOrigin, LastId) &&
                 Right == right &&
-                ID.Equals(rightItem?.RightOrigin, RightOrigin) &&
+                StructID.Equals(rightItem?.RightOrigin, RightOrigin) &&
                 Id.Client == right.Id.Client &&
                 Id.Clock + Length == right.Id.Clock &&
                 Deleted == right.Deleted &&
@@ -238,8 +240,8 @@ namespace Ycs.Structs
         {
             if (offset > 0)
             {
-                Id = new ID(Id.Client, Id.Clock + offset);
-                Left = transaction.Doc.Store.GetItemCleanEnd(transaction, new ID(Id.Client, Id.Clock - 1));
+                Id = new StructID(Id.Client, Id.Clock + offset);
+                Left = transaction.Doc.Store.GetItemCleanEnd(transaction, new StructID(Id.Client, Id.Clock - 1));
                 LeftOrigin = (Left as Item)?.LastId;
                 Content = (IContentEx)Content.Splice(offset);
                 Length -= offset;
@@ -262,7 +264,7 @@ namespace Ycs.Structs
                         Debug.Assert(Parent is AbstractType);
 
                         Item item = null;
-                        (Parent as AbstractType)?._map?.TryGetValue(ParentSub, out item);
+                        (Parent as AbstractType)?.Map?.TryGetValue(ParentSub, out item);
                         o = item;
 
                         while (o != null && (o as Item)?.Left != null)
@@ -273,7 +275,7 @@ namespace Ycs.Structs
                     else
                     {
                         Debug.Assert(Parent is AbstractType);
-                        o = (Parent as AbstractType)?._start;
+                        o = (Parent as AbstractType)?.Start;
                     }
 
                     var conflictingItems = new HashSet<AbstractStruct>();
@@ -284,7 +286,7 @@ namespace Ycs.Structs
                         itemsBeforeOrigin.Add(o);
                         conflictingItems.Add(o);
 
-                        if (ID.Equals(LeftOrigin, (o as Item)?.LeftOrigin))
+                        if (StructID.Equals(LeftOrigin, (o as Item)?.LeftOrigin))
                         {
                             // Case 1
                             if (o.Id.Client < Id.Client)
@@ -292,7 +294,7 @@ namespace Ycs.Structs
                                 left = o;
                                 conflictingItems.Clear();
                             }
-                            else if (ID.Equals(RightOrigin, (o as Item)?.RightOrigin))
+                            else if (StructID.Equals(RightOrigin, (o as Item)?.RightOrigin))
                             {
                                 // This and 'o' are conflicting and point to the same integration points.
                                 // The id decides which item comes first.
@@ -345,7 +347,7 @@ namespace Ycs.Structs
                     if (ParentSub != null)
                     {
                         Item item = null;
-                        (Parent as AbstractType)?._map?.TryGetValue(ParentSub, out item);
+                        (Parent as AbstractType)?.Map?.TryGetValue(ParentSub, out item);
                         r = item;
 
                         while (r != null && (r as Item)?.Left != null)
@@ -357,8 +359,8 @@ namespace Ycs.Structs
                     {
                         if (Parent is AbstractType abstractTypeParent)
                         {
-                            r = abstractTypeParent._start;
-                            abstractTypeParent._start = this;
+                            r = abstractTypeParent.Start;
+                            abstractTypeParent.Start = this;
                         }
                         else
                         {
@@ -379,7 +381,7 @@ namespace Ycs.Structs
                 else if (ParentSub != null)
                 {
                     // Set as current parent value if right == null and this is parentSub.
-                    (Parent as AbstractType)._map[ParentSub] = this;
+                    (Parent as AbstractType).Map[ParentSub] = this;
                     // This is the current attribute value of parent. Delete right.
                     Left?.Delete(transaction);
                 }
@@ -397,7 +399,7 @@ namespace Ycs.Structs
                 // Add parent to transaction.changed.
                 transaction.AddChangedTypeToTransaction(Parent as AbstractType, ParentSub);
 
-                if (((Parent as AbstractType)?._item != null && (Parent as AbstractType)._item.Deleted) || (ParentSub != null && Right != null))
+                if (((Parent as AbstractType)?.Item != null && (Parent as AbstractType).Item.Deleted) || (ParentSub != null && Right != null))
                 {
                     // Delete if parent is deleted or if this is not the current attribute value of parent.
                     Delete(transaction);
@@ -425,7 +427,7 @@ namespace Ycs.Structs
                 return RightOrigin.Value.Client;
             }
 
-            if ((Parent is ID parentId) && Id.Client != parentId.Client && parentId.Clock >= store.GetState(parentId.Client))
+            if ((Parent is StructID parentId) && Id.Client != parentId.Client && parentId.Clock >= store.GetState(parentId.Client))
             {
                 return parentId.Client;
             }
@@ -463,7 +465,7 @@ namespace Ycs.Structs
                     ParentSub = leftItem.ParentSub;
                 }
             }
-            else if (Parent is ID pid)
+            else if (Parent is StructID pid)
             {
                 var parentItem = store.Find(pid);
                 if (parentItem is GC)
@@ -479,7 +481,7 @@ namespace Ycs.Structs
             return null;
         }
 
-        internal void Gc(StructStore store, bool parentGCd)
+        internal void Gc(IStructStore store, bool parentGCd)
         {
             if (!Deleted)
             {
@@ -510,7 +512,7 @@ namespace Ycs.Structs
             while (item != null && item.Keep != value)
             {
                 item.Keep = value;
-                item = (item.Parent as AbstractType)?._item;
+                item = (item.Parent as AbstractType)?.Item;
             }
         }
 
@@ -523,7 +525,7 @@ namespace Ycs.Structs
 
         internal override void Write(IUpdateEncoder encoder, int offset)
         {
-            var origin = offset > 0 ? new ID(Id.Client, Id.Clock + offset - 1) : LeftOrigin;
+            var origin = offset > 0 ? new StructID(Id.Client, Id.Clock + offset - 1) : LeftOrigin;
             var rightOrigin = RightOrigin;
             var parentSub = ParentSub;
             var info = (Content.Ref & Bits.Bits5) |
@@ -545,7 +547,7 @@ namespace Ycs.Structs
             if (origin == null && rightOrigin == null)
             {
                 var parent = Parent;
-                var parentItem = (parent as AbstractType)?._item;
+                var parentItem = (parent as AbstractType)?.Item;
                 if (parentItem == null)
                 {
                     // parent type on y._map.
@@ -578,9 +580,9 @@ namespace Ycs.Structs
             var clock = Id.Clock;
 
             var rightItem = new Item(
-                new ID(client, clock + diff),
+                new StructID(client, clock + diff),
                 this,
-                new ID(client, clock + diff - 1),
+                new StructID(client, clock + diff - 1),
                 Right,
                 RightOrigin,
                 Parent,
@@ -599,7 +601,7 @@ namespace Ycs.Structs
 
             if (Redone != null)
             {
-                rightItem.Redone = new ID(Redone.Value.Client, Redone.Value.Clock + diff);
+                rightItem.Redone = new StructID(Redone.Value.Client, Redone.Value.Clock + diff);
             }
 
             // Update left (do not set leftItem.RightOrigin as it will lead to problems when syncing).
@@ -617,7 +619,7 @@ namespace Ycs.Structs
             // Update parent._map.
             if (rightItem.ParentSub != null && rightItem.Right == null)
             {
-                (rightItem.Parent as AbstractType)._map[rightItem.ParentSub] = rightItem;
+                (rightItem.Parent as AbstractType).Map[rightItem.ParentSub] = rightItem;
             }
 
             Length = diff;

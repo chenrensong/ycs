@@ -7,7 +7,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Ycs.Structs;
-using Ycs.Utils;
+using Ycs.Contracts;
 
 namespace Ycs.Types
 {
@@ -44,7 +44,7 @@ namespace Ycs.Types
     {
         private ChangesCollection _changes = null;
 
-        internal YEvent(AbstractType target, Transaction transaction)
+        internal YEvent(AbstractType target, ITransaction transaction)
         {
             Target = target;
             CurrentTarget = target;
@@ -53,7 +53,7 @@ namespace Ycs.Types
 
         public AbstractType Target { get; set; }
         public AbstractType CurrentTarget { get; set; }
-        public Transaction Transaction { get; set; }
+        public ITransaction Transaction { get; set; }
 
         public IReadOnlyCollection<object> Path => GetPathTo(CurrentTarget, Target);
         public ChangesCollection Changes => CollectChanges();
@@ -107,7 +107,7 @@ namespace Ycs.Types
                         }
                     }
 
-                    for (var item = Target._start; item != null; item = item.Right as Item)
+                    for (var item = Target.Start; item != null; item = item.Right as Item)
                     {
                         if (item.Deleted)
                         {
@@ -165,7 +165,7 @@ namespace Ycs.Types
                     {
                         ChangeAction action;
                         object oldValue;
-                        var item = target._map[key];
+                        var item = target.Map[key];
 
                         if (Adds(item))
                         {
@@ -229,19 +229,19 @@ namespace Ycs.Types
         {
             var path = new Stack<object>();
 
-            while (child._item != null && child != parent)
+            while (child.Item != null && child != parent)
             {
-                if (!string.IsNullOrEmpty(child._item.ParentSub))
+                if (!string.IsNullOrEmpty(child.Item.ParentSub))
                 {
                     // Parent is map-ish.
-                    path.Push(child._item.ParentSub);
+                    path.Push(child.Item.ParentSub);
                 }
                 else
                 {
                     // Parent is array-ish.
                     int i = 0;
-                    AbstractStruct c = (child._item.Parent as AbstractType)._start;
-                    while (c != child._item && c != null)
+                    AbstractStruct c = (child.Item.Parent as AbstractType).Start;
+                    while (c != child.Item && c != null)
                     {
                         if (!c.Deleted)
                         {
@@ -254,7 +254,7 @@ namespace Ycs.Types
                     path.Push(i);
                 }
 
-                child = child._item.Parent as AbstractType;
+                child = child.Item.Parent as AbstractType;
             }
 
             return path;

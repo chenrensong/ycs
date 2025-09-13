@@ -7,7 +7,9 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Ycs.Contracts;
 using Ycs.Structs;
+using Ycs.Contracts;
 using Ycs.Utils;
 
 namespace Ycs.Types
@@ -27,7 +29,7 @@ namespace Ycs.Types
         private readonly ISet<string> _subs;
         private IList<Delta> _delta = null;
 
-        internal YTextEvent(YText arr, Transaction transaction, ISet<string> subs)
+        internal YTextEvent(YText arr, ITransaction transaction, ISet<string> subs)
             : base(arr, transaction)
         {
             _subs = subs;
@@ -78,7 +80,7 @@ namespace Ycs.Types
                         // Saves all current attributes for insert.
                         var currentAttributes = new Dictionary<string, object>();
                         var oldAttributes = new Dictionary<string, object>();
-                        var item = Target._start;
+                        var item = Target.Start;
                         ChangeType? action = null;
                         var attributes = new Dictionary<string, object>();
 
@@ -284,7 +286,7 @@ namespace Ycs.Types
                                             }
                                             else
                                             {
-                                                item.Delete(Transaction);
+                                                item.Delete(this.Transaction);
                                             }
                                         }
                                     }
@@ -375,7 +377,7 @@ namespace Ycs.Types
                 Right = Right.Right as Item;
             }
 
-            public void FindNextPosition(Transaction transaction, int count)
+            public void FindNextPosition(ITransaction transaction, int count)
             {
                 while (Right != null && count > 0)
                 {
@@ -388,7 +390,7 @@ namespace Ycs.Types
                                 if (count < Right.Length)
                                 {
                                     // Split right.
-                                    transaction.Doc.Store.GetItemCleanStart(transaction, new ID(Right.Id.Client, Right.Id.Clock + count));
+                                    transaction.Doc.Store.GetItemCleanStart(transaction, new StructID(Right.Id.Client, Right.Id.Clock + count));
                                 }
 
                                 Index += Right.Length;
@@ -412,7 +414,7 @@ namespace Ycs.Types
             /// <summary>
             /// Negate applied formats.
             /// </summary>
-            public void InsertNegatedAttributes(Transaction transaction, AbstractType parent, IDictionary<string, object> negatedAttributes)
+            public void InsertNegatedAttributes(ITransaction transaction, AbstractType parent, IDictionary<string, object> negatedAttributes)
             {
                 // Check if we really need to remove attributes.
                 while (
@@ -440,7 +442,7 @@ namespace Ycs.Types
 
                 foreach (var kvp in negatedAttributes)
                 {
-                    left = new Item(new ID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, parent, null, new ContentFormat(kvp.Key, kvp.Value));
+                    left = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, parent, null, new ContentFormat(kvp.Key, kvp.Value));
                     left.Integrate(transaction, 0);
 
                     CurrentAttributes[kvp.Key] = kvp.Value;
@@ -503,7 +505,7 @@ namespace Ycs.Types
             {
                 Doc.Transact(tr =>
                 {
-                    var curPos = new ItemTextListPosition(null, _start, 0, new Dictionary<string, object>());
+                    var curPos = new ItemTextListPosition(null, Start, 0, new Dictionary<string, object>());
                     for (int i = 0; i < delta.Count; i++)
                     {
                         var op = delta[i];
@@ -540,14 +542,14 @@ namespace Ycs.Types
             }
         }
 
-        public IList<Delta> ToDelta(Snapshot snapshot = null, Snapshot prevSnapshot = null, Func<YTextChangeType, ID, YTextChangeAttributes> computeYChange = null)
+        public IList<Delta> ToDelta(Snapshot snapshot = null, Snapshot prevSnapshot = null, Func<YTextChangeType, StructID, YTextChangeAttributes> computeYChange = null)
         {
             var ops = new List<Delta>();
             var currentAttributes = new Dictionary<string, object>();
             var doc = Doc;
             var str = string.Empty;
 
-            var n = _start;
+            var n = Start;
 
             void packStr()
             {
@@ -760,7 +762,7 @@ namespace Ycs.Types
             // TODO: [aleskeyk] Can use cached builder.
             var sb = new StringBuilder(Length);
 
-            var n = _start;
+            var n = Start;
             while (n != null)
             {
                 if (!n.Deleted && n.Countable && n.Content is ContentString cs)
@@ -810,7 +812,7 @@ namespace Ycs.Types
 
         public IEnumerable<KeyValuePair<string, object>> GetAttributes() => TypeMapEnumerateValues();
 
-        internal override void Integrate(YDoc doc, Item item)
+        public override void Integrate(YDoc doc, Item item)
         {
             base.Integrate(doc, item);
 
@@ -822,14 +824,14 @@ namespace Ycs.Types
             _pending = null;
         }
 
-        internal override AbstractType InternalClone()
+        public override AbstractType InternalClone()
         {
             var text = new YText();
             text.ApplyDelta(ToDelta());
             return text;
         }
 
-        internal override void CallObserver(Transaction transaction, ISet<string> parentSubs)
+        public override void CallObserver(ITransaction transaction, ISet<string> parentSubs)
         {
             base.CallObserver(transaction, parentSubs);
 
@@ -921,7 +923,7 @@ namespace Ycs.Types
             CallTypeObservers(transaction, evt);
         }
 
-        private ItemTextListPosition FindPosition(Transaction transaction, int index)
+        private ItemTextListPosition FindPosition(ITransaction transaction, int index)
         {
             var currentAttributes = new Dictionary<string, object>();
             var marker = FindMarker(index);
@@ -934,13 +936,13 @@ namespace Ycs.Types
             }
             else
             {
-                var pos = new ItemTextListPosition(null, _start, 0, currentAttributes);
+                var pos = new ItemTextListPosition(null, Start, 0, currentAttributes);
                 pos.FindNextPosition(transaction, index);
                 return pos;
             }
         }
 
-        private IDictionary<string, object> InsertAttributes(Transaction transaction, ItemTextListPosition currPos, IDictionary<string, object> attributes)
+        private IDictionary<string, object> InsertAttributes(ITransaction transaction, ItemTextListPosition currPos, IDictionary<string, object> attributes)
         {
             var doc = transaction.Doc;
             var ownClientId = doc.ClientId;
@@ -962,7 +964,7 @@ namespace Ycs.Types
                     // Save negated attribute (set null if currentVal is not set).
                     negatedAttributes[key] = currentVal;
 
-                    currPos.Right = new Item(new ID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, new ContentFormat(key, value));
+                    currPos.Right = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, new ContentFormat(key, value));
                     currPos.Right.Integrate(transaction, 0);
                     currPos.Forward();
                 }
@@ -971,7 +973,7 @@ namespace Ycs.Types
             return negatedAttributes;
         }
 
-        private void InsertText(Transaction transaction, ItemTextListPosition currPos, object text, IDictionary<string, object> attributes)
+        private void InsertText(ITransaction transaction, ItemTextListPosition currPos, object text, IDictionary<string, object> attributes)
         {
             attributes = attributes ?? new Dictionary<string, object>();
 
@@ -997,14 +999,14 @@ namespace Ycs.Types
                 _searchMarkers.UpdateMarkerChanges(currPos.Index, content.Length);
             }
 
-            currPos.Right = new Item(new ID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, content);
+            currPos.Right = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, content);
             currPos.Right.Integrate(transaction, 0);
             currPos.Forward();
 
             currPos.InsertNegatedAttributes(transaction, this, negatedAttributes);
         }
 
-        private void FormatText(Transaction transaction, ItemTextListPosition curPos, int length, IDictionary<string, object> attributes)
+        private void FormatText(ITransaction transaction, ItemTextListPosition curPos, int length, IDictionary<string, object> attributes)
         {
             var doc = transaction.Doc;
             var ownClientId = doc.ClientId;
@@ -1039,7 +1041,7 @@ namespace Ycs.Types
                         case ContentString _:
                             if (length < curPos.Right.Length)
                             {
-                                transaction.Doc.Store.GetItemCleanStart(transaction, new ID(curPos.Right.Id.Client, curPos.Right.Id.Clock + length));
+                                transaction.Doc.Store.GetItemCleanStart(transaction, new StructID(curPos.Right.Id.Client, curPos.Right.Id.Clock + length));
                             }
                             length -= curPos.Right.Length;
                             break;
@@ -1055,7 +1057,7 @@ namespace Ycs.Types
             if (length > 0)
             {
                 var newLines = new string('\n', length - 1);
-                curPos.Right = new Item(new ID(ownClientId, doc.Store.GetState(ownClientId)), curPos.Left, curPos.Left?.LastId, curPos.Right, curPos.Right?.Id, this, null, new ContentString(newLines));
+                curPos.Right = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), curPos.Left, curPos.Left?.LastId, curPos.Right, curPos.Right?.Id, this, null, new ContentString(newLines));
                 curPos.Right.Integrate(transaction, 0);
                 curPos.Forward();
             }
@@ -1066,7 +1068,7 @@ namespace Ycs.Types
         /// <summary>
         /// Call this function after string content has been deleted in order to clean up formatting Items.
         /// </summary>
-        private int CleanupFormattingGap(Transaction transaction, Item start, Item end, IDictionary<string, object> startAttributes, IDictionary<string, object> endAttributes)
+        private int CleanupFormattingGap(ITransaction transaction, Item start, Item end, IDictionary<string, object> startAttributes, IDictionary<string, object> endAttributes)
         {
             while (end != null && !(end.Content is ContentString) && !(end.Content is ContentEmbed))
             {
@@ -1115,7 +1117,7 @@ namespace Ycs.Types
             return cleanups;
         }
 
-        private void CleanupContextlessFormattingGap(Transaction transaction, Item item)
+        private void CleanupContextlessFormattingGap(ITransaction transaction, Item item)
         {
             // Iterate until item.Right is null or content.
             while (item != null && item.Right != null && (item.Right.Deleted || (
@@ -1164,8 +1166,8 @@ namespace Ycs.Types
 
             Doc.Transact(transaction =>
             {
-                var start = _start;
-                var end = _start;
+                var start = Start;
+                var end = Start;
                 var startAttributes = new Dictionary<string, object>();
                 var currentAttributes = new Dictionary<string, object>();
 
@@ -1194,7 +1196,7 @@ namespace Ycs.Types
             return res;
         }
 
-        private ItemTextListPosition DeleteText(Transaction transaction, ItemTextListPosition curPos, int length)
+        private ItemTextListPosition DeleteText(ITransaction transaction, ItemTextListPosition curPos, int length)
         {
             var startLength = length;
             var startAttrs = new Dictionary<string, object>(curPos.CurrentAttributes);
@@ -1210,7 +1212,7 @@ namespace Ycs.Types
                         case ContentString _:
                             if (length < curPos.Right.Length)
                             {
-                                transaction.Doc.Store.GetItemCleanStart(transaction, new ID(curPos.Right.Id.Client, curPos.Right.Id.Clock + length));
+                                transaction.Doc.Store.GetItemCleanStart(transaction, new StructID(curPos.Right.Id.Client, curPos.Right.Id.Clock + length));
                             }
                             length -= curPos.Right.Length;
                             curPos.Right.Delete(transaction);
@@ -1235,7 +1237,7 @@ namespace Ycs.Types
             return curPos;
         }
 
-        internal override void Write(IUpdateEncoder encoder)
+        public override void Write(IUpdateEncoder encoder)
         {
             encoder.WriteTypeRef(YTextRefId);
         }

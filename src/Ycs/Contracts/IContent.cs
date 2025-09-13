@@ -5,9 +5,9 @@
 // ------------------------------------------------------------------------------
 
 using System.Collections.Generic;
-using Ycs.Utils;
+using Ycs.Structs;
 
-namespace Ycs.Structs
+namespace Ycs.Contracts
 {
     public interface IContent
     {
@@ -25,7 +25,7 @@ namespace Ycs.Structs
 
         void Integrate(ITransaction transaction, Item item);
         void Delete(ITransaction transaction);
-        void Gc(StructStore store);
+        void Gc(IStructStore store);
         void Write(IUpdateEncoder encoder, int offset);
     }
 }

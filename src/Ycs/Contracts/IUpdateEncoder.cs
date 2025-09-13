@@ -7,7 +7,7 @@
 using System;
 using System.IO;
 
-namespace Ycs.Structs
+namespace Ycs.Contracts
 {
     public interface IDSEncoder : IDisposable
     {
@@ -27,8 +27,8 @@ namespace Ycs.Structs
 
     public interface IUpdateEncoder : IDSEncoder
     {
-        void WriteLeftId(ID id);
-        void WriteRightId(ID id);
+        void WriteLeftId(StructID id);
+        void WriteRightId(StructID id);
 
         /// <summary>
         /// NOTE: Use 'writeClient' and 'writeClock' instead of writeID if possible.

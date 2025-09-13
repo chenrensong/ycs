@@ -51,7 +51,7 @@ namespace Ycs.Utils
                 type = right.Parent as AbstractType;
                 Debug.Assert(type != null);
 
-                if (type._item == null || !type._item.Deleted)
+                if (type.Item == null || !type.Item.Deleted)
                 {
                     // Adjust position based on the left assotiation, if necessary.
                     index = (right.Deleted || !right.Countable) ? 0 : (res.diff + (assoc >= 0 ? 0 : 1));
