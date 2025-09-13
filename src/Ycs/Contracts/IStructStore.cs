@@ -11,21 +11,21 @@ namespace Ycs.Contracts
 {
     public interface IStructStore
     {
-        IDictionary<long, List<IItem>> Clients { get; }
-        void AddStruct(IItem str);
+        IDictionary<long, List<IStructItem>> Clients { get; }
+        void AddStruct(IStructItem str);
         void CleanupPendingStructs();
-        IItem Find(StructID id);
-        int FindIndexCleanStart(ITransaction transaction, List<IItem> structs, long clock);
-        (IItem item, int diff) FollowRedone(StructID id);
-        IItem GetItemCleanEnd(ITransaction transaction, StructID id);
-        IItem GetItemCleanStart(ITransaction transaction, StructID id);
+        IStructItem Find(StructID id);
+        int FindIndexCleanStart(ITransaction transaction, List<IStructItem> structs, long clock);
+        (IStructItem item, int diff) FollowRedone(StructID id);
+        IStructItem GetItemCleanEnd(ITransaction transaction, StructID id);
+        IStructItem GetItemCleanStart(ITransaction transaction, StructID id);
         long GetState(long clientId);
         IDictionary<long, long> GetStateVector();
         void IntegrityCheck();
-        void IterateStructs(ITransaction transaction, List<IItem> structs, long clockStart, long length, Predicate<IItem> fun);
-        void MergeReadStructsIntoPendingReads(IDictionary<long, List<IItem>> clientStructRefs);
+        void IterateStructs(ITransaction transaction, List<IStructItem> structs, long clockStart, long length, Predicate<IStructItem> fun);
+        void MergeReadStructsIntoPendingReads(IDictionary<long, List<IStructItem>> clientStructRefs);
         void ReadAndApplyDeleteSet(IDSDecoder decoder, ITransaction transaction);
-        void ReplaceStruct(IItem oldStruct, IItem newStruct);
+        void ReplaceStruct(IStructItem oldStruct, IStructItem newStruct);
         void ResumeStructIntegration(ITransaction transaction);
         void TryResumePendingDeleteReaders(ITransaction transaction);
     }

@@ -1,9 +1,9 @@
 ﻿
 namespace Ycs.Contracts
 {
-    public interface IItem
+    public interface IStructItem
     {
-        bool MergeWith(IItem right);
+        bool MergeWith(IStructItem right);
         void Delete(ITransaction transaction);
         void Integrate(ITransaction transaction, int offset);
         long? GetMissing(ITransaction transaction, IStructStore store);
@@ -14,15 +14,15 @@ namespace Ycs.Contracts
         bool Deleted { get; }
         bool Keep { get; set; }
         StructID LastId { get; }
-        IItem Left { get; set; }
+        IStructItem Left { get; set; }
         StructID? LeftOrigin { get; set; }
         bool Marker { get; set; }
-        IItem Next { get; }
+        IStructItem Next { get; }
         object Parent { get; set; }
         string ParentSub { get; set; }
-        IItem Prev { get; }
+        IStructItem Prev { get; }
         StructID? Redone { get; set; }
-        IItem Right { get; set; }
+        IStructItem Right { get; set; }
         StructID? RightOrigin { get; set; }
         int Length { get; set; }
 
@@ -30,6 +30,6 @@ namespace Ycs.Contracts
         bool IsVisible(ISnapshot snap);
         void KeepItemAndParents(bool value);
         void MarkDeleted();
-        IItem SplitItem(ITransaction transaction, int diff);
+        IStructItem SplitItem(ITransaction transaction, int diff);
     }
 }

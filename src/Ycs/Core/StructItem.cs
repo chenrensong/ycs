@@ -13,7 +13,7 @@ using Ycs.Content;
 
 namespace Ycs.Core
 {
-    public class StructItem : IItem
+    public class StructItem : IStructItem
     {
         [Flags]
         private enum InfoEnum : int
@@ -26,7 +26,7 @@ namespace Ycs.Core
 
         private InfoEnum _info;
 
-        public StructItem(StructID id, IItem left, StructID? leftOrigin, IItem right, StructID? rightOrigin, object parent, string parentSub, IContent content)
+        public StructItem(StructID id, IStructItem left, StructID? leftOrigin, IStructItem right, StructID? rightOrigin, object parent, string parentSub, IContent content)
         {
             Id = id;
             Length = content.Length;
@@ -51,7 +51,7 @@ namespace Ycs.Core
         /// <summary>
         /// The item that is currently to the left of this item.
         /// </summary>
-        public IItem Left { get; set; }
+        public IStructItem Left { get; set; }
 
         /// <summary>
         /// The item that was originally to the right of this item.
@@ -61,7 +61,7 @@ namespace Ycs.Core
         /// <summary>
         /// The item that is currently to the right of this item.
         /// </summary>
-        public IItem Right { get; set; }
+        public IStructItem Right { get; set; }
 
         /// <summary>
         /// AbstractType or ID.
@@ -146,14 +146,14 @@ namespace Ycs.Core
         /// <summary>
         /// Returns the next non-deleted item.
         /// </summary>
-        public IItem Next
+        public IStructItem Next
         {
             get
             {
                 var n = Right;
                 while (n != null && n.Deleted)
                 {
-                    n = (n as IItem)?.Right;
+                    n = (n as IStructItem)?.Right;
                 }
                 return n;
             }
@@ -162,14 +162,14 @@ namespace Ycs.Core
         /// <summary>
         /// Returns the previous non-deleted item.
         /// </summary>
-        public IItem Prev
+        public IStructItem Prev
         {
             get
             {
                 var n = Left;
                 while (n != null && n.Deleted)
                 {
-                    n = (n as IItem)?.Left;
+                    n = (n as IStructItem)?.Left;
                 }
                 return n;
             }
@@ -184,9 +184,9 @@ namespace Ycs.Core
         /// Try to merge two items.
         /// </summary>
         /// https://github.com/yjs/yjs/blob/c2f0ca3faef731a93ba28f286ffafe0e1ea1a3aa/src/structs/Item.js#L557
-        public  bool MergeWith(IItem right)
+        public  bool MergeWith(IStructItem right)
         {
-            var rightItem = right as IItem;
+            var rightItem = right as IStructItem;
 
             if (StructID.Equals(rightItem?.LeftOrigin, LastId) &&
                 Right == right &&
@@ -205,9 +205,9 @@ namespace Ycs.Core
                 }
 
                 Right = rightItem.Right;
-                if (Right is IItem)
+                if (Right is IStructItem)
                 {
-                    (Right as IItem).Left = this;
+                    (Right as IStructItem).Left = this;
                 }
 
                 Length += rightItem.Length;
@@ -244,34 +244,34 @@ namespace Ycs.Core
             {
                 Id = new StructID(Id.Client, Id.Clock + offset);
                 Left = transaction.Doc.Store.GetItemCleanEnd(transaction, new StructID(Id.Client, Id.Clock - 1));
-                LeftOrigin = (Left as IItem)?.LastId;
+                LeftOrigin = (Left as IStructItem)?.LastId;
                 Content = (IContentEx)Content.Splice(offset);
                 Length -= offset;
             }
 
             if (Parent != null)
             {
-                if (Left == null && (Right == null || (Right as IItem)?.Left != null) || Left != null && (Left as IItem)?.Right != Right)
+                if (Left == null && (Right == null || (Right as IStructItem)?.Left != null) || Left != null && (Left as IStructItem)?.Right != Right)
                 {
                     var left = Left;
-                    IItem o;
+                    IStructItem o;
 
                     // Set 'o' to the first conflicting item.
                     if (left != null)
                     {
-                        o = (left as IItem)?.Right;
+                        o = (left as IStructItem)?.Right;
                     }
                     else if (ParentSub != null)
                     {
                         Debug.Assert(Parent is AbstractType);
 
-                        IItem item = null;
+                        IStructItem item = null;
                         (Parent as AbstractType)?.Map?.TryGetValue(ParentSub, out item);
                         o = item;
 
-                        while (o != null && (o as IItem)?.Left != null)
+                        while (o != null && (o as IStructItem)?.Left != null)
                         {
-                            o = (o as IItem).Left;
+                            o = (o as IStructItem).Left;
                         }
                     }
                     else
@@ -280,15 +280,15 @@ namespace Ycs.Core
                         o = (Parent as AbstractType)?.Start;
                     }
 
-                    var conflictingItems = new HashSet<IItem>();
-                    var itemsBeforeOrigin = new HashSet<IItem>();
+                    var conflictingItems = new HashSet<IStructItem>();
+                    var itemsBeforeOrigin = new HashSet<IStructItem>();
 
                     while (o != null && o != Right)
                     {
                         itemsBeforeOrigin.Add(o);
                         conflictingItems.Add(o);
 
-                        if (StructID.Equals(LeftOrigin, (o as IItem)?.LeftOrigin))
+                        if (StructID.Equals(LeftOrigin, (o as IStructItem)?.LeftOrigin))
                         {
                             // Case 1
                             if (o.Id.Client < Id.Client)
@@ -296,7 +296,7 @@ namespace Ycs.Core
                                 left = o;
                                 conflictingItems.Clear();
                             }
-                            else if (StructID.Equals(RightOrigin, (o as IItem)?.RightOrigin))
+                            else if (StructID.Equals(RightOrigin, (o as IStructItem)?.RightOrigin))
                             {
                                 // This and 'o' are conflicting and point to the same integration points.
                                 // The id decides which item comes first.
@@ -307,11 +307,11 @@ namespace Ycs.Core
                             // If so, we will find it in the next iterations.
                         }
                         // Use 'Find' instead of 'GetItemCleanEnd', because we don't want / need to split items.
-                        else if ((o as IItem)?.LeftOrigin != null && itemsBeforeOrigin.Contains(transaction.Doc.Store.Find((o as IItem).LeftOrigin.Value)))
+                        else if ((o as IStructItem)?.LeftOrigin != null && itemsBeforeOrigin.Contains(transaction.Doc.Store.Find((o as IStructItem).LeftOrigin.Value)))
                         {
                             // Case 2
                             // TODO: Store.Find is called twice here, call once?
-                            if (!conflictingItems.Contains(transaction.Doc.Store.Find((o as IItem).LeftOrigin.Value)))
+                            if (!conflictingItems.Contains(transaction.Doc.Store.Find((o as IStructItem).LeftOrigin.Value)))
                             {
                                 left = o;
                                 conflictingItems.Clear();
@@ -322,7 +322,7 @@ namespace Ycs.Core
                             break;
                         }
 
-                        o = (o as IItem)?.Right;
+                        o = (o as IStructItem)?.Right;
                     }
 
                     Left = left;
@@ -331,7 +331,7 @@ namespace Ycs.Core
                 // Reconnect left/right + update parent map/start if necessary.
                 if (Left != null)
                 {
-                    if (Left is IItem leftItem)
+                    if (Left is IStructItem leftItem)
                     {
                         var right = leftItem.Right;
                         Right = right;
@@ -344,17 +344,17 @@ namespace Ycs.Core
                 }
                 else
                 {
-                    IItem r;
+                    IStructItem r;
 
                     if (ParentSub != null)
                     {
-                        IItem item = null;
+                        IStructItem item = null;
                         (Parent as AbstractType)?.Map?.TryGetValue(ParentSub, out item);
                         r = item;
 
-                        while (r != null && (r as IItem)?.Left != null)
+                        while (r != null && (r as IStructItem)?.Left != null)
                         {
-                            r = (r as IItem).Left;
+                            r = (r as IStructItem).Left;
                         }
                     }
                     else
@@ -375,7 +375,7 @@ namespace Ycs.Core
 
                 if (Right != null)
                 {
-                    if (Right is IItem rightItem)
+                    if (Right is IStructItem rightItem)
                     {
                         rightItem.Left = this;
                     }
@@ -439,7 +439,7 @@ namespace Ycs.Core
             if (LeftOrigin != null)
             {
                 Left = store.GetItemCleanEnd(transaction, LeftOrigin.Value);
-                LeftOrigin = (Left as IItem)?.LastId;
+                LeftOrigin = (Left as IStructItem)?.LastId;
             }
 
             if (RightOrigin != null)
@@ -456,12 +456,12 @@ namespace Ycs.Core
             // Only set parent if this shouldn't be garbage collected.
             if (Parent == null)
             {
-                if (Right is IItem rightItem)
+                if (Right is IStructItem rightItem)
                 {
                     Parent = rightItem.Parent;
                     ParentSub = rightItem.ParentSub;
                 }
-                else if (Left is IItem leftItem)
+                else if (Left is IStructItem leftItem)
                 {
                     Parent = leftItem.Parent;
                     ParentSub = leftItem.ParentSub;
@@ -476,7 +476,7 @@ namespace Ycs.Core
                 }
                 else
                 {
-                    Parent = ((parentItem as IItem)?.Content as ContentType)?.Type;
+                    Parent = ((parentItem as IStructItem)?.Content as ContentType)?.Type;
                 }
             }
 
@@ -509,7 +509,7 @@ namespace Ycs.Core
         /// </summary>
         public void KeepItemAndParents(bool value)
         {
-            IItem item = this;
+            IStructItem item = this;
 
             while (item != null && item.Keep != value)
             {
@@ -576,7 +576,7 @@ namespace Ycs.Core
         /// <summary>
         /// Split 'leftItem' into two items.
         /// </summary>
-        public IItem SplitItem(ITransaction transaction, int diff)
+        public IStructItem SplitItem(ITransaction transaction, int diff)
         {
             var client = Id.Client;
             var clock = Id.Clock;
@@ -610,7 +610,7 @@ namespace Ycs.Core
             Right = rightItem;
 
             // Update right.
-            if (rightItem.Right is IItem rightIt)
+            if (rightItem.Right is IStructItem rightIt)
             {
                 rightIt.Left = rightItem;
             }

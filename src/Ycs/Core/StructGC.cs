@@ -10,7 +10,7 @@ using Ycs.Contracts;
 
 namespace Ycs.Core
 {
-    public class StructGC : IItem
+    public class StructGC : IStructItem
     {
         internal const byte StructGCRefNumber = 0;
         public StructID Id { get; set; }
@@ -31,22 +31,22 @@ namespace Ycs.Core
 
         public StructID LastId => throw new NotImplementedException();
 
-        public IItem Left { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public IStructItem Left { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public StructID? LeftOrigin { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public bool Marker { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        public IItem Next => throw new NotImplementedException();
+        public IStructItem Next => throw new NotImplementedException();
 
         public object Parent { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public string ParentSub { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        public IItem Prev => throw new NotImplementedException();
+        public IStructItem Prev => throw new NotImplementedException();
 
         public StructID? Redone { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public IItem Right { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public IStructItem Right { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public StructID? RightOrigin { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        public bool MergeWith(IItem right)
+        public bool MergeWith(IStructItem right)
         {
             Debug.Assert(right is StructGC);
             Length += right.Length;
@@ -100,7 +100,7 @@ namespace Ycs.Core
             throw new NotImplementedException();
         }
 
-        public IItem SplitItem(ITransaction transaction, int diff)
+        public IStructItem SplitItem(ITransaction transaction, int diff)
         {
             throw new NotImplementedException();
         }

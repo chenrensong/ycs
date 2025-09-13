@@ -23,9 +23,9 @@ namespace Ycs.Core
     public class Transaction : ITransaction
     {
         // TODO: [alekseyk] To private?
-        public readonly IList<IItem> _mergeStructs;
+        public readonly IList<IStructItem> _mergeStructs;
 
-        public IList<IItem> MergeStructs => _mergeStructs;
+        public IList<IStructItem> MergeStructs => _mergeStructs;
 
         public Transaction(IYDoc doc, object origin, bool local)
         {
@@ -35,7 +35,7 @@ namespace Ycs.Core
             AfterState = new Dictionary<long, long>();
             Changed = new Dictionary<IAbstractType, ISet<string>>();
             ChangedParentTypes = new Dictionary<IAbstractType, IList<IYEvent>>();
-            _mergeStructs = new List<IItem>();
+            _mergeStructs = new List<IStructItem>();
             Origin = origin;
             Meta = new Dictionary<string, object>();
             Local = local;
@@ -305,7 +305,7 @@ namespace Ycs.Core
         /// <summary>
         /// Redoes the effect of this operation.
         /// </summary>
-        public IItem RedoItem(IItem item, ISet<IItem> redoItems)
+        public IStructItem RedoItem(IStructItem item, ISet<IStructItem> redoItems)
         {
             var doc = Doc;
             var store = doc.Store;
@@ -318,8 +318,8 @@ namespace Ycs.Core
             }
 
             var parentItem = (item.Parent as AbstractType)?.Item;
-            IItem left;
-            IItem right;
+            IStructItem left;
+            IStructItem right;
 
             if (item.ParentSub == null)
             {
@@ -331,9 +331,9 @@ namespace Ycs.Core
             {
                 // Is a map item. Insert at current value.
                 left = item;
-                while ((left as IItem)?.Right != null)
+                while ((left as IStructItem)?.Right != null)
                 {
-                    left = (left as IItem).Right;
+                    left = (left as IStructItem).Right;
                     if (left.Id.Client != ownClientId)
                     {
                         // It is not possible to redo this item because it conflicts with a change from another client.
@@ -341,7 +341,7 @@ namespace Ycs.Core
                     }
                 }
 
-                if ((left as IItem)?.Right != null)
+                if ((left as IStructItem)?.Right != null)
                 {
                     left = (item.Parent as AbstractType)?.Map[item.ParentSub];
                 }
@@ -370,35 +370,35 @@ namespace Ycs.Core
                 while (left != null)
                 {
                     var leftTrace = left;
-                    while (leftTrace != null && ((leftTrace as IItem)?.Parent as AbstractType)?.Item != parentItem)
+                    while (leftTrace != null && ((leftTrace as IStructItem)?.Parent as AbstractType)?.Item != parentItem)
                     {
-                        leftTrace = (leftTrace as IItem).Redone == null ? null : store.GetItemCleanStart(this, (leftTrace as IItem).Redone.Value);
+                        leftTrace = (leftTrace as IStructItem).Redone == null ? null : store.GetItemCleanStart(this, (leftTrace as IStructItem).Redone.Value);
                     }
 
-                    if (leftTrace != null && ((leftTrace as IItem)?.Parent as AbstractType)?.Item == parentItem)
+                    if (leftTrace != null && ((leftTrace as IStructItem)?.Parent as AbstractType)?.Item == parentItem)
                     {
                         left = leftTrace;
                         break;
                     }
 
-                    left = (left as IItem)?.Left;
+                    left = (left as IStructItem)?.Left;
                 }
 
                 while (right != null)
                 {
                     var rightTrace = right;
-                    while (rightTrace != null && ((rightTrace as IItem)?.Parent as AbstractType)?.Item != parentItem)
+                    while (rightTrace != null && ((rightTrace as IStructItem)?.Parent as AbstractType)?.Item != parentItem)
                     {
-                        rightTrace = (rightTrace as IItem).Redone == null ? null : store.GetItemCleanStart(this, (rightTrace as IItem).Redone.Value);
+                        rightTrace = (rightTrace as IStructItem).Redone == null ? null : store.GetItemCleanStart(this, (rightTrace as IStructItem).Redone.Value);
                     }
 
-                    if (rightTrace != null && ((rightTrace as IItem)?.Parent as AbstractType)?.Item == parentItem)
+                    if (rightTrace != null && ((rightTrace as IStructItem)?.Parent as AbstractType)?.Item == parentItem)
                     {
                         right = rightTrace;
                         break;
                     }
 
-                    right = (right as IItem)?.Right;
+                    right = (right as IStructItem)?.Right;
                 }
             }
 
@@ -408,7 +408,7 @@ namespace Ycs.Core
             var redoneItem = new StructItem(
                 nextId,
                 left,
-                (left as IItem)?.LastId,
+                (left as IStructItem)?.LastId,
                 right,
                 right?.Id,
                 parentItem == null ? item.Parent : (parentItem.Content as ContentType)?.Type,

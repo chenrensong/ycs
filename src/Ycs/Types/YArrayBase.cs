@@ -11,7 +11,6 @@ using System.Linq;
 using System.Threading;
 using Ycs.Contracts;
 using Ycs.Core;
-using Ycs.Content;
 
 namespace Ycs.Types
 {
@@ -22,7 +21,7 @@ namespace Ycs.Types
             // Assigned to '-1', so the first timestamp is '0'.
             internal static long _globalSearchMarkerTimestamp = -1;
 
-            public ArraySearchMarker(IItem p, int index)
+            public ArraySearchMarker(IStructItem p, int index)
             {
                 P = p;
                 Index = index;
@@ -31,7 +30,7 @@ namespace Ycs.Types
                 RefreshTimestamp();
             }
 
-            public IItem P { get; internal set; }
+            public IStructItem P { get; internal set; }
             public int Index { get; internal set; }
             public long Timestamp { get; internal set; }
 
@@ -40,7 +39,7 @@ namespace Ycs.Types
                 Timestamp = Interlocked.Increment(ref _globalSearchMarkerTimestamp);
             }
 
-            public void Update(IItem p, int index)
+            public void Update(IStructItem p, int index)
             {
                 P.Marker = false;
 
@@ -63,7 +62,7 @@ namespace Ycs.Types
                 _searchMarkers.Clear();
             }
 
-            public ArraySearchMarker MarkPosition(IItem p, int index)
+            public ArraySearchMarker MarkPosition(IStructItem p, int index)
             {
                 if (_searchMarkers.Count >= MaxSearchMarkers)
                 {
@@ -102,7 +101,7 @@ namespace Ycs.Types
                         while (p != null && (p.Deleted || !p.Countable))
                         {
                             Debug.Assert(p.Left != p);
-                            p = p.Left as IItem;
+                            p = p.Left as IStructItem;
                             if (p != null && !p.Deleted && p.Countable)
                             {
                                 // Adjust position. The loop should break now.
@@ -191,12 +190,12 @@ namespace Ycs.Types
                 if (index == 0)
                 {
                     // @todo: refactor this as it actually doesn't consider formats.
-                    n = n.Prev as IItem;
+                    n = n.Prev as IStructItem;
                     index += n != null && n.Countable && !n.Deleted ? n.Length : 0;
                 }
             }
 
-            for (; n != null; n = n.Right as IItem)
+            for (; n != null; n = n.Right as IStructItem)
             {
                 if (!n.Deleted && n.Countable)
                 {
@@ -223,13 +222,13 @@ namespace Ycs.Types
             InsertGenericsAfter(transaction, n, content);
         }
 
-        protected void InsertGenericsAfter(ITransaction transaction, IItem referenceItem, ICollection<object> content)
+        protected void InsertGenericsAfter(ITransaction transaction, IStructItem referenceItem, ICollection<object> content)
         {
             var left = referenceItem;
             var doc = transaction.Doc;
             var ownClientId = doc.ClientId;
             var store = doc.Store;
-            var right = referenceItem == null ? Start : referenceItem.Right as IItem;
+            var right = referenceItem == null ? Start : referenceItem.Right as IStructItem;
 
             var jsonContent = new List<object>();
 
@@ -237,7 +236,7 @@ namespace Ycs.Types
             {
                 if (jsonContent.Count > 0)
                 {
-                    left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactory.CreateContentAny(jsonContent.ToList()));
+                    left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactoryAccessor.Factory.CreateContentAny(jsonContent.ToList()));
                     left.Integrate(transaction, 0);
                     jsonContent.Clear();
                 }
@@ -249,17 +248,17 @@ namespace Ycs.Types
                 {
                     case byte[] arr:
                         packJsonContent();
-                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactory.CreateContentBinary(arr));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactoryAccessor.Factory.CreateContentBinary(arr));
                         left.Integrate(transaction, 0);
                         break;
                     case YDoc d:
                         packJsonContent();
-                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactory.CreateContentDoc(d));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactoryAccessor.Factory.CreateContentDoc(d));
                         left.Integrate(transaction, 0);
                         break;
                     case AbstractType at:
                         packJsonContent();
-                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactory.CreateContentType(at));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, ContentFactoryAccessor.Factory.CreateContentType(at));
                         left.Integrate(transaction, 0);
                         break;
                     default:
@@ -290,7 +289,7 @@ namespace Ycs.Types
             }
 
             // Compute the first item to be deleted.
-            for (; n != null && index > 0; n = n.Right as IItem)
+            for (; n != null && index > 0; n = n.Right as IStructItem)
             {
                 if (!n.Deleted && n.Countable)
                 {
@@ -317,7 +316,7 @@ namespace Ycs.Types
                     length -= n.Length;
                 }
 
-                n = n.Right as IItem;
+                n = n.Right as IStructItem;
             }
 
             if (length > 0)
@@ -385,7 +384,7 @@ namespace Ycs.Types
                     }
                 }
 
-                n = n.Right as IItem;
+                n = n.Right as IStructItem;
             }
 
             return cs.AsReadOnly();
@@ -407,7 +406,7 @@ namespace Ycs.Types
                     }
                 }
 
-                n = n.Right as IItem;
+                n = n.Right as IStructItem;
             }
         }
 
@@ -427,7 +426,7 @@ namespace Ycs.Types
                     }
                 }
 
-                n = n.Right as IItem;
+                n = n.Right as IStructItem;
             }
         }
 
@@ -438,7 +437,7 @@ namespace Ycs.Types
             {
                 while (n != null && n.Deleted)
                 {
-                    n = n.Right as IItem;
+                    n = n.Right as IStructItem;
                 }
 
                 // Check if we reached the end, no need to check currentContent, because it does not exist.
@@ -454,7 +453,7 @@ namespace Ycs.Types
                 }
 
                 // We used content of n, now iterate to next.
-                n = n.Right as IItem;
+                n = n.Right as IStructItem;
             }
         }
 
@@ -500,13 +499,13 @@ namespace Ycs.Types
                     pIndex += p.Length;
                 }
 
-                p = p.Right as IItem;
+                p = p.Right as IStructItem;
             }
 
             // Iterate to left if necessary (might be that pIndex > index).
             while (p.Left != null && pIndex > index)
             {
-                p = p.Left as IItem;
+                p = p.Left as IStructItem;
                 if (p == null)
                 {
                     break;
@@ -522,7 +521,7 @@ namespace Ycs.Types
             // Iterate to left until p can't be merged with left.
             while (p.Left != null && p.Left.Id.Client == p.Id.Client && p.Left.Id.Clock + p.Left.Length == p.Id.Clock)
             {
-                p = p.Left as IItem;
+                p = p.Left as IStructItem;
                 if (p == null)
                 {
                     break;

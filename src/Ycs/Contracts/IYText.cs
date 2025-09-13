@@ -20,7 +20,7 @@ namespace Ycs.Contracts
         IEnumerable<KeyValuePair<string, object>> GetAttributes();
         void Insert(int index, string text, IDictionary<string, object> attributes = null);
         void InsertEmbed(int index, object embed, IDictionary<string, object> attributes = null);
-        void Integrate(IYDoc doc, IItem item);
+        void Integrate(IYDoc doc, IStructItem item);
         IAbstractType InternalClone();
         void RemoveAttribute(string name);
         void SetAttribute(string name, object value);

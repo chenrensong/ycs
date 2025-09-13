@@ -117,7 +117,7 @@ namespace Ycs.Types
             return map;
         }
 
-        public override void Integrate(IYDoc doc, IItem item)
+        public override void Integrate(IYDoc doc, IStructItem item)
         {
             base.Integrate(doc, item);
 

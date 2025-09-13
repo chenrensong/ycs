@@ -24,7 +24,7 @@ namespace Ycs.Types
         public YDocOptions Opts { get; }
         public string Guid => Opts.Guid;
         public bool Gc => Opts.Gc;
-        public Predicate<IItem> GcFilter => Opts.GcFilter;
+        public Predicate<IStructItem> GcFilter => Opts.GcFilter;
         public bool AutoLoad => Opts.AutoLoad;
         public IDictionary<string, string> Meta => Opts.Meta;
 
@@ -33,7 +33,7 @@ namespace Ycs.Types
         public ITransaction Transaction { get; set; }
         public ISet<IYDoc> Subdocs { get; }
         // If this document is a subdocument - a document integrated into another document - them _item is defined.
-        public IItem Item { get; set; }
+        public IStructItem Item { get; set; }
         public IDictionary<string, IAbstractType> Share { get; set; }
 
         public static int GenerateNewClientId()
@@ -217,14 +217,14 @@ namespace Ycs.Types
                     foreach (var kvp in type.Map)
                     {
                         var n = kvp.Value;
-                        for (; n != null; n = n.Left as IItem)
+                        for (; n != null; n = n.Left as IStructItem)
                         {
                             n.Parent = t;
                         }
                     }
 
                     t.Start = type.Start;
-                    for (var n = t.Start; n != null; n = n.Right as IItem)
+                    for (var n = t.Start; n != null; n = n.Right as IStructItem)
                     {
                         n.Parent = t;
                     }

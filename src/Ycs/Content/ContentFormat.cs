@@ -40,7 +40,7 @@ namespace Ycs.Content
             return false;
         }
 
-        void IContentEx.Integrate(ITransaction transaction, IItem item)
+        void IContentEx.Integrate(ITransaction transaction, IStructItem item)
         {
             // Search markers are currently unsupported for rich text documents.
             // Check if parent implements array-like functionality and clear search markers if needed

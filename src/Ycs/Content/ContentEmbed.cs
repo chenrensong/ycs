@@ -40,7 +40,7 @@ namespace Ycs.Content
             return false;
         }
 
-        void IContentEx.Integrate(ITransaction transaction, IItem item)
+        void IContentEx.Integrate(ITransaction transaction, IStructItem item)
         {
             // Do nothing.
         }

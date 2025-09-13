@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿// ------------------------------------------------------------------------------
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// ------------------------------------------------------------------------------
 //  <copyright company="Microsoft Corporation">
 //      Copyright (c) Microsoft Corporation.  All rights reserved.
 //  </copyright>
@@ -302,7 +302,7 @@ namespace Ycs.Types
                                     break;
                             }
 
-                            item = item.Right as IItem;
+                            item = item.Right as IStructItem;
                         }
 
                         addOp();
@@ -335,12 +335,12 @@ namespace Ycs.Types
     {
         private class ItemTextListPosition
         {
-            public IItem Left;
-            public IItem Right;
+            public IStructItem Left;
+            public IStructItem Right;
             public int Index;
             public IDictionary<string, object> CurrentAttributes;
 
-            public ItemTextListPosition(IItem left, IItem right, int index, IDictionary<string, object> currentAttributes)
+            public ItemTextListPosition(IStructItem left, IStructItem right, int index, IDictionary<string, object> currentAttributes)
             {
                 Left = left;
                 Right = right;
@@ -373,7 +373,7 @@ namespace Ycs.Types
                 }
 
                 Left = Right;
-                Right = Right.Right as IItem;
+                Right = Right.Right as IStructItem;
             }
 
             public void FindNextPosition(ITransaction transaction, int count)
@@ -405,7 +405,7 @@ namespace Ycs.Types
                     }
 
                     Left = Right;
-                    Right = Right.Right as IItem;
+                    Right = Right.Right as IStructItem;
                     // We don't forward() because that would halve the performance because we already do the checks above.
                 }
             }
@@ -441,7 +441,7 @@ namespace Ycs.Types
 
                 foreach (var kvp in negatedAttributes)
                 {
-                    left = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, parent, null, ContentFactory.CreateContentFormat(kvp.Key, kvp.Value));
+                    left = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, parent, null, ContentFactoryAccessor.Factory.CreateContentFormat(kvp.Key, kvp.Value));
                     left.Integrate(transaction, 0);
 
                     CurrentAttributes[kvp.Key] = kvp.Value;
@@ -642,7 +642,7 @@ namespace Ycs.Types
                         }
                     }
 
-                    n = n.Right as IItem;
+                    n = n.Right as IStructItem;
                 }
 
                 packStr();
@@ -760,7 +760,7 @@ namespace Ycs.Types
                     cs.AppendToBuilder(sb);
                 }
 
-                n = n.Right as IItem;
+                n = n.Right as IStructItem;
             }
 
             return sb.ToString();
@@ -802,7 +802,7 @@ namespace Ycs.Types
 
         public IEnumerable<KeyValuePair<string, object>> GetAttributes() => TypeMapEnumerateValues();
 
-        public override void Integrate(IYDoc doc, IItem item)
+        public override void Integrate(IYDoc doc, IStructItem item)
         {
             base.Integrate(doc, item);
 
@@ -850,7 +850,7 @@ namespace Ycs.Types
 
                     transaction.Doc.Store.IterateStructs(transaction, doc.Store.Clients[client], clock, afterClock, item =>
                     {
-                        if (item is IItem it && !it.Deleted && it.Content is ContentFormat)
+                        if (item is IStructItem it && !it.Deleted && it.Content is ContentFormat)
                         {
                             foundFormattingItem = true;
 
@@ -871,7 +871,7 @@ namespace Ycs.Types
                 {
                     transaction.DeleteSet.IterateDeletedStructs(transaction, item =>
                     {
-                        var it = item as IItem;
+                        var it = item as IStructItem;
                         if (it != null && it.Parent == this && it.Content is ContentFormat)
                         {
                             foundFormattingItem = true;
@@ -898,7 +898,7 @@ namespace Ycs.Types
                         // Contextless: it is not necessary to compute currentAttributes for the affected position.
                         tr.DeleteSet.IterateDeletedStructs(tr, item =>
                         {
-                            var it = item as IItem;
+                            var it = item as IStructItem;
                             if (it != null && it.Parent == this)
                             {
                                 CleanupContextlessFormattingGap(tr, it);
@@ -920,7 +920,7 @@ namespace Ycs.Types
 
             if (marker != null)
             {
-                var pos = new ItemTextListPosition(marker.P.Left as IItem, marker.P, marker.Index, currentAttributes);
+                var pos = new ItemTextListPosition(marker.P.Left as IStructItem, marker.P, marker.Index, currentAttributes);
                 pos.FindNextPosition(transaction, index - marker.Index);
                 return pos;
             }
@@ -954,7 +954,7 @@ namespace Ycs.Types
                     // Save negated attribute (set null if currentVal is not set).
                     negatedAttributes[key] = currentVal;
 
-                    currPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, ContentFactory.CreateContentFormat(key, value));
+                    currPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, ContentFactoryAccessor.Factory.CreateContentFormat(key, value));
                     currPos.Right.Integrate(transaction, 0);
                     currPos.Forward();
                 }
@@ -982,7 +982,7 @@ namespace Ycs.Types
             var negatedAttributes = InsertAttributes(transaction, currPos, attributes);
 
             // Insert content.
-            var content = text is string s ? ContentFactory.CreateContentString(s) : ContentFactory.CreateContentEmbed(text);
+            var content = text is string s ? ContentFactoryAccessor.Factory.CreateContentString(s) : ContentFactoryAccessor.Factory.CreateContentEmbed(text);
 
             if (_searchMarkers.Count > 0)
             {
@@ -1047,7 +1047,7 @@ namespace Ycs.Types
             if (length > 0)
             {
                 var newLines = new string('\n', length - 1);
-                curPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), curPos.Left, curPos.Left?.LastId, curPos.Right, curPos.Right?.Id, this, null, ContentFactory.CreateContentString(newLines));
+                curPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), curPos.Left, curPos.Left?.LastId, curPos.Right, curPos.Right?.Id, this, null, ContentFactoryAccessor.Factory.CreateContentString(newLines));
                 curPos.Right.Integrate(transaction, 0);
                 curPos.Forward();
             }
@@ -1058,7 +1058,7 @@ namespace Ycs.Types
         /// <summary>
         /// Call this function after string content has been deleted in order to clean up formatting Items.
         /// </summary>
-        private int CleanupFormattingGap(ITransaction transaction, IItem start, IItem end, IDictionary<string, object> startAttributes, IDictionary<string, object> endAttributes)
+        private int CleanupFormattingGap(ITransaction transaction, IStructItem start, IStructItem end, IDictionary<string, object> startAttributes, IDictionary<string, object> endAttributes)
         {
             while (end != null && !(end.Content is ContentString) && !(end.Content is ContentEmbed))
             {
@@ -1067,7 +1067,7 @@ namespace Ycs.Types
                     UpdateCurrentAttributes(endAttributes, cf);
                 }
 
-                end = end.Right as IItem;
+                end = end.Right as IStructItem;
             }
 
             int cleanups = 0;
@@ -1101,20 +1101,20 @@ namespace Ycs.Types
                     }
                 }
 
-                start = start.Right as IItem;
+                start = start.Right as IStructItem;
             }
 
             return cleanups;
         }
 
-        private void CleanupContextlessFormattingGap(ITransaction transaction, IItem item)
+        private void CleanupContextlessFormattingGap(ITransaction transaction, IStructItem item)
         {
             // Iterate until item.Right is null or content.
             while (item != null && item.Right != null && (item.Right.Deleted ||
-                !((item.Right as IItem).Content is ContentString) && !((item.Right as IItem).Content is ContentEmbed)
+                !((item.Right as IStructItem).Content is ContentString) && !((item.Right as IStructItem).Content is ContentEmbed)
                 ))
             {
-                item = item.Right as IItem;
+                item = item.Right as IStructItem;
             }
 
             var attrs = new HashSet<object>();
@@ -1137,7 +1137,7 @@ namespace Ycs.Types
                     }
                 }
 
-                item = item.Left as IItem;
+                item = item.Left as IStructItem;
             }
         }
 
@@ -1179,7 +1179,7 @@ namespace Ycs.Types
                         }
                     }
 
-                    end = end.Right as IItem;
+                    end = end.Right as IStructItem;
                 }
             });
 

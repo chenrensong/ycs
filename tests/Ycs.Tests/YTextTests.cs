@@ -114,7 +114,7 @@ namespace Ycs
             delta = null;
 
             // Check that there are no duplicate markers inserted.
-            Assert.AreEqual("b", ((((text0.Start.Right as IItem)?.Right as IItem)?.Right as IItem)?.Content as ContentString)?.GetString());
+            Assert.AreEqual("b", ((((text0.Start.Right as IStructItem)?.Right as IStructItem)?.Right as IStructItem)?.Content as ContentString)?.GetString());
 
             text0.Insert(0, "y");
             Assert.AreEqual("yzb", text0.ToString());
@@ -670,7 +670,7 @@ namespace Ycs
             while (s != null)
             {
                 result++;
-                s = s.Right as IItem;
+                s = s.Right as IStructItem;
             }
 
             return result;

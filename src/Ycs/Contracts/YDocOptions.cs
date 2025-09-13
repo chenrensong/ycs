@@ -11,10 +11,10 @@ namespace Ycs.Contracts
 {
     public class YDocOptions
     {
-        private static Predicate<IItem> DefaultPredicate = (item) => true;
+        private static Predicate<IStructItem> DefaultPredicate = (item) => true;
 
         public bool Gc { get; set; } = true;
-        public Predicate<IItem> GcFilter { get; set; } = DefaultPredicate;
+        public Predicate<IStructItem> GcFilter { get; set; } = DefaultPredicate;
         public string Guid { get; set; } = System.Guid.NewGuid().ToString("D");
         public IDictionary<string, string> Meta { get; set; } = null;
         public bool AutoLoad { get; set; } = false;

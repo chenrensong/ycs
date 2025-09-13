@@ -9,9 +9,9 @@ namespace Ycs.Contracts
         bool AutoLoad { get; }
         int ClientId { get; set; }
         bool Gc { get; }
-        Predicate<IItem> GcFilter { get; }
+        Predicate<IStructItem> GcFilter { get; }
         string Guid { get; }
-        IItem Item { get; set; }
+        IStructItem Item { get; set; }
         IDictionary<string, string> Meta { get; }
         YDocOptions Opts { get; }
         IDictionary<string, IAbstractType> Share { get; set; }

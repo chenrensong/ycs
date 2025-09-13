@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------------------------
+﻿﻿﻿﻿﻿// ------------------------------------------------------------------------------
 //  <copyright company="Microsoft Corporation">
 //      Copyright (c) Microsoft Corporation.  All rights reserved.
 //  </copyright>
@@ -43,11 +43,11 @@ namespace Ycs.Core
 
     public class AbstractType : IAbstractType
     {
-        internal static IContentFactory ContentFactory { get; set; }
+        private static IContentFactory _contentFactory;
 
-        public IItem Item { get; set; }
-        public IItem Start { get; set; }
-        public IDictionary<string, IItem> Map { get; set; } = new Dictionary<string, IItem>();
+        public IStructItem Item { get; set; }
+        public IStructItem Start { get; set; }
+        public IDictionary<string, IStructItem> Map { get; set; } = new Dictionary<string, IStructItem>();
 
         public event EventHandler<YEventArgs> EventHandler;
         public event EventHandler<YDeepEventArgs> DeepEventHandler;
@@ -57,7 +57,7 @@ namespace Ycs.Core
 
         public virtual int Length { get; set; }
 
-        public virtual void Integrate(IYDoc doc, IItem item)
+        public virtual void Integrate(IYDoc doc, IStructItem item)
         {
             Doc = doc;
             Item = item;
@@ -105,12 +105,12 @@ namespace Ycs.Core
             // Do nothing.
         }
 
-        public IItem _First()
+        public IStructItem _First()
         {
             var n = Start;
             while (n != null && n.Deleted)
             {
-                n = n.Right as IItem;
+                n = n.Right as IStructItem;
             }
             return n;
         }
@@ -147,7 +147,7 @@ namespace Ycs.Core
 
             var doc = transaction.Doc;
             var ownClientId = doc.ClientId;
-            IContent content = ContentFactory?.CreateContent(value) ?? throw new InvalidOperationException("ContentFactory not initialized. Call YcsBootstrap.Initialize() first.");
+            IContent content = ContentFactoryAccessor.Factory.CreateContent(value);
 
             var newItem = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, null, null, this, key, content);
             newItem.Integrate(transaction, 0);
@@ -174,13 +174,13 @@ namespace Ycs.Core
 
             while (v != null && (!snapshot.StateVector.ContainsKey(v.Id.Client) || v.Id.Clock >= snapshot.StateVector[v.Id.Client]))
             {
-                v = v.Left as IItem;
+                v = v.Left as IStructItem;
             }
 
             return v != null && v.IsVisible(snapshot) ? v.Content.GetContent()[v.Length - 1] : null;
         }
 
-        protected IEnumerable<KeyValuePair<string, IItem>> TypeMapEnumerate() => Map.Where(kvp => !kvp.Value.Deleted);
+        protected IEnumerable<KeyValuePair<string, IStructItem>> TypeMapEnumerate() => Map.Where(kvp => !kvp.Value.Deleted);
 
         protected IEnumerable<KeyValuePair<string, object>> TypeMapEnumerateValues()
         {

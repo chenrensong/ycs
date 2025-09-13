@@ -57,7 +57,7 @@ namespace Ycs.Core
         /// <summary>
         /// Iterate over all structs that the DeleteSet gc'd.
         /// </summary>
-        public void IterateDeletedStructs(ITransaction transaction, Predicate<IItem> fun)
+        public void IterateDeletedStructs(ITransaction transaction, Predicate<IStructItem> fun)
         {
             foreach (var kvp in Clients)
             {
@@ -143,13 +143,13 @@ namespace Ycs.Core
             }
         }
 
-        public void TryGc(IStructStore store, Predicate<IItem> gcFilter)
+        public void TryGc(IStructStore store, Predicate<IStructItem> gcFilter)
         {
             TryGcDeleteSet(store, gcFilter);
             TryMergeDeleteSet(store);
         }
 
-        public void TryGcDeleteSet(IStructStore store, Predicate<IItem> gcFilter)
+        public void TryGcDeleteSet(IStructStore store, Predicate<IStructItem> gcFilter)
         {
             foreach (var kvp in Clients)
             {
@@ -170,7 +170,7 @@ namespace Ycs.Core
                             break;
                         }
 
-                        if (str is IItem strItem && strItem.Deleted && !strItem.Keep && gcFilter(strItem))
+                        if (str is IStructItem strItem && strItem.Deleted && !strItem.Keep && gcFilter(strItem))
                         {
                             strItem.Gc(store, parentGCd: false);
                         }
@@ -203,7 +203,7 @@ namespace Ycs.Core
             }
         }
 
-        public static void TryToMergeWithLeft(IList<IItem> structs, int pos)
+        public static void TryToMergeWithLeft(IList<IStructItem> structs, int pos)
         {
             var left = structs[pos - 1];
             var right = structs[pos];
@@ -214,11 +214,11 @@ namespace Ycs.Core
                 {
                     structs.RemoveAt(pos);
 
-                    if (right is IItem rightItem && rightItem.ParentSub != null)
+                    if (right is IStructItem rightItem && rightItem.ParentSub != null)
                     {
                         if ((rightItem.Parent as AbstractType).Map.TryGetValue(rightItem.ParentSub, out var value) && value == right)
                         {
-                            (rightItem.Parent as AbstractType).Map[rightItem.ParentSub] = left as IItem;
+                            (rightItem.Parent as AbstractType).Map[rightItem.ParentSub] = left as IStructItem;
                         }
                     }
                 }

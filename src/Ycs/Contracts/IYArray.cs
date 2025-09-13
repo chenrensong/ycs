@@ -17,7 +17,7 @@ namespace Ycs.Contracts
         void Delete(int index, int length = 1);
         object Get(int index);
         void Insert(int index, ICollection<object> content);
-        void Integrate(IYDoc doc, IItem item);
+        void Integrate(IYDoc doc, IStructItem item);
         IAbstractType InternalClone();
         IAbstractType InternalCopy();
         IReadOnlyList<object> Slice(int start = 0);

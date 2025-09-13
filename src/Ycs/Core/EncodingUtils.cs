@@ -70,7 +70,7 @@ namespace Ycs.Core
 
         /// <param name="structs">All structs by 'client'.</param>
         /// <param name="clock">Write structs starting with 'ID(client,clock)'.</param>
-        public static void WriteStructs(IUpdateEncoder encoder, IList<IItem> structs, long client, long clock)
+        public static void WriteStructs(IUpdateEncoder encoder, IList<IStructItem> structs, long client, long clock)
         {
             // Write first id.
             int startNewStructs = StructStore.FindIndexSS(structs, clock);
@@ -129,9 +129,9 @@ namespace Ycs.Core
             }
         }
 
-        public static IDictionary<long, List<IItem>> ReadClientStructRefs(IUpdateDecoder decoder, IYDoc doc)
+        public static IDictionary<long, List<IStructItem>> ReadClientStructRefs(IUpdateDecoder decoder, IYDoc doc)
         {
-            var clientRefs = new Dictionary<long, List<IItem>>();
+            var clientRefs = new Dictionary<long, List<IStructItem>>();
             var numOfStateUpdates = decoder.Reader.ReadVarUint();
 
             for (var i = 0; i < numOfStateUpdates; i++)
@@ -139,7 +139,7 @@ namespace Ycs.Core
                 var numberOfStructs = (int)decoder.Reader.ReadVarUint();
                 Debug.Assert(numberOfStructs >= 0);
 
-                var refs = new List<IItem>(numberOfStructs);
+                var refs = new List<IStructItem>(numberOfStructs);
                 long client = decoder.ReadClient();
                 long clock = decoder.Reader.ReadVarUint();
 

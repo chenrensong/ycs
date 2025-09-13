@@ -15,10 +15,10 @@ namespace Ycs.Contracts
         void Add(long client, long clock, long length);
         int? FindIndexSS(IList<DeleteItem> dis, long clock);
         bool IsDeleted(StructID id);
-        void IterateDeletedStructs(ITransaction transaction, Predicate<IItem> fun);
+        void IterateDeletedStructs(ITransaction transaction, Predicate<IStructItem> fun);
         void SortAndMergeDeleteSet();
-        void TryGc(IStructStore store, Predicate<IItem> gcFilter);
-        void TryGcDeleteSet(IStructStore store, Predicate<IItem> gcFilter);
+        void TryGc(IStructStore store, Predicate<IStructItem> gcFilter);
+        void TryGcDeleteSet(IStructStore store, Predicate<IStructItem> gcFilter);
         void TryMergeDeleteSet(IStructStore store);
         void Write(IDSEncoder encoder);
     }

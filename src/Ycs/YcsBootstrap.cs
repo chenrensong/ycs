@@ -52,7 +52,7 @@ namespace Ycs
             
             ContentType.SetTypeReaderRegistry(_typeReaderRegistry);
             EncodingUtils.SetContentReaderRegistry(_contentReaderRegistry);
-            AbstractType.ContentFactory = _contentFactory;
+            ContentFactoryAccessor.SetFactory(_contentFactory);
             ContentDoc.SetDocFactory(opts => new YDoc(opts));
             
             _initialized = true;

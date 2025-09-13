@@ -21,7 +21,7 @@ namespace Ycs.Contracts
     public interface IContentEx : IContent
     {
         int Ref { get; }
-        void Integrate(ITransaction transaction, IItem item);
+        void Integrate(ITransaction transaction, IStructItem item);
         void Delete(ITransaction transaction);
         void Gc(IStructStore store);
         void Write(IUpdateEncoder encoder, int offset);

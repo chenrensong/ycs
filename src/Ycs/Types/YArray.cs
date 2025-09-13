@@ -41,7 +41,7 @@ namespace Ycs.Types
 
         public IYArray Clone() => InternalClone() as IYArray;
 
-        public override void Integrate(IYDoc doc, IItem item)
+        public override void Integrate(IYDoc doc, IStructItem item)
         {
             base.Integrate(doc, item);
             Insert(0, _prelimContent);
@@ -149,7 +149,7 @@ namespace Ycs.Types
                 index -= marker.Index;
             }
 
-            for (; n != null; n = n.Right as IItem)
+            for (; n != null; n = n.Right as IStructItem)
             {
                 if (!n.Deleted && n.Countable)
                 {
@@ -187,7 +187,7 @@ namespace Ycs.Types
                     }
                 }
 
-                n = n.Right as IItem;
+                n = n.Right as IStructItem;
             }
         }
     }

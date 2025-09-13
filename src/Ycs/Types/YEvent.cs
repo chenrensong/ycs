@@ -32,12 +32,12 @@ namespace Ycs.Types
         /// <summary>
         /// Check if a struct is added by this event.
         /// </summary>
-        internal bool Deletes(IItem str)
+        internal bool Deletes(IStructItem str)
         {
             return Transaction.DeleteSet.IsDeleted(str.Id);
         }
 
-        internal bool Adds(IItem str)
+        internal bool Adds(IStructItem str)
         {
             return !Transaction.BeforeState.TryGetValue(str.Id.Client, out var clock) || str.Id.Clock >= clock;
         }
@@ -47,8 +47,8 @@ namespace Ycs.Types
             if (_changes == null)
             {
                 var target = Target;
-                var added = new HashSet<IItem>();
-                var deleted = new HashSet<IItem>();
+                var added = new HashSet<IStructItem>();
+                var deleted = new HashSet<IStructItem>();
                 var delta = new List<Delta>();
                 var keys = new Dictionary<string, ChangeKey>();
 
@@ -78,7 +78,7 @@ namespace Ycs.Types
                         }
                     }
 
-                    for (var item = Target.Start; item != null; item = item.Right as IItem)
+                    for (var item = Target.Start; item != null; item = item.Right as IStructItem)
                     {
                         if (item.Deleted)
                         {
@@ -143,7 +143,7 @@ namespace Ycs.Types
                             var prev = item.Left;
                             while (prev != null && Adds(prev))
                             {
-                                prev = (prev as IItem).Left;
+                                prev = (prev as IStructItem).Left;
                             }
 
                             if (Deletes(item))
@@ -151,7 +151,7 @@ namespace Ycs.Types
                                 if (prev != null && Deletes(prev))
                                 {
                                     action = ChangeAction.Delete;
-                                    oldValue = (prev as IItem).Content.GetContent().Last();
+                                    oldValue = (prev as IStructItem).Content.GetContent().Last();
                                 }
                                 else
                                 {
@@ -163,7 +163,7 @@ namespace Ycs.Types
                                 if (prev != null && Deletes(prev))
                                 {
                                     action = ChangeAction.Update;
-                                    oldValue = (prev as IItem).Content.GetContent().Last();
+                                    oldValue = (prev as IStructItem).Content.GetContent().Last();
                                 }
                                 else
                                 {
@@ -211,7 +211,7 @@ namespace Ycs.Types
                 {
                     // Parent is array-ish.
                     int i = 0;
-                    IItem c = (child.Item.Parent as IAbstractType).Start;
+                    IStructItem c = (child.Item.Parent as IAbstractType).Start;
                     while (c != child.Item && c != null)
                     {
                         if (!c.Deleted)
@@ -219,7 +219,7 @@ namespace Ycs.Types
                             i++;
                         }
 
-                        c = (c as IItem)?.Right;
+                        c = (c as IStructItem)?.Right;
                     }
 
                     path.Push(i);

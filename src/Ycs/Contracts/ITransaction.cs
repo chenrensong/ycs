@@ -22,10 +22,10 @@ namespace Ycs.Contracts
         ISet<IYDoc> SubdocsAdded { get; }
         ISet<IYDoc> SubdocsLoaded { get; }
         ISet<IYDoc> SubdocsRemoved { get; }
-        IList<IItem> MergeStructs { get; }
+        IList<IStructItem> MergeStructs { get; }
         void AddChangedTypeToTransaction(IAbstractType type, string parentSub);
         StructID GetNextId();
-        IItem RedoItem(IItem item, ISet<IItem> redoItems);
+        IStructItem RedoItem(IStructItem item, ISet<IStructItem> redoItems);
         bool WriteUpdateMessageFromTransaction(IUpdateEncoder encoder);
     }
 }

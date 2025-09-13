@@ -18,7 +18,7 @@ namespace Ycs.Contracts
         void Delete(string key);
         object Get(string key);
         IEnumerator<KeyValuePair<string, object>> GetEnumerator();
-        void Integrate(IYDoc doc, IItem item);
+        void Integrate(IYDoc doc, IStructItem item);
         IAbstractType InternalClone();
         IAbstractType InternalCopy();
         IEnumerable<string> Keys();

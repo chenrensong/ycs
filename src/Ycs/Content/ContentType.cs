@@ -41,7 +41,7 @@ namespace Ycs.Content
 
         public bool MergeWith(IContent right) => false;
 
-        void IContentEx.Integrate(ITransaction transaction, IItem item)
+        void IContentEx.Integrate(ITransaction transaction, IStructItem item)
         {
             Type.Integrate(transaction.Doc, item);
         }
@@ -65,7 +65,7 @@ namespace Ycs.Content
                     transaction.MergeStructs.Add(item);
                 }
 
-                item = item.Right as IItem;
+                item = item.Right as IStructItem;
             }
 
             foreach (var valueItem in Type.Map.Values)
@@ -90,7 +90,7 @@ namespace Ycs.Content
             while (item != null)
             {
                 item.Gc(store, parentGCd: true);
-                item = item.Right as IItem;
+                item = item.Right as IStructItem;
             }
 
             Type.Start = null;
@@ -101,7 +101,7 @@ namespace Ycs.Content
                 while (valueItem != null)
                 {
                     valueItem.Gc(store, parentGCd: true);
-                    valueItem = valueItem.Left as IItem;
+                    valueItem = valueItem.Left as IStructItem;
                 }
             }
 

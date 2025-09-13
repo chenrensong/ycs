@@ -10,8 +10,8 @@ namespace Ycs.Contracts
 {
     public class ChangesCollection
     {
-        public ISet<IItem> Added;
-        public ISet<IItem> Deleted;
+        public ISet<IStructItem> Added;
+        public ISet<IStructItem> Deleted;
         public IList<Delta> Delta;
         public IDictionary<string, ChangeKey> Keys;
     }

@@ -43,7 +43,7 @@ namespace Ycs.Content
             return true;
         }
 
-        void IContentEx.Integrate(ITransaction transaction, IItem item)
+        void IContentEx.Integrate(ITransaction transaction, IStructItem item)
         {
             transaction.DeleteSet.Add(item.Id.Client, item.Id.Clock, Length);
             item.MarkDeleted();

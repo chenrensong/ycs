@@ -123,7 +123,7 @@ namespace Ycs.Core
                     return new RelativePosition(type, t.LastId, assoc);
                 }
 
-                t = t.Right as IItem;
+                t = t.Right as IStructItem;
             }
 
             return new RelativePosition(type, type.Item?.Id, assoc);

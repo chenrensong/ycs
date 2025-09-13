@@ -64,7 +64,7 @@ namespace Ycs.Core
         }
 
         private IList<IAbstractType> _scope;
-        private Func<IItem, bool> _deleteFilter;
+        private Func<IStructItem, bool> _deleteFilter;
         private ISet<object> _trackedOrigins;
         private Stack<StackItem> _undoStack;
         private Stack<StackItem> _redoStack;
@@ -83,7 +83,7 @@ namespace Ycs.Core
         }
 
         // TODO: [alekseyk] Set default parameters (not for the Func<>), or create options, like YDocOptions.
-        public UndoManager(IList<IAbstractType> typeScopes, int captureTimeout, Func<IItem, bool> deleteFilter, ISet<object> trackedOrigins)
+        public UndoManager(IList<IAbstractType> typeScopes, int captureTimeout, Func<IStructItem, bool> deleteFilter, ISet<object> trackedOrigins)
         {
             _scope = typeScopes;
             _deleteFilter = deleteFilter ?? (_ => true);
@@ -113,7 +113,7 @@ namespace Ycs.Core
                 {
                     stackItem.DeleteSet.IterateDeletedStructs(tr, i =>
                     {
-                        if (i is IItem item && _scope.Any(type => IsParentOf(type, item)))
+                        if (i is IStructItem item && _scope.Any(type => IsParentOf(type, item)))
                         {
                             item.KeepItemAndParents(false);
                         }
@@ -244,7 +244,7 @@ namespace Ycs.Core
             // Make sure that deleted structs are not GC'd.
             transaction.DeleteSet.IterateDeletedStructs(transaction, i =>
             {
-                if (i is IItem item && _scope.Any(type => IsParentOf(type, item)))
+                if (i is IStructItem item && _scope.Any(type => IsParentOf(type, item)))
                 {
                     item.KeepItemAndParents(true);
                 }
@@ -269,8 +269,8 @@ namespace Ycs.Core
                 while (stack.Count > 0 && result == null)
                 {
                     var stackItem = stack.Pop();
-                    var itemsToRedo = new HashSet<IItem>();
-                    var itemsToDelete = new List<IItem>();
+                    var itemsToRedo = new HashSet<IStructItem>();
+                    var itemsToDelete = new List<IStructItem>();
                     var performedChange = false;
 
                     foreach (var kvp in stackItem.AfterState)
@@ -299,7 +299,7 @@ namespace Ycs.Core
 
                             _doc.Store.IterateStructs(transaction, structs, startClock, len, str =>
                             {
-                                if (str is IItem it)
+                                if (str is IStructItem it)
                                 {
                                     if (it.Redone != null)
                                     {
@@ -309,7 +309,7 @@ namespace Ycs.Core
 
                                         if (diff > 0)
                                         {
-                                            item = _doc.Store.GetItemCleanStart(transaction, new StructID(item.Id.Client, item.Id.Clock + diff)) as IItem;
+                                            item = _doc.Store.GetItemCleanStart(transaction, new StructID(item.Id.Client, item.Id.Clock + diff)) as IStructItem;
                                         }
 
                                         if (item.Length > len)
@@ -317,7 +317,7 @@ namespace Ycs.Core
                                             _doc.Store.GetItemCleanStart(transaction, new StructID(item.Id.Client, endClock));
                                         }
 
-                                        str = it = item as IItem;
+                                        str = it = item as IStructItem;
                                     }
 
                                     if (!it.Deleted && _scope.Any(type => IsParentOf(type, it)))
@@ -347,7 +347,7 @@ namespace Ycs.Core
                             endClock = 0;
                         }
 
-                        if (str is IItem item &&
+                        if (str is IStructItem item &&
                             _scope.Any(type => IsParentOf(type, item)) &&
                             // Never redo structs in [stackItem.start, stackItem.start + stackItem.end), because they were created and deleted in the same capture interval.
                             !(clock >= startClock && clock < endClock))
@@ -399,7 +399,7 @@ namespace Ycs.Core
             return result;
         }
 
-        private static bool IsParentOf(IAbstractType parent, IItem child)
+        private static bool IsParentOf(IAbstractType parent, IStructItem child)
         {
             while (child != null)
             {

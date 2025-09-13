@@ -62,7 +62,7 @@ namespace Ycs.Content
             return false;
         }
 
-        void IContentEx.Integrate(ITransaction transaction, IItem item)
+        void IContentEx.Integrate(ITransaction transaction, IStructItem item)
         {
             // This needs to be reflected in doc.destroy as well.
             Doc.Item = item;
