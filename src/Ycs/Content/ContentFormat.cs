@@ -6,10 +6,10 @@
 
 using System;
 using System.Collections.Generic;
-using Ycs.Types;
 using Ycs.Contracts;
+using Ycs.Types;
 
-namespace Ycs.Structs
+namespace Ycs.Content
 {
     public class ContentFormat : IContentEx
     {

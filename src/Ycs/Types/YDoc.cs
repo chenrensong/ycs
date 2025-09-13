@@ -9,9 +9,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Ycs.Structs;
+using Ycs.Content;
 using Ycs.Contracts;
-using Ycs.Utils;
+using Ycs.Core;
 
 namespace Ycs.Types
 {
@@ -176,7 +176,7 @@ namespace Ycs.Types
                     // Observer call may create new transacations for which we need to call the observers and do cleanup.
                     // We don't want to nest these calls, so we execute these calls one after another.
                     // Also we need to ensure that all cleanups are called, even if the observers throw errors.
-                    Utils.Transaction.CleanupTransactions(TransactionCleanups, 0);
+                    Core.Transaction.CleanupTransactions(TransactionCleanups, 0);
                 }
             }
         }

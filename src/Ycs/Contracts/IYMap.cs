@@ -5,7 +5,6 @@
 // ------------------------------------------------------------------------------
 
 using System.Collections.Generic;
-using Ycs.Types;
 
 namespace Ycs.Contracts
 {
@@ -14,7 +13,7 @@ namespace Ycs.Contracts
         int Count { get; }
 
         void CallObserver(ITransaction transaction, ISet<string> parentSubs);
-        YMap Clone();
+        IYMap Clone();
         bool ContainsKey(string key);
         void Delete(string key);
         object Get(string key);

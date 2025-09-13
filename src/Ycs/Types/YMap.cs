@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Ycs.Contracts;
+using Ycs.Core;
 
 namespace Ycs.Types
 {
@@ -96,7 +97,7 @@ namespace Ycs.Types
 
         public IEnumerable<object> Values() => TypeMapEnumerate().Select(kvp => kvp.Value.Content.GetContent()[kvp.Value.Length - 1]);
 
-        public YMap Clone() => InternalClone() as YMap;
+        public IYMap Clone() => InternalClone() as IYMap;
 
         public override IAbstractType InternalCopy()
         {

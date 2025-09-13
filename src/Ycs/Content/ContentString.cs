@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using Ycs.Contracts;
 
-namespace Ycs.Structs
+namespace Ycs.Content
 {
     public class ContentString : IContentEx
     {

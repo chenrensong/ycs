@@ -10,7 +10,7 @@ using System.Diagnostics;
 using System.Linq;
 using Ycs.Contracts;
 
-namespace Ycs.Structs
+namespace Ycs.Content
 {
     public class ContentAny : IContentEx
     {

@@ -11,10 +11,8 @@ using System.IO;
 using System.Linq;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Types;
-using StructGC = Ycs.Structs.StructGC;
 
-namespace Ycs.Utils
+namespace Ycs.Core
 {
     public sealed class StructStore : IStructStore
     {
@@ -164,7 +162,7 @@ namespace Ycs.Utils
             // @todo does it even make sense to pivot the search?
             // If a good split misses, it might actually increase the time to find the correct item.
             // Currently, the only advantage is that search with pivoting might find the item on the first try.
-            int midIndex = (int)((clock * right) / (midClock + mid.Length - 1));
+            int midIndex = (int)(clock * right / (midClock + mid.Length - 1));
             while (left <= right)
             {
                 mid = structs[midIndex];
@@ -246,7 +244,7 @@ namespace Ycs.Utils
             int index = FindIndexSS(structs, id.Clock);
             var str = structs[index];
 
-            if ((id.Clock != str.Id.Clock + str.Length - 1) && !(str is StructGC))
+            if (id.Clock != str.Id.Clock + str.Length - 1 && !(str is StructGC))
             {
                 structs.Insert(index + 1, (str as IItem).SplitItem(transaction, (int)(id.Clock - str.Id.Clock + 1)));
             }
@@ -347,7 +345,7 @@ namespace Ycs.Utils
                             unappliedDs.Add(client, state, clockEnd - state);
                         }
 
-                        var index = StructStore.FindIndexSS(structs, clock);
+                        var index = FindIndexSS(structs, clock);
 
                         // We can ignore the case of GC and Delete structs, because we are going to skip them.
                         var str = structs[index];

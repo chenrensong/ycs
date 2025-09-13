@@ -8,17 +8,17 @@ using System;
 using System.Collections.Generic;
 using Ycs.Contracts;
 
-namespace Ycs.Structs
+namespace Ycs.Content
 {
-    public class ContentEmbed : IContentEx
+    public class ContentBinary : IContentEx
     {
-        internal const int _ref = 5;
+        internal const int _ref = 3;
 
-        public readonly object Embed;
+        private readonly byte[] _content;
 
-        internal ContentEmbed(object embed)
+        internal ContentBinary(byte[] data)
         {
-            Embed = embed;
+            _content = data;
         }
 
         int IContentEx.Ref => _ref;
@@ -26,9 +26,9 @@ namespace Ycs.Structs
         public bool Countable => true;
         public int Length => 1;
 
-        public IReadOnlyList<object> GetContent() => new object[] { Embed };
+        public IReadOnlyList<object> GetContent() => new object[] { _content };
 
-        public IContent Copy() => new ContentEmbed(Embed);
+        public IContent Copy() => new ContentBinary(_content);
 
         public IContent Splice(int offset)
         {
@@ -57,13 +57,13 @@ namespace Ycs.Structs
 
         void IContentEx.Write(IUpdateEncoder encoder, int offset)
         {
-            encoder.WriteJson(Embed);
+            encoder.WriteBuffer(_content);
         }
 
-        internal static ContentEmbed Read(IUpdateDecoder decoder)
+        internal static ContentBinary Read(IUpdateDecoder decoder)
         {
-            var content = decoder.ReadJson();
-            return new ContentEmbed(content);
+            var content = decoder.ReadBuffer();
+            return new ContentBinary(content);
         }
     }
 }

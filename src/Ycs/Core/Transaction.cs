@@ -8,11 +8,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Ycs.Content;
 using Ycs.Contracts;
-using Ycs.Structs;
 using Ycs.Types;
 
-namespace Ycs.Utils
+namespace Ycs.Core
 {
     /// <summary>
     /// A transaction is created for every change on the Yjs model. It is possible
@@ -107,7 +107,7 @@ namespace Ycs.Utils
         public void AddChangedTypeToTransaction(IAbstractType type, string parentSub)
         {
             var item = type.Item;
-            if (item == null || (BeforeState.TryGetValue(item.Id.Client, out var clock) && item.Id.Clock < clock && !item.Deleted))
+            if (item == null || BeforeState.TryGetValue(item.Id.Client, out var clock) && item.Id.Clock < clock && !item.Deleted)
             {
                 if (!Changed.TryGetValue(type, out var set))
                 {
@@ -222,7 +222,7 @@ namespace Ycs.Utils
                             var firstChangePos = Math.Max(StructStore.FindIndexSS(structs, beforeClock), 1);
                             for (int j = structs.Count - 1; j >= firstChangePos; j--)
                             {
-                                Ycs.Types.DeleteSet.TryToMergeWithLeft(structs, j);
+                                Core.DeleteSet.TryToMergeWithLeft(structs, j);
                             }
                         }
                     }
@@ -239,12 +239,12 @@ namespace Ycs.Utils
 
                         if (replacedStructPos + 1 < structs.Count)
                         {
-                            Ycs.Types.DeleteSet.TryToMergeWithLeft(structs, replacedStructPos + 1);
+                            Core.DeleteSet.TryToMergeWithLeft(structs, replacedStructPos + 1);
                         }
 
                         if (replacedStructPos > 0)
                         {
-                            Ycs.Types.DeleteSet.TryToMergeWithLeft(structs, replacedStructPos);
+                            Core.DeleteSet.TryToMergeWithLeft(structs, replacedStructPos);
                         }
                     }
 
@@ -363,7 +363,7 @@ namespace Ycs.Utils
             {
                 while (parentItem.Redone != null)
                 {
-                    parentItem = (IItem)store.GetItemCleanStart(this, parentItem.Redone.Value);
+                    parentItem = store.GetItemCleanStart(this, parentItem.Redone.Value);
                 }
 
                 // Find next cloned_redo items.

@@ -8,10 +8,9 @@ using System;
 using System.IO;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Structs;
-using Ycs.Types;
 
-namespace Ycs.Utils
+
+namespace Ycs.Core
 {
     /// <summary>
     /// A relative position is based on the YUjs model and is not affected by document changes.

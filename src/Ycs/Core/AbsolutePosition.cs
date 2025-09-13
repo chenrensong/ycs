@@ -6,11 +6,11 @@
 
 using System;
 using System.Diagnostics;
+using Ycs.Content;
 using Ycs.Contracts;
-using Ycs.Structs;
 using Ycs.Types;
 
-namespace Ycs.Utils
+namespace Ycs.Core
 {
     internal class AbsolutePosition
     {
@@ -55,7 +55,7 @@ namespace Ycs.Utils
                 if (type.Item == null || !type.Item.Deleted)
                 {
                     // Adjust position based on the left assotiation, if necessary.
-                    index = (right.Deleted || !right.Countable) ? 0 : (res.diff + (assoc >= 0 ? 0 : 1));
+                    index = right.Deleted || !right.Countable ? 0 : res.diff + (assoc >= 0 ? 0 : 1);
                     var n = right.Left as StructItem;
                     while (n != null)
                     {

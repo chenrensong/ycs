@@ -11,7 +11,7 @@ using System.IO;
 using Ycs.Contracts;
 using Ycs.Lib0;
 
-namespace Ycs.Utils
+namespace Ycs.Core
 {
     internal class DSDecoderV2 : IDSDecoder
     {
@@ -30,7 +30,7 @@ namespace Ycs.Utils
         public void Dispose()
         {
             Dispose(disposing: true);
-            System.GC.SuppressFinalize(this);
+            GC.SuppressFinalize(this);
         }
 
         public void ResetDsCurVal()

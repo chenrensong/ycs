@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Ycs.Contracts;
 
-namespace Ycs.Structs
+namespace Ycs.Content
 {
     internal class ContentDeleted : IContentEx
     {

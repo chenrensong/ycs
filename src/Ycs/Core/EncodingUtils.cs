@@ -11,11 +11,10 @@ using System.IO;
 using System.Linq;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Structs;
-using Ycs.Types;
-using GC = Ycs.Structs.StructGC;
+using Ycs.Content;
+using GC = Ycs.Core.StructGC;
 
-namespace Ycs.Utils
+namespace Ycs.Core
 {
     /// <summary>
     /// We use first five bits in the info flag for determining the type of the struct.
@@ -175,7 +174,7 @@ namespace Ycs.Utils
                             leftOrigin,
                             null, // right
                             rightOrigin, // rightOrigin
-                            cantCopyParentInfo && !hasParentYKey ? decoder.ReadLeftId() : (parentYKey != null ? (object)doc.Get<AbstractType>(parentYKey) : null), // parent
+                            cantCopyParentInfo && !hasParentYKey ? decoder.ReadLeftId() : parentYKey != null ? (object)doc.Get<AbstractType>(parentYKey) : null, // parent
                             cantCopyParentInfo && (info & Bit.Bit6) == Bit.Bit6 ? decoder.ReadString() : null, // parentSub
                             ReadItemContent(decoder, info) // content
                             );

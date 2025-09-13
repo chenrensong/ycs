@@ -8,9 +8,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Ycs.Contracts;
-using Ycs.Structs;
+using Ycs.Types;
+using Ycs.Content;
 
-namespace Ycs.Types
+namespace Ycs.Core
 {
     public class YEventArgs
     {

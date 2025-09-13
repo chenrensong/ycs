@@ -8,10 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Ycs.Contracts;
-using Ycs.Structs;
 using Ycs.Types;
 
-namespace Ycs.Utils
+namespace Ycs.Core
 {
     public class StackItem
     {
@@ -198,8 +197,8 @@ namespace Ycs.Utils
         {
             // Only track certain transactions.
             if (!_scope.Any(type => transaction.ChangedParentTypes.ContainsKey(type)) ||
-                (!_trackedOrigins.Contains(transaction.Origin) &&
-                    (transaction.Origin == null || !_trackedOrigins.Any(to => (to as Type)?.IsAssignableFrom(transaction.Origin.GetType()) ?? false))))
+                !_trackedOrigins.Contains(transaction.Origin) &&
+                    (transaction.Origin == null || !_trackedOrigins.Any(to => (to as Type)?.IsAssignableFrom(transaction.Origin.GetType()) ?? false)))
             {
                 return;
             }

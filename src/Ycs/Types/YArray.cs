@@ -6,6 +6,7 @@
 
 using System.Collections.Generic;
 using Ycs.Contracts;
+using Ycs.Core;
 
 namespace Ycs.Types
 {

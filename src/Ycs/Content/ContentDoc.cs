@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using Ycs.Contracts;
 using Ycs.Types;
 
-namespace Ycs.Structs
+namespace Ycs.Content
 {
     internal class ContentDoc : IContentEx
     {

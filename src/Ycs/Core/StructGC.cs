@@ -8,7 +8,7 @@ using System;
 using System.Diagnostics;
 using Ycs.Contracts;
 
-namespace Ycs.Structs
+namespace Ycs.Core
 {
     public class StructGC : IItem
     {
@@ -18,8 +18,8 @@ namespace Ycs.Structs
 
         internal StructGC(StructID id, int length)
         {
-            this.Id = id;
-            this.Length = length;
+            Id = id;
+            Length = length;
             // Do nothing.
         }
 

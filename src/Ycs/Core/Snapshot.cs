@@ -12,7 +12,7 @@ using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Types;
 
-namespace Ycs.Utils
+namespace Ycs.Core
 {
     public sealed class Snapshot : IEquatable<Snapshot>, ISnapshot
     {
@@ -149,7 +149,7 @@ namespace Ycs.Utils
         {
             using (var decoder = new DSDecoderV2(input))
             {
-                var ds = Ycs.Types.DeleteSet.Read(decoder);
+                var ds = Core.DeleteSet.Read(decoder);
                 var sv = EncodingUtils.ReadStateVector(decoder);
                 return new Snapshot(ds, sv);
             }

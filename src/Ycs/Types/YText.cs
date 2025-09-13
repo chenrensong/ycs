@@ -8,7 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Ycs.Contracts;
-using Ycs.Structs;
+using Ycs.Core;
+using Ycs.Content;
 
 namespace Ycs.Types
 {

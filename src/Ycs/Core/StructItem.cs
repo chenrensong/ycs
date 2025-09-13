@@ -9,10 +9,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Types;
-using Ycs.Utils;
+using Ycs.Content;
 
-namespace Ycs.Structs
+namespace Ycs.Core
 {
     public class StructItem : IItem
     {
@@ -29,8 +28,8 @@ namespace Ycs.Structs
 
         public StructItem(StructID id, IItem left, StructID? leftOrigin, IItem right, StructID? rightOrigin, object parent, string parentSub, IContent content)
         {
-            this.Id = id;
-            this.Length = content.Length;
+            Id = id;
+            Length = content.Length;
 
             LeftOrigin = leftOrigin;
             Left = left;
@@ -142,7 +141,7 @@ namespace Ycs.Structs
         /// <summary>
         /// Computes the last content address of this Item.
         /// </summary>
-        public StructID LastId => this.Length == 1 ? Id : new StructID(Id.Client, Id.Clock + Length - 1);
+        public StructID LastId => Length == 1 ? Id : new StructID(Id.Client, Id.Clock + Length - 1);
 
         /// <summary>
         /// Returns the next non-deleted item.
@@ -252,7 +251,7 @@ namespace Ycs.Structs
 
             if (Parent != null)
             {
-                if ((Left == null && (Right == null || (Right as IItem)?.Left != null)) || (Left != null && (Left as IItem)?.Right != Right))
+                if (Left == null && (Right == null || (Right as IItem)?.Left != null) || Left != null && (Left as IItem)?.Right != Right)
                 {
                     var left = Left;
                     IItem o;
@@ -268,7 +267,7 @@ namespace Ycs.Structs
 
                         IItem item = null;
                         (Parent as AbstractType)?.Map?.TryGetValue(ParentSub, out item);
-                        o = (IItem)item;
+                        o = item;
 
                         while (o != null && (o as IItem)?.Left != null)
                         {
@@ -278,7 +277,7 @@ namespace Ycs.Structs
                     else
                     {
                         Debug.Assert(Parent is AbstractType);
-                        o = (IItem)(Parent as AbstractType)?.Start;
+                        o = (Parent as AbstractType)?.Start;
                     }
 
                     var conflictingItems = new HashSet<IItem>();
@@ -351,7 +350,7 @@ namespace Ycs.Structs
                     {
                         IItem item = null;
                         (Parent as AbstractType)?.Map?.TryGetValue(ParentSub, out item);
-                        r = (IItem)item;
+                        r = item;
 
                         while (r != null && (r as IItem)?.Left != null)
                         {
@@ -362,7 +361,7 @@ namespace Ycs.Structs
                     {
                         if (Parent is AbstractType abstractTypeParent)
                         {
-                            r = (IItem)abstractTypeParent.Start;
+                            r = abstractTypeParent.Start;
                             abstractTypeParent.Start = this;
                         }
                         else
@@ -402,7 +401,7 @@ namespace Ycs.Structs
                 // Add parent to transaction.changed.
                 transaction.AddChangedTypeToTransaction(Parent as AbstractType, ParentSub);
 
-                if (((Parent as AbstractType)?.Item != null && (Parent as AbstractType).Item.Deleted) || (ParentSub != null && Right != null))
+                if ((Parent as AbstractType)?.Item != null && (Parent as AbstractType).Item.Deleted || ParentSub != null && Right != null)
                 {
                     // Delete if parent is deleted or if this is not the current attribute value of parent.
                     Delete(transaction);
@@ -430,7 +429,7 @@ namespace Ycs.Structs
                 return RightOrigin.Value.Client;
             }
 
-            if ((Parent is StructID parentId) && Id.Client != parentId.Client && parentId.Clock >= store.GetState(parentId.Client))
+            if (Parent is StructID parentId && Id.Client != parentId.Client && parentId.Clock >= store.GetState(parentId.Client))
             {
                 return parentId.Client;
             }
@@ -531,7 +530,7 @@ namespace Ycs.Structs
             var origin = offset > 0 ? new StructID(Id.Client, Id.Clock + offset - 1) : LeftOrigin;
             var rightOrigin = RightOrigin;
             var parentSub = ParentSub;
-            var info = (Content.Ref & Bits.Bits5) |
+            var info = Content.Ref & Bits.Bits5 |
                 (origin == null ? 0 : Bit.Bit8) |
                 (rightOrigin == null ? 0 : Bit.Bit7) |
                 (parentSub == null ? 0 : Bit.Bit6);

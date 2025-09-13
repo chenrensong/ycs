@@ -11,7 +11,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Ycs.Contracts;
-using Ycs.Structs;
+using Ycs.Core;
 using Ycs.Types;
 
 namespace Ycs

@@ -9,9 +9,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Utils;
 
-namespace Ycs.Types
+namespace Ycs.Core
 {
     /// <summary>
     /// DeleteSet is a temporary object that is created when needed.

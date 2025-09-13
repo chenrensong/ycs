@@ -10,7 +10,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Ycs.Contracts;
-using Ycs.Structs;
+using Ycs.Core;
+using Ycs.Content;
 
 namespace Ycs.Types
 {
@@ -121,7 +122,7 @@ namespace Ycs.Types
                     }
 
                     // A simple index <= m.Index check would actually suffice.
-                    if (index < m.Index || (len > 0 && index == m.Index))
+                    if (index < m.Index || len > 0 && index == m.Index)
                     {
                         m.Index = Math.Max(index, m.Index + len);
                     }
@@ -532,7 +533,7 @@ namespace Ycs.Types
                 }
             }
 
-            if (marker != null && Math.Abs(marker.Index - pIndex) < ((p.Parent as AbstractType).Length / MaxSearchMarkers))
+            if (marker != null && Math.Abs(marker.Index - pIndex) < (p.Parent as AbstractType).Length / MaxSearchMarkers)
             {
                 // Adjust existing marker.
                 marker.Update(p, pIndex);

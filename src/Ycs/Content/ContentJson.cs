@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Ycs.Contracts;
 
-namespace Ycs.Structs
+namespace Ycs.Content
 {
     public class ContentJson : IContentEx
     {
