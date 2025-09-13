@@ -25,7 +25,7 @@ namespace Ycs
 
         protected List<TestYInstance> Users;
         protected TestConnector Connector;
-        protected IDictionary<TestYInstance, YArray> Arrays;
+        protected IDictionary<TestYInstance, IYArray> Arrays;
         protected IDictionary<TestYInstance, YMap> Maps;
         protected IDictionary<TestYInstance, YText> Texts;
 
@@ -48,7 +48,7 @@ namespace Ycs
         protected void Init(int users = 5, YDocOptions options = null)
         {
             Users = new List<TestYInstance>();
-            Arrays = new Dictionary<TestYInstance, YArray>();
+            Arrays = new Dictionary<TestYInstance, IYArray>();
             Maps = new Dictionary<TestYInstance, YMap>();
             Texts = new Dictionary<TestYInstance, YText>();
             Connector = new TestConnector();
@@ -157,9 +157,9 @@ namespace Ycs
                     Assert.IsInstanceOfType(o1, o2.GetType());
                     CompareYText(text, o2 as YText);
                     break;
-                case YArray arr:
+                case IYArray arr:
                     Assert.IsInstanceOfType(o1, o2.GetType());
-                    CompareYArray(arr, o2 as YArray);
+                    CompareYArray(arr, o2 as IYArray);
                     break;
                 case YMap map:
                     Assert.IsInstanceOfType(o1, o2.GetType());
@@ -209,7 +209,7 @@ namespace Ycs
             Assert.AreEqual(str1, t2.ToString());
         }
 
-        protected void CompareYArray(YArray arr1, YArray arr2)
+        protected void CompareYArray(IYArray arr1, IYArray arr2)
         {
             if (ReferenceEquals(arr1, arr2))
             {

@@ -5,21 +5,21 @@
 // ------------------------------------------------------------------------------
 
 using System.Collections.Generic;
-using Ycs.Structs;
 using Ycs.Contracts;
 
 namespace Ycs.Types
 {
+
     public class YArrayEvent : YEvent
     {
-        public YArrayEvent(YArray arr, ITransaction transaction)
+        public YArrayEvent(IYArray arr, ITransaction transaction)
             : base(arr, transaction)
         {
             // Do nothing.
         }
     }
 
-    public class YArray : YArrayBase
+    public class YArray : YArrayBase, IYArray
     {
         public const byte YArrayRefId = 0;
 
@@ -38,7 +38,7 @@ namespace Ycs.Types
 
         public override int Length => _prelimContent?.Count ?? base.Length;
 
-        public YArray Clone() => InternalClone() as YArray;
+        public IYArray Clone() => InternalClone() as IYArray;
 
         public override void Integrate(IYDoc doc, IItem item)
         {
@@ -76,7 +76,7 @@ namespace Ycs.Types
             encoder.WriteTypeRef(YArrayRefId);
         }
 
-        public static YArray Read(IUpdateDecoder decoder)
+        public static IYArray Read(IUpdateDecoder decoder)
         {
             return new YArray();
         }

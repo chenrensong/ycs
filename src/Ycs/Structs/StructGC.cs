@@ -10,13 +10,13 @@ using Ycs.Contracts;
 
 namespace Ycs.Structs
 {
-    public class GC : IItem
+    public class StructGC : IItem
     {
         internal const byte StructGCRefNumber = 0;
         public StructID Id { get; set; }
         public int Length { get; set; }
 
-        internal GC(StructID id, int length)
+        internal StructGC(StructID id, int length)
         {
             this.Id = id;
             this.Length = length;
@@ -48,7 +48,7 @@ namespace Ycs.Structs
 
         public bool MergeWith(IItem right)
         {
-            Debug.Assert(right is GC);
+            Debug.Assert(right is StructGC);
             Length += right.Length;
             return true;
         }

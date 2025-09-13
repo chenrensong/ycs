@@ -7,7 +7,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Ycs.Structs;
 using Ycs.Contracts;
 
 namespace Ycs.Types
@@ -29,7 +28,7 @@ namespace Ycs.Types
     /// <summary>
     /// A shared Map implementation.
     /// </summary>
-    public class YMap : AbstractType, IEnumerable<KeyValuePair<string, object>>
+    public class YMap : AbstractType, IEnumerable<KeyValuePair<string, object>>, IYMap
     {
         internal const int YMapRefId = 1;
 

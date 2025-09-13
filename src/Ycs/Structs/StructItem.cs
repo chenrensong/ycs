@@ -14,7 +14,7 @@ using Ycs.Utils;
 
 namespace Ycs.Structs
 {
-    public class Item : IItem
+    public class StructItem : IItem
     {
         [Flags]
         private enum InfoEnum : int
@@ -27,7 +27,7 @@ namespace Ycs.Structs
 
         private InfoEnum _info;
 
-        public Item(StructID id, IItem left, StructID? leftOrigin, IItem right, StructID? rightOrigin, object parent, string parentSub, IContent content)
+        public StructItem(StructID id, IItem left, StructID? leftOrigin, IItem right, StructID? rightOrigin, object parent, string parentSub, IContent content)
         {
             this.Id = id;
             this.Length = content.Length;
@@ -411,7 +411,7 @@ namespace Ycs.Structs
             else
             {
                 // Parent is not defined. Integrate GC struct instead.
-                new GC(Id, Length).Integrate(transaction, 0);
+                new StructGC(Id, Length).Integrate(transaction, 0);
             }
         }
 
@@ -449,7 +449,7 @@ namespace Ycs.Structs
                 RightOrigin = Right.Id;
             }
 
-            if (Left is GC || Right is GC)
+            if (Left is StructGC || Right is StructGC)
             {
                 Parent = null;
             }
@@ -471,7 +471,7 @@ namespace Ycs.Structs
             else if (Parent is StructID pid)
             {
                 var parentItem = store.Find(pid);
-                if (parentItem is GC)
+                if (parentItem is StructGC)
                 {
                     Parent = null;
                 }
@@ -495,7 +495,7 @@ namespace Ycs.Structs
 
             if (parentGCd)
             {
-                store.ReplaceStruct(this, new GC(Id, Length));
+                store.ReplaceStruct(this, new StructGC(Id, Length));
             }
             else
             {
@@ -582,7 +582,7 @@ namespace Ycs.Structs
             var client = Id.Client;
             var clock = Id.Clock;
 
-            var rightItem = new Item(
+            var rightItem = new StructItem(
                 new StructID(client, clock + diff),
                 this,
                 new StructID(client, clock + diff - 1),

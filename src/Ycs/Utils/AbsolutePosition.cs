@@ -6,6 +6,7 @@
 
 using System;
 using System.Diagnostics;
+using Ycs.Contracts;
 using Ycs.Structs;
 using Ycs.Types;
 
@@ -42,7 +43,7 @@ namespace Ycs.Utils
                 }
 
                 var res = store.FollowRedone(rightId.Value);
-                var right = res.item as Item;
+                var right = res.item as StructItem;
                 if (right == null)
                 {
                     return null;
@@ -55,7 +56,7 @@ namespace Ycs.Utils
                 {
                     // Adjust position based on the left assotiation, if necessary.
                     index = (right.Deleted || !right.Countable) ? 0 : (res.diff + (assoc >= 0 ? 0 : 1));
-                    var n = right.Left as Item;
+                    var n = right.Left as StructItem;
                     while (n != null)
                     {
                         if (!n.Deleted && n.Countable)
@@ -63,7 +64,7 @@ namespace Ycs.Utils
                             index += n.Length;
                         }
 
-                        n = n.Left as Item;
+                        n = n.Left as StructItem;
                     }
                 }
             }
@@ -81,7 +82,7 @@ namespace Ycs.Utils
                         return null;
                     }
 
-                    var item = store.FollowRedone(typeId.Value).item as Item;
+                    var item = store.FollowRedone(typeId.Value).item as StructItem;
                     if (item != null && item.Content is ContentType)
                     {
                         type = (item.Content as ContentType).Type;

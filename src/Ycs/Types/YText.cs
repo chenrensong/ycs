@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.Text;
 using Ycs.Contracts;
 using Ycs.Structs;
-using Ycs.Utils;
 
 namespace Ycs.Types
 {
@@ -25,18 +24,18 @@ namespace Ycs.Types
             Retain
         }
 
-        private readonly ISet<string> _subs;
+        public  ISet<string> Subs { get; }
         private IList<Delta> _delta = null;
 
         internal YTextEvent(YText arr, ITransaction transaction, ISet<string> subs)
             : base(arr, transaction)
         {
-            _subs = subs;
+            Subs = subs;
             KeysChanged = new HashSet<string>();
 
-            if (_subs?.Count > 0)
+            if (Subs?.Count > 0)
             {
-                foreach (var sub in _subs)
+                foreach (var sub in Subs)
                 {
                     if (sub == null)
                     {
@@ -285,7 +284,7 @@ namespace Ycs.Types
                                             }
                                             else
                                             {
-                                                item.Delete(this.Transaction);
+                                                item.Delete(Transaction);
                                             }
                                         }
                                     }
@@ -331,7 +330,7 @@ namespace Ycs.Types
     /// <summary>
     /// Type that represents text with formatting information.
     /// </summary>
-    public class YText : YArrayBase
+    public class YText : YArrayBase, IYText
     {
         private class ItemTextListPosition
         {
@@ -418,11 +417,11 @@ namespace Ycs.Types
                 // Check if we really need to remove attributes.
                 while (
                     Right != null && (
-                        Right.Deleted || (
+                        Right.Deleted ||
                             Right.Content is ContentFormat cf &&
                             negatedAttributes.ContainsKey(cf.Key) &&
                             EqualAttrs(negatedAttributes[cf.Key], cf.Value)
-                        )
+
                     )
                 )
                 {
@@ -441,7 +440,7 @@ namespace Ycs.Types
 
                 foreach (var kvp in negatedAttributes)
                 {
-                    left = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, parent, null, new ContentFormat(kvp.Key, kvp.Value));
+                    left = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, parent, null, new ContentFormat(kvp.Key, kvp.Value));
                     left.Integrate(transaction, 0);
 
                     CurrentAttributes[kvp.Key] = kvp.Value;
@@ -454,7 +453,7 @@ namespace Ycs.Types
                 // Go right while attributes[right.Key] == right.Value (or right is deleted).
                 while (Right != null)
                 {
-                    if (Right.Deleted || (Right.Content is ContentFormat cf && EqualAttrs(attributes.TryGetValue(cf.Key, out var val) ? val : null, cf.Value)))
+                    if (Right.Deleted || Right.Content is ContentFormat cf && EqualAttrs(attributes.TryGetValue(cf.Key, out var val) ? val : null, cf.Value))
                     {
                         Forward();
                     }
@@ -466,18 +465,9 @@ namespace Ycs.Types
             }
         }
 
-        public enum YTextChangeType
-        {
-            Added,
-            Removed
-        }
+    
 
-        public class YTextChangeAttributes
-        {
-            public YTextChangeType Type { get; set; }
-            public int User { get; set; }
-            public YTextChangeType State { get; set; }
-        }
+     
 
         // TODO: [alekseyk] To util class? Might not be needed here.
         internal const int YTextRefId = 2;
@@ -517,7 +507,7 @@ namespace Ycs.Types
                             // If we omit this step, clients will see a different number of paragraphs,
                             // but nothing bad will happen.
                             var insertStr = op.Insert as string;
-                            var ins = (!sanitize && insertStr != null && i == delta.Count - 1 && curPos.Right == null && insertStr.EndsWith("\n")) ? insertStr.Substring(0, insertStr.Length - 1) : op.Insert;
+                            var ins = !sanitize && insertStr != null && i == delta.Count - 1 && curPos.Right == null && insertStr.EndsWith("\n") ? insertStr.Substring(0, insertStr.Length - 1) : op.Insert;
                             if (!(ins is string) || ((string)ins).Length > 0)
                             {
                                 // TODO: Null attributes by default to avoid unnecessary allocations?
@@ -581,17 +571,17 @@ namespace Ycs.Types
             {
                 if (snapshot != null)
                 {
-                    Transaction.SplitSnapshotAffectedStructs(tr, snapshot);
+                    SplitSnapshotAffectedStructs(tr, snapshot);
                 }
 
                 if (prevSnapshot != null)
                 {
-                    Transaction.SplitSnapshotAffectedStructs(tr, prevSnapshot);
+                    SplitSnapshotAffectedStructs(tr, prevSnapshot);
                 }
 
                 while (n != null)
                 {
-                    if (n.IsVisible(snapshot) || (prevSnapshot != null && n.IsVisible(prevSnapshot)))
+                    if (n.IsVisible(snapshot) || prevSnapshot != null && n.IsVisible(prevSnapshot))
                     {
                         switch (n.Content)
                         {
@@ -775,7 +765,7 @@ namespace Ycs.Types
             return sb.ToString();
         }
 
-        public YText Clone() => InternalClone() as YText;
+        public IYText Clone() => InternalClone() as YText;
 
         public void RemoveAttribute(string name)
         {
@@ -963,7 +953,7 @@ namespace Ycs.Types
                     // Save negated attribute (set null if currentVal is not set).
                     negatedAttributes[key] = currentVal;
 
-                    currPos.Right = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, new ContentFormat(key, value));
+                    currPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, new ContentFormat(key, value));
                     currPos.Right.Integrate(transaction, 0);
                     currPos.Forward();
                 }
@@ -998,7 +988,7 @@ namespace Ycs.Types
                 _searchMarkers.UpdateMarkerChanges(currPos.Index, content.Length);
             }
 
-            currPos.Right = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, content);
+            currPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, content);
             currPos.Right.Integrate(transaction, 0);
             currPos.Forward();
 
@@ -1056,7 +1046,7 @@ namespace Ycs.Types
             if (length > 0)
             {
                 var newLines = new string('\n', length - 1);
-                curPos.Right = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), curPos.Left, curPos.Left?.LastId, curPos.Right, curPos.Right?.Id, this, null, new ContentString(newLines));
+                curPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), curPos.Left, curPos.Left?.LastId, curPos.Right, curPos.Right?.Id, this, null, new ContentString(newLines));
                 curPos.Right.Integrate(transaction, 0);
                 curPos.Forward();
             }
@@ -1098,8 +1088,8 @@ namespace Ycs.Types
                                 startVal = null;
                             }
 
-                            if ((endVal != cf.Value || !(endVal?.Equals(cf.Value) ?? false) ||
-                                (startVal == cf.Value || (startVal?.Equals(cf.Value) ?? false))))
+                            if (endVal != cf.Value || !(endVal?.Equals(cf.Value) ?? false) ||
+                                startVal == cf.Value || (startVal?.Equals(cf.Value) ?? false))
                             {
                                 // Either this format is overwritten or it is not necessary because the attribute already existed.
                                 start.Delete(transaction);
@@ -1119,9 +1109,9 @@ namespace Ycs.Types
         private void CleanupContextlessFormattingGap(ITransaction transaction, IItem item)
         {
             // Iterate until item.Right is null or content.
-            while (item != null && item.Right != null && (item.Right.Deleted || (
+            while (item != null && item.Right != null && (item.Right.Deleted ||
                 !((item.Right as IItem).Content is ContentString) && !((item.Right as IItem).Content is ContentEmbed)
-                )))
+                ))
             {
                 item = item.Right as IItem;
             }
@@ -1129,9 +1119,9 @@ namespace Ycs.Types
             var attrs = new HashSet<object>();
 
             // Iterate back until a content item is found.
-            while (item != null && (item.Deleted || (
+            while (item != null && (item.Deleted ||
                 !(item.Content is ContentString) && !(item.Content is ContentEmbed)
-                )))
+                ))
             {
                 if (!item.Deleted && item.Content is ContentFormat cf)
                 {
@@ -1262,5 +1252,37 @@ namespace Ycs.Types
                 attributes[format.Key] = format.Value;
             }
         }
+
+
+        public static void SplitSnapshotAffectedStructs(ITransaction transaction, ISnapshot snapshot)
+        {
+            if (!transaction.Meta.TryGetValue("splitSnapshotAffectedStructs", out var metaObj))
+            {
+                metaObj = new HashSet<ISnapshot>();
+                transaction.Meta["splitSnapshotAffectedStructs"] = metaObj;
+            }
+
+            var meta = metaObj as ISet<ISnapshot>;
+            var store = transaction.Doc.Store;
+
+            // Check if we already split for this snapshot.
+            if (!meta.Contains(snapshot))
+            {
+                foreach (var kvp in snapshot.StateVector)
+                {
+                    var client = kvp.Key;
+                    var clock = kvp.Value;
+
+                    if (clock < store.GetState(client))
+                    {
+                        store.GetItemCleanStart(transaction, new StructID(client, clock));
+                    }
+                }
+
+                snapshot.DeleteSet.IterateDeletedStructs(transaction, item => true);
+                meta.Add(snapshot);
+            }
+        }
+
     }
 }

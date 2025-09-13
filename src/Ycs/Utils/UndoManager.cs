@@ -50,7 +50,7 @@ namespace Ycs.Utils
         public class StackEventArgs : EventArgs
         {
             // TODO: [alekseyk] To Read-Only.
-            public StackEventArgs(StackItem item, OperationType type, IDictionary<IAbstractType, IList<YEvent>> changedParentTypes, object origin)
+            public StackEventArgs(StackItem item, OperationType type, IDictionary<IAbstractType, IList<IYEvent>> changedParentTypes, object origin)
             {
                 StackItem = item;
                 Type = type;
@@ -60,7 +60,7 @@ namespace Ycs.Utils
 
             public StackItem StackItem { get; }
             public OperationType Type { get; }
-            public IDictionary<IAbstractType, IList<YEvent>> ChangedParentTypes { get; }
+            public IDictionary<IAbstractType, IList<IYEvent>> ChangedParentTypes { get; }
             public object Origin { get; }
         }
 

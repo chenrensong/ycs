@@ -7,33 +7,32 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Ycs.Structs;
 using Ycs.Contracts;
-using Ycs.Utils;
+using Ycs.Structs;
 
 namespace Ycs.Types
 {
     public class YEventArgs
     {
-        public YEventArgs(YEvent evt, ITransaction transaction)
+        public YEventArgs(IYEvent evt, ITransaction transaction)
         {
             Event = evt;
             Transaction = transaction;
         }
 
-        public YEvent Event { get; }
+        public IYEvent Event { get; }
         public ITransaction Transaction { get; }
     }
 
     public class YDeepEventArgs
     {
-        public YDeepEventArgs(IList<YEvent> events, ITransaction transaction)
+        public YDeepEventArgs(IList<IYEvent> events, ITransaction transaction)
         {
             Events = events;
             Transaction = transaction;
         }
 
-        public IList<YEvent> Events { get; }
+        public IList<IYEvent> Events { get; }
         public ITransaction Transaction { get; }
     }
 
@@ -65,7 +64,7 @@ namespace Ycs.Types
         /// Call event listeners with an event. This will also add an event to all parents
         /// for observeDeep handlers.
         /// </summary>
-        public virtual void CallTypeObservers(ITransaction transaction, YEvent evt)
+        public virtual void CallTypeObservers(ITransaction transaction, IYEvent evt)
         {
             var type = this;
 
@@ -73,7 +72,7 @@ namespace Ycs.Types
             {
                 if (!transaction.ChangedParentTypes.TryGetValue(type, out var values))
                 {
-                    values = new List<YEvent>();
+                    values = new List<IYEvent>();
                     transaction.ChangedParentTypes[type] = values;
                 }
 
@@ -109,12 +108,12 @@ namespace Ycs.Types
             return n;
         }
 
-        public void InvokeEventHandlers(YEvent evt, ITransaction transaction)
+        public void InvokeEventHandlers(IYEvent evt, ITransaction transaction)
         {
             EventHandler?.Invoke(this, new YEventArgs(evt, transaction));
         }
 
-        public void CallDeepEventHandlerListeners(IList<YEvent> events, ITransaction transaction)
+        public void CallDeepEventHandlerListeners(IList<IYEvent> events, ITransaction transaction)
         {
             DeepEventHandler?.Invoke(this, new YDeepEventArgs(events, transaction));
         }
@@ -166,7 +165,7 @@ namespace Ycs.Types
                 }
             }
 
-            var newItem = new Item(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, null, null, this, key, content);
+            var newItem = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, null, null, this, key, content);
             newItem.Integrate(transaction, 0);
         }
 

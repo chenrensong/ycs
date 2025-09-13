@@ -9,9 +9,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using Ycs.Structs;
 using Ycs.Contracts;
-using Ycs.Utils;
+using Ycs.Structs;
 
 namespace Ycs.Types
 {
@@ -237,7 +236,7 @@ namespace Ycs.Types
             {
                 if (jsonContent.Count > 0)
                 {
-                    left = new Item(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentAny(jsonContent.ToList()));
+                    left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentAny(jsonContent.ToList()));
                     left.Integrate(transaction, 0);
                     jsonContent.Clear();
                 }
@@ -249,17 +248,17 @@ namespace Ycs.Types
                 {
                     case byte[] arr:
                         packJsonContent();
-                        left = new Item(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentBinary(arr));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentBinary(arr));
                         left.Integrate(transaction, 0);
                         break;
                     case YDoc d:
                         packJsonContent();
-                        left = new Item(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentDoc(d));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentDoc(d));
                         left.Integrate(transaction, 0);
                         break;
                     case AbstractType at:
                         packJsonContent();
-                        left = new Item(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentType(at));
+                        left = new StructItem(new StructID(ownClientId, store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, this, null, new ContentType(at));
                         left.Integrate(transaction, 0);
                         break;
                     default:

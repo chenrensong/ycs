@@ -5,7 +5,6 @@
 // ------------------------------------------------------------------------------
 
 using System.Collections.Generic;
-using Ycs.Types;
 
 namespace Ycs.Contracts
 {
@@ -14,7 +13,7 @@ namespace Ycs.Contracts
         IDictionary<long, long> AfterState { get; set; }
         IDictionary<long, long> BeforeState { get; set; }
         IDictionary<IAbstractType, ISet<string>> Changed { get; }
-        IDictionary<IAbstractType, IList<YEvent>> ChangedParentTypes { get; }
+        IDictionary<IAbstractType, IList<IYEvent>> ChangedParentTypes { get; }
         IDeleteSet DeleteSet { get; }
         IYDoc Doc { get; }
         bool Local { get; }
@@ -24,7 +23,7 @@ namespace Ycs.Contracts
         ISet<IYDoc> SubdocsLoaded { get; }
         ISet<IYDoc> SubdocsRemoved { get; }
         IList<IItem> MergeStructs { get; }
-        void AddChangedTypeToTransaction(AbstractType type, string parentSub);
+        void AddChangedTypeToTransaction(IAbstractType type, string parentSub);
         StructID GetNextId();
         IItem RedoItem(IItem item, ISet<IItem> redoItems);
         bool WriteUpdateMessageFromTransaction(IUpdateEncoder encoder);

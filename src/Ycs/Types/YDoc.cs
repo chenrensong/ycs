@@ -34,7 +34,7 @@ namespace Ycs.Types
         public ISet<IYDoc> Subdocs { get; }
         // If this document is a subdocument - a document integrated into another document - them _item is defined.
         public IItem Item { get; set; }
-        public IDictionary<string, AbstractType> Share { get; set; }
+        public IDictionary<string, IAbstractType> Share { get; set; }
 
         public static int GenerateNewClientId()
         {
@@ -49,7 +49,7 @@ namespace Ycs.Types
             TransactionCleanups = new List<ITransaction>();
 
             ClientId = GenerateNewClientId();
-            Share = new Dictionary<string, AbstractType>();
+            Share = new Dictionary<string, IAbstractType>();
             Store = new StructStore();
             Subdocs = new HashSet<IYDoc>();
             ShouldLoad = Opts.AutoLoad;
@@ -181,23 +181,23 @@ namespace Ycs.Types
             }
         }
 
-        public YArray GetArray(string name = "")
+        public IYArray GetArray(string name = "")
         {
             return Get<YArray>(name);
         }
 
-        public YMap GetMap(string name = "")
+        public IYMap GetMap(string name = "")
         {
             return Get<YMap>(name);
         }
 
-        public YText GetText(string name = "")
+        public IYText GetText(string name = "")
         {
             return Get<YText>(name);
         }
 
         public T Get<T>(string name)
-            where T : AbstractType, new()
+            where T : IAbstractType, new()
         {
             if (!Share.TryGetValue(name, out var type))
             {
@@ -374,7 +374,7 @@ namespace Ycs.Types
             return newOpts;
         }
 
-        public string FindRootTypeKey(AbstractType type)
+        public string FindRootTypeKey(IAbstractType type)
         {
             foreach (var kvp in Share)
             {

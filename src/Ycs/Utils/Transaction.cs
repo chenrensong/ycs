@@ -34,7 +34,7 @@ namespace Ycs.Utils
             BeforeState = Doc.Store.GetStateVector();
             AfterState = new Dictionary<long, long>();
             Changed = new Dictionary<IAbstractType, ISet<string>>();
-            ChangedParentTypes = new Dictionary<IAbstractType, IList<YEvent>>();
+            ChangedParentTypes = new Dictionary<IAbstractType, IList<IYEvent>>();
             _mergeStructs = new List<IItem>();
             Origin = origin;
             Meta = new Dictionary<string, object>();
@@ -72,7 +72,7 @@ namespace Ycs.Utils
         /// Stores the events for the types that observe also child elements.
         /// It is mainly used by 'observeDeep'.
         /// </summary>
-        public IDictionary<IAbstractType, IList<YEvent>> ChangedParentTypes { get; }
+        public IDictionary<IAbstractType, IList<IYEvent>> ChangedParentTypes { get; }
 
         /// <summary>
         /// Stores meta information on the transaction.
@@ -104,7 +104,7 @@ namespace Ycs.Utils
         /// If 'type.parent' was added in current transaction, 'type' technically did not change,
         /// it was just added and we should not fire events for 'type'.
         /// </summary>
-        public void AddChangedTypeToTransaction(AbstractType type, string parentSub)
+        public void AddChangedTypeToTransaction(IAbstractType type, string parentSub)
         {
             var item = type.Item;
             if (item == null || (BeforeState.TryGetValue(item.Id.Client, out var clock) && item.Id.Clock < clock && !item.Deleted))
@@ -405,7 +405,7 @@ namespace Ycs.Utils
             var nextClock = store.GetState(ownClientId);
             var nextId = new StructID(ownClientId, nextClock);
 
-            var redoneItem = new Item(
+            var redoneItem = new StructItem(
                 nextId,
                 left,
                 (left as IItem)?.LastId,
@@ -421,36 +421,6 @@ namespace Ycs.Utils
             redoneItem.Integrate(this, 0);
 
             return redoneItem;
-        }
-
-        public static void SplitSnapshotAffectedStructs(ITransaction transaction, ISnapshot snapshot)
-        {
-            if (!transaction.Meta.TryGetValue("splitSnapshotAffectedStructs", out var metaObj))
-            {
-                metaObj = new HashSet<ISnapshot>();
-                transaction.Meta["splitSnapshotAffectedStructs"] = metaObj;
-            }
-
-            var meta = metaObj as ISet<ISnapshot>;
-            var store = transaction.Doc.Store;
-
-            // Check if we already split for this snapshot.
-            if (!meta.Contains(snapshot))
-            {
-                foreach (var kvp in snapshot.StateVector)
-                {
-                    var client = kvp.Key;
-                    var clock = kvp.Value;
-
-                    if (clock < store.GetState(client))
-                    {
-                        store.GetItemCleanStart(transaction, new StructID(client, clock));
-                    }
-                }
-
-                snapshot.DeleteSet.IterateDeletedStructs(transaction, item => true);
-                meta.Add(snapshot);
-            }
         }
 
         /// <returns>Whether the data was written.</returns>

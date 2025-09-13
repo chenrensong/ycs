@@ -9,6 +9,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Ycs.Contracts;
 using Ycs.Types;
 
 namespace Ycs
@@ -257,7 +258,7 @@ namespace Ycs
                 evt = e;
             };
 
-            array0.Insert(0, new object[] { new YArray() });
+            array0.Insert(0, new object[] { new IYArray() });
             Assert.IsNotNull(evt);
             evt = null;
 
@@ -274,7 +275,7 @@ namespace Ycs
             Init(users: 2);
 
             var array0 = Arrays[Users[0]];
-            IList<YEvent> events = null;
+            IList<Types.IYEvent> events = null;
 
             array0.DeepEventHandler += (s, e) =>
             {
@@ -308,7 +309,7 @@ namespace Ycs
                 changes = e.Event.Changes;
             };
 
-            var newArr = new YArray();
+            var newArr = new IYArray();
 
             array0.Insert(0, new object[] { newArr, 4, "dtrn" });
             Assert.IsNotNull(changes);
@@ -403,7 +404,7 @@ namespace Ycs
             Init(users: 2);
 
             var array0 = Arrays[Users[0]];
-            YEvent evt = null;
+            Types.IYEvent evt = null;
 
             array0.EventHandler += (s, e) =>
             {
@@ -421,7 +422,7 @@ namespace Ycs
 
             var array0 = Arrays[Users[0]];
             var array1 = Arrays[Users[1]];
-            YEvent evt = null;
+            Types.IYEvent evt = null;
 
             array0.EventHandler += (s, e) =>
             {
@@ -529,9 +530,9 @@ namespace Ycs
                     var pos = rand.Next(0, yarray.Length + 1);
                     // Debug.WriteLine($"ARRAY by {user.ClientId} at pos {pos}");
 
-                    yarray.Insert(pos, new[] { new YArray() });
+                    yarray.Insert(pos, new[] { new IYArray() });
 
-                    var arr = (YArray)yarray.Get(pos);
+                    var arr = (IYArray)yarray.Get(pos);
                     arr.Insert(0, new object[] { 1, 2, 3 });
                 },
 

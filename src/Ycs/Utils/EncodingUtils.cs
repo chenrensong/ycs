@@ -13,7 +13,7 @@ using Ycs.Contracts;
 using Ycs.Lib0;
 using Ycs.Structs;
 using Ycs.Types;
-using GC = Ycs.Structs.GC;
+using GC = Ycs.Structs.StructGC;
 
 namespace Ycs.Utils
 {
@@ -169,7 +169,7 @@ namespace Ycs.Utils
                         // It indicates how we store/retrieve parent from 'y.share'.
                         var parentYKey = cantCopyParentInfo && hasParentYKey ? decoder.ReadString() : null;
 
-                        var str = new Item(
+                        var str = new StructItem(
                             new StructID(client, clock),
                             null, // left
                             leftOrigin,

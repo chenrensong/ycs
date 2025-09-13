@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using Ycs.Types;
 
 namespace Ycs.Contracts
 {
@@ -15,7 +14,7 @@ namespace Ycs.Contracts
         IItem Item { get; set; }
         IDictionary<string, string> Meta { get; }
         YDocOptions Opts { get; }
-        IDictionary<string, AbstractType> Share { get; set; }
+        IDictionary<string, IAbstractType> Share { get; set; }
         bool ShouldLoad { get; set; }
         IStructStore Store { get; set; }
         ISet<IYDoc> Subdocs { get; }
@@ -30,12 +29,12 @@ namespace Ycs.Contracts
         void Destroy();
         byte[] EncodeStateAsUpdateV2(byte[] encodedTargetStateVector = null);
         byte[] EncodeStateVectorV2();
-        string FindRootTypeKey(AbstractType type);
-        T Get<T>(string name) where T : AbstractType, new();
-        YArray GetArray(string name = "");
-        YMap GetMap(string name = "");
+        string FindRootTypeKey(IAbstractType type);
+        T Get<T>(string name) where T : IAbstractType, new();
+        IYArray GetArray(string name = "");
+        IYMap GetMap(string name = "");
         IEnumerable<string> GetSubdocGuids();
-        YText GetText(string name = "");
+        IYText GetText(string name = "");
         void InvokeAfterAllTransactions(IList<ITransaction> transactions);
         void InvokeBeforeAllTransactions();
         void InvokeDestroyed();

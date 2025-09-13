@@ -56,8 +56,8 @@ namespace Ycs
 
             var map = map0.Get("y-map") as YMap;
             Assert.IsNotNull(map);
-            map.Set("y-array", new YArray());
-            var array = map.Get("y-array") as YArray;
+            map.Set("y-array", new IYArray());
+            var array = map.Get("y-array") as IYArray;
             Assert.IsNotNull(array);
 
             array.Insert(0, new object[] { 0 });
@@ -68,7 +68,7 @@ namespace Ycs
             Assert.AreEqual(false, map0.Get("boolean0"));
             Assert.AreEqual(true, map0.Get("boolean1"));
             Assert.AreEqual("value", (map0.Get("object") as IList<object>)[0]);
-            Assert.AreEqual(-1, ((map0.Get("y-map") as YMap).Get("y-array") as YArray).Get(0));
+            Assert.AreEqual(-1, ((map0.Get("y-map") as YMap).Get("y-array") as IYArray).Get(0));
             Assert.AreEqual(6, map0.Keys().Count());
 
             Users[2].Connect();
@@ -80,7 +80,7 @@ namespace Ycs
             Assert.AreEqual(true, map1.Get("boolean1"));
 
             Assert.AreEqual("value", (map1.Get("object") as IList<object>)[0]);
-            Assert.AreEqual(-1, ((map1.Get("y-map") as YMap).Get("y-array") as YArray).Get(0));
+            Assert.AreEqual(-1, ((map1.Get("y-map") as YMap).Get("y-array") as IYArray).Get(0));
             Assert.AreEqual(6, map1.Keys().Count());
 
             // Compare disconnected user.
@@ -89,7 +89,7 @@ namespace Ycs
             Assert.AreEqual(false, map2.Get("boolean0"));
             Assert.AreEqual(true, map2.Get("boolean1"));
             Assert.AreEqual("value", (map2.Get("object") as IList<object>)[0]);
-            Assert.AreEqual(-1, ((map2.Get("y-map") as YMap).Get("y-array") as YArray).Get(0));
+            Assert.AreEqual(-1, ((map2.Get("y-map") as YMap).Get("y-array") as IYArray).Get(0));
             Assert.AreEqual(6, map2.Keys().Count());
 
             CompareUsers();
@@ -139,12 +139,12 @@ namespace Ycs
             Init(users: 2);
             var map0 = Maps[Users[0]];
 
-            var array = new YArray();
+            var array = new IYArray();
             map0.Set("array", array);
             Assert.AreEqual(array, map0.Get("array"));
 
             array.Insert(0, new object[] { 1, 2, 3 });
-            CollectionAssert.AreEqual(new object[] { 1, 2, 3 }, (ICollection)(map0.Get("array") as YArray).ToArray());
+            CollectionAssert.AreEqual(new object[] { 1, 2, 3 }, (ICollection)(map0.Get("array") as IYArray).ToArray());
 
             CompareUsers();
         }
@@ -356,8 +356,8 @@ namespace Ycs
             };
 
             map0.Set("map", new YMap());
-            (map0.Get("map") as YMap).Set("array", new YArray());
-            ((map0.Get("map") as YMap).Get("array") as YArray).Insert(0, new object[] { "content" });
+            (map0.Get("map") as YMap).Set("array", new IYArray());
+            ((map0.Get("map") as YMap).Get("array") as IYArray).Insert(0, new object[] { "content" });
             Assert.AreEqual(3, calls);
             Assert.AreEqual(3, paths.Count);
             Assert.AreEqual(0, paths[0].Count);
@@ -390,7 +390,7 @@ namespace Ycs
             evt = null;
 
             // Update, oldValue is in contents.
-            map0.Set("stuff", new YArray());
+            map0.Set("stuff", new IYArray());
             Assert.AreEqual(map0, evt.Target);
             CollectionAssert.AreEqual(new[] { "stuff" }, evt.KeysChanged.ToList());
             evt = null;
@@ -568,10 +568,10 @@ namespace Ycs
                 (user, rand) =>
                 {
                     var key = new[] { "one", "two" }[rand.Next(0, 2)];
-                    var type = new object[] { new YArray(), new YMap() }[rand.Next(0, 2)];
+                    var type = new object[] { new IYArray(), new YMap() }[rand.Next(0, 2)];
                     user.GetMap("map").Set(key, type);
 
-                    if (type is YArray yarr)
+                    if (type is IYArray yarr)
                     {
                         yarr.Insert(0, new object[] { 1, 2, 3, 4 });
                     }

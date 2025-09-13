@@ -11,9 +11,8 @@ using System.IO;
 using System.Linq;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Structs;
 using Ycs.Types;
-using GC = Ycs.Structs.GC;
+using StructGC = Ycs.Structs.StructGC;
 
 namespace Ycs.Utils
 {
@@ -247,7 +246,7 @@ namespace Ycs.Utils
             int index = FindIndexSS(structs, id.Clock);
             var str = structs[index];
 
-            if ((id.Clock != str.Id.Clock + str.Length - 1) && !(str is GC))
+            if ((id.Clock != str.Id.Clock + str.Length - 1) && !(str is StructGC))
             {
                 structs.Insert(index + 1, (str as IItem).SplitItem(transaction, (int)(id.Clock - str.Id.Clock + 1)));
             }

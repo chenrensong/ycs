@@ -10,7 +10,6 @@ using System.Diagnostics;
 using System.IO;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Structs;
 
 namespace Ycs.Utils
 {

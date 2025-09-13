@@ -13,8 +13,6 @@ using Ycs.Utils;
 
 namespace Ycs.Types
 {
-
-
     /// <summary>
     /// DeleteSet is a temporary object that is created when needed.
     /// - When created in a transaction, it must only be accessed after sorting and merging.

@@ -6,45 +6,16 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using Ycs.Structs;
 using Ycs.Contracts;
 
 namespace Ycs.Types
 {
-    public class ChangesCollection
-    {
-        public ISet<IItem> Added;
-        public ISet<IItem> Deleted;
-        public IList<Delta> Delta;
-        public IDictionary<string, ChangeKey> Keys;
-    }
 
-    public class Delta
-    {
-        public object Insert;
-        public int? Delete;
-        public int? Retain;
-        public IDictionary<string, object> Attributes;
-    }
-
-    public enum ChangeAction
-    {
-        Add,
-        Update,
-        Delete
-    }
-
-    public class ChangeKey
-    {
-        public ChangeAction Action;
-        public object OldValue;
-    }
-
-    public class YEvent
+    public class YEvent : IYEvent
     {
         private ChangesCollection _changes = null;
 
-        internal YEvent(AbstractType target, ITransaction transaction)
+        internal YEvent(IAbstractType target, ITransaction transaction)
         {
             Target = target;
             CurrentTarget = target;
@@ -240,7 +211,7 @@ namespace Ycs.Types
                 {
                     // Parent is array-ish.
                     int i = 0;
-                    IItem c = (child.Item.Parent as AbstractType).Start;
+                    IItem c = (child.Item.Parent as IAbstractType).Start;
                     while (c != child.Item && c != null)
                     {
                         if (!c.Deleted)
@@ -254,7 +225,7 @@ namespace Ycs.Types
                     path.Push(i);
                 }
 
-                child = child.Item.Parent as AbstractType;
+                child = child.Item.Parent as IAbstractType;
             }
 
             return path;

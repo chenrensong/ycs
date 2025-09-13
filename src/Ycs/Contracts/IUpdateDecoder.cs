@@ -12,7 +12,6 @@ namespace Ycs.Contracts
     public interface IDSDecoder : IDisposable
     {
         Stream Reader { get; }
-
         void ResetDsCurVal();
         long ReadDsClock();
         long ReadDsLength();
