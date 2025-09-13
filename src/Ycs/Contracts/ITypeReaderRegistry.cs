@@ -4,8 +4,6 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-using Ycs.Contracts;
-
 namespace Ycs.Contracts
 {
     /// <summary>

@@ -36,11 +36,6 @@ namespace Ycs.Core
         public ITransaction Transaction { get; }
     }
 
-    public interface IYArrayBase
-    {
-        void ClearSearchMarkers();
-    }
-
     public class AbstractType : IAbstractType
     {
         private static IContentFactory _contentFactory;

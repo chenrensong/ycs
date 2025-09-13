@@ -26,4 +26,10 @@ namespace Ycs.Contracts
         void Unshift(ICollection<object> content);
         void Write(IUpdateEncoder encoder);
     }
+
+
+    public interface IYArrayBase
+    {
+        void ClearSearchMarkers();
+    }
 }
