@@ -13,11 +13,11 @@ namespace Ycs.Utils
 {
     internal class AbsolutePosition
     {
-        public readonly AbstractType Type;
+        public readonly IAbstractType Type;
         public readonly int Index;
         public readonly int Assoc;
 
-        public AbsolutePosition(AbstractType type, int index, int assoc = 0)
+        public AbsolutePosition(IAbstractType type, int index, int assoc = 0)
         {
             Type = type;
             Index = index;
@@ -32,7 +32,7 @@ namespace Ycs.Utils
             var tName = rpos.TName;
             var assoc = rpos.Assoc;
             int index = 0;
-            AbstractType type;
+            IAbstractType type;
 
             if (rightId != null)
             {

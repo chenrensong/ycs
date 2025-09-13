@@ -5,7 +5,6 @@
 // ------------------------------------------------------------------------------
 
 using System.Collections.Generic;
-using Ycs.Structs;
 
 namespace Ycs.Contracts
 {
@@ -19,11 +18,10 @@ namespace Ycs.Contracts
         bool MergeWith(IContent right);
     }
 
-    internal interface IContentEx : IContent
+    public interface IContentEx : IContent
     {
         int Ref { get; }
-
-        void Integrate(ITransaction transaction, Item item);
+        void Integrate(ITransaction transaction, IItem item);
         void Delete(ITransaction transaction);
         void Gc(IStructStore store);
         void Write(IUpdateEncoder encoder, int offset);

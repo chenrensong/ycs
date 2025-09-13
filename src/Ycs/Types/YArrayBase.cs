@@ -22,7 +22,7 @@ namespace Ycs.Types
             // Assigned to '-1', so the first timestamp is '0'.
             internal static long _globalSearchMarkerTimestamp = -1;
 
-            public ArraySearchMarker(Item p, int index)
+            public ArraySearchMarker(IItem p, int index)
             {
                 P = p;
                 Index = index;
@@ -31,7 +31,7 @@ namespace Ycs.Types
                 RefreshTimestamp();
             }
 
-            public Item P { get; internal set; }
+            public IItem P { get; internal set; }
             public int Index { get; internal set; }
             public long Timestamp { get; internal set; }
 
@@ -40,7 +40,7 @@ namespace Ycs.Types
                 Timestamp = Interlocked.Increment(ref _globalSearchMarkerTimestamp);
             }
 
-            public void Update(Item p, int index)
+            public void Update(IItem p, int index)
             {
                 P.Marker = false;
 
@@ -63,7 +63,7 @@ namespace Ycs.Types
                 _searchMarkers.Clear();
             }
 
-            public ArraySearchMarker MarkPosition(Item p, int index)
+            public ArraySearchMarker MarkPosition(IItem p, int index)
             {
                 if (_searchMarkers.Count >= MaxSearchMarkers)
                 {
@@ -102,7 +102,7 @@ namespace Ycs.Types
                         while (p != null && (p.Deleted || !p.Countable))
                         {
                             Debug.Assert(p.Left != p);
-                            p = p.Left as Item;
+                            p = p.Left as IItem;
                             if (p != null && !p.Deleted && p.Countable)
                             {
                                 // Adjust position. The loop should break now.
@@ -191,12 +191,12 @@ namespace Ycs.Types
                 if (index == 0)
                 {
                     // @todo: refactor this as it actually doesn't consider formats.
-                    n = n.Prev as Item;
+                    n = n.Prev as IItem;
                     index += n != null && n.Countable && !n.Deleted ? n.Length : 0;
                 }
             }
 
-            for (; n != null; n = n.Right as Item)
+            for (; n != null; n = n.Right as IItem)
             {
                 if (!n.Deleted && n.Countable)
                 {
@@ -223,13 +223,13 @@ namespace Ycs.Types
             InsertGenericsAfter(transaction, n, content);
         }
 
-        protected void InsertGenericsAfter(ITransaction transaction, Item referenceItem, ICollection<object> content)
+        protected void InsertGenericsAfter(ITransaction transaction, IItem referenceItem, ICollection<object> content)
         {
             var left = referenceItem;
             var doc = transaction.Doc;
             var ownClientId = doc.ClientId;
             var store = doc.Store;
-            var right = referenceItem == null ? Start : referenceItem.Right as Item;
+            var right = referenceItem == null ? Start : referenceItem.Right as IItem;
 
             var jsonContent = new List<object>();
 
@@ -290,7 +290,7 @@ namespace Ycs.Types
             }
 
             // Compute the first item to be deleted.
-            for (; n != null && index > 0; n = n.Right as Item)
+            for (; n != null && index > 0; n = n.Right as IItem)
             {
                 if (!n.Deleted && n.Countable)
                 {
@@ -317,7 +317,7 @@ namespace Ycs.Types
                     length -= n.Length;
                 }
 
-                n = n.Right as Item;
+                n = n.Right as IItem;
             }
 
             if (length > 0)
@@ -385,7 +385,7 @@ namespace Ycs.Types
                     }
                 }
 
-                n = n.Right as Item;
+                n = n.Right as IItem;
             }
 
             return cs.AsReadOnly();
@@ -407,11 +407,11 @@ namespace Ycs.Types
                     }
                 }
 
-                n = n.Right as Item;
+                n = n.Right as IItem;
             }
         }
 
-        protected void ForEachSnapshot(Action<object, int, YArrayBase> fun, Snapshot snapshot)
+        protected void ForEachSnapshot(Action<object, int, YArrayBase> fun, ISnapshot snapshot)
         {
             int index = 0;
             var n = Start;
@@ -427,7 +427,7 @@ namespace Ycs.Types
                     }
                 }
 
-                n = n.Right as Item;
+                n = n.Right as IItem;
             }
         }
 
@@ -438,7 +438,7 @@ namespace Ycs.Types
             {
                 while (n != null && n.Deleted)
                 {
-                    n = n.Right as Item;
+                    n = n.Right as IItem;
                 }
 
                 // Check if we reached the end, no need to check currentContent, because it does not exist.
@@ -454,7 +454,7 @@ namespace Ycs.Types
                 }
 
                 // We used content of n, now iterate to next.
-                n = n.Right as Item;
+                n = n.Right as IItem;
             }
         }
 
@@ -500,13 +500,13 @@ namespace Ycs.Types
                     pIndex += p.Length;
                 }
 
-                p = p.Right as Item;
+                p = p.Right as IItem;
             }
 
             // Iterate to left if necessary (might be that pIndex > index).
             while (p.Left != null && pIndex > index)
             {
-                p = p.Left as Item;
+                p = p.Left as IItem;
                 if (p == null)
                 {
                     break;
@@ -522,7 +522,7 @@ namespace Ycs.Types
             // Iterate to left until p can't be merged with left.
             while (p.Left != null && p.Left.Id.Client == p.Id.Client && p.Left.Id.Clock + p.Left.Length == p.Id.Clock)
             {
-                p = p.Left as Item;
+                p = p.Left as IItem;
                 if (p == null)
                 {
                     break;

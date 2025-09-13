@@ -11,7 +11,7 @@ using System.IO;
 using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Ycs.Protocols;
-using Ycs.Types;
+using Ycs.Contracts;
 
 namespace Ycs
 {

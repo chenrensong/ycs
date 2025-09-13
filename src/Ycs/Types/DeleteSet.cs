@@ -9,12 +9,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Structs;
-using Ycs.Contracts;
 using Ycs.Utils;
 
 namespace Ycs.Types
 {
+
+
     /// <summary>
     /// DeleteSet is a temporary object that is created when needed.
     /// - When created in a transaction, it must only be accessed after sorting and merging.
@@ -24,26 +24,15 @@ namespace Ycs.Types
     /// - We read a DeleteSet as a apart of sync/update message. In this case the DeleteSet is already
     ///   sorted and merged.
     /// </summary>
-    public class DeleteSet
+    public class DeleteSet : IDeleteSet
     {
-        public struct DeleteItem
-        {
-            public readonly long Clock;
-            public readonly long Length;
-
-            public DeleteItem(long clock, long length)
-            {
-                Clock = clock;
-                Length = length;
-            }
-        }
-
+      
         public DeleteSet()
         {
             Clients = new Dictionary<long, List<DeleteItem>>();
         }
 
-        public DeleteSet(IList<DeleteSet> dss)
+        public DeleteSet(IList<IDeleteSet> dss)
             : this()
         {
             MergeDeleteSets(dss);
@@ -71,7 +60,7 @@ namespace Ycs.Types
         /// <summary>
         /// Iterate over all structs that the DeleteSet gc'd.
         /// </summary>
-        public void IterateDeletedStructs(ITransaction transaction, Predicate<AbstractStruct> fun)
+        public void IterateDeletedStructs(ITransaction transaction, Predicate<IItem> fun)
         {
             foreach (var kvp in Clients)
             {
@@ -157,13 +146,13 @@ namespace Ycs.Types
             }
         }
 
-        public void TryGc(IStructStore store, Predicate<Item> gcFilter)
+        public void TryGc(IStructStore store, Predicate<IItem> gcFilter)
         {
             TryGcDeleteSet(store, gcFilter);
             TryMergeDeleteSet(store);
         }
 
-        public void TryGcDeleteSet(IStructStore store, Predicate<Item> gcFilter)
+        public void TryGcDeleteSet(IStructStore store, Predicate<IItem> gcFilter)
         {
             foreach (var kvp in Clients)
             {
@@ -184,7 +173,7 @@ namespace Ycs.Types
                             break;
                         }
 
-                        if (str is Item strItem && strItem.Deleted && !strItem.Keep && gcFilter(strItem))
+                        if (str is IItem strItem && strItem.Deleted && !strItem.Keep && gcFilter(strItem))
                         {
                             strItem.Gc(store, parentGCd: false);
                         }
@@ -217,7 +206,7 @@ namespace Ycs.Types
             }
         }
 
-        public static void TryToMergeWithLeft(IList<AbstractStruct> structs, int pos)
+        public static void TryToMergeWithLeft(IList<IItem> structs, int pos)
         {
             var left = structs[pos - 1];
             var right = structs[pos];
@@ -228,18 +217,18 @@ namespace Ycs.Types
                 {
                     structs.RemoveAt(pos);
 
-                    if (right is Item rightItem && rightItem.ParentSub != null)
+                    if (right is IItem rightItem && rightItem.ParentSub != null)
                     {
                         if ((rightItem.Parent as AbstractType).Map.TryGetValue(rightItem.ParentSub, out var value) && value == right)
                         {
-                            (rightItem.Parent as AbstractType).Map[rightItem.ParentSub] = left as Item;
+                            (rightItem.Parent as AbstractType).Map[rightItem.ParentSub] = left as IItem;
                         }
                     }
                 }
             }
         }
 
-        private void MergeDeleteSets(IList<DeleteSet> dss)
+        private void MergeDeleteSets(IList<IDeleteSet> dss)
         {
             for (int dssI = 0; dssI < dss.Count; dssI++)
             {

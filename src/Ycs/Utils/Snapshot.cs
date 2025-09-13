@@ -10,15 +10,14 @@ using System.IO;
 using System.Linq;
 using Ycs.Contracts;
 using Ycs.Lib0;
-using Ycs.Structs;
 using Ycs.Types;
 
 namespace Ycs.Utils
 {
-    public sealed class Snapshot : IEquatable<Snapshot>
+    public sealed class Snapshot : IEquatable<Snapshot>, ISnapshot
     {
-        internal readonly DeleteSet DeleteSet;
-        internal readonly IDictionary<long, long> StateVector;
+        public IDeleteSet DeleteSet { get; }
+        public IDictionary<long, long> StateVector { get; }
 
         internal Snapshot(DeleteSet ds, IDictionary<long, long> stateMap)
         {
@@ -26,7 +25,7 @@ namespace Ycs.Utils
             StateVector = stateMap;
         }
 
-        public YDoc RestoreDocument(YDoc originDoc, YDocOptions opts = null)
+        public IYDoc RestoreDocument(IYDoc originDoc, YDocOptions opts = null)
         {
             if (originDoc.Gc)
             {
@@ -146,11 +145,11 @@ namespace Ycs.Utils
             }
         }
 
-        public static Snapshot DecodeSnapshot(Stream input)
+        public static ISnapshot DecodeSnapshot(Stream input)
         {
             using (var decoder = new DSDecoderV2(input))
             {
-                var ds = DeleteSet.Read(decoder);
+                var ds = Ycs.Types.DeleteSet.Read(decoder);
                 var sv = EncodingUtils.ReadStateVector(decoder);
                 return new Snapshot(ds, sv);
             }

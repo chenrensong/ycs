@@ -15,7 +15,7 @@ namespace Ycs.Structs
     {
         internal const int _ref = 7;
 
-        internal ContentType(AbstractType type)
+        internal ContentType(IAbstractType type)
         {
             Type = type;
         }
@@ -25,7 +25,7 @@ namespace Ycs.Structs
         public bool Countable => true;
         public int Length => 1;
 
-        public AbstractType Type { get; }
+        public IAbstractType Type { get; }
 
         public IReadOnlyList<object> GetContent() => new object[] { Type };
 
@@ -35,7 +35,7 @@ namespace Ycs.Structs
 
         public bool MergeWith(IContent right) => false;
 
-        void IContentEx.Integrate(ITransaction transaction, Item item)
+        void IContentEx.Integrate(ITransaction transaction, IItem item)
         {
             Type.Integrate(transaction.Doc, item);
         }
@@ -59,7 +59,7 @@ namespace Ycs.Structs
                     transaction.MergeStructs.Add(item);
                 }
 
-                item = item.Right as Item;
+                item = item.Right as IItem;
             }
 
             foreach (var valueItem in Type.Map.Values)
@@ -84,7 +84,7 @@ namespace Ycs.Structs
             while (item != null)
             {
                 item.Gc(store, parentGCd: true);
-                item = item.Right as Item;
+                item = item.Right as IItem;
             }
 
             Type.Start = null;
@@ -95,7 +95,7 @@ namespace Ycs.Structs
                 while (valueItem != null)
                 {
                     valueItem.Gc(store, parentGCd: true);
-                    valueItem = valueItem.Left as Item;
+                    valueItem = valueItem.Left as IItem;
                 }
             }
 

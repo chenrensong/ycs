@@ -37,27 +37,27 @@ namespace Ycs.Types
         public ITransaction Transaction { get; }
     }
 
-    public class AbstractType
+    public class AbstractType : IAbstractType
     {
-        public Item Item { get; set; }
-        public Item Start { get; set; }
-        public IDictionary<string, Item> Map { get; set; } = new Dictionary<string, Item>();
+        public IItem Item { get; set; }
+        public IItem Start { get; set; }
+        public IDictionary<string, IItem> Map { get; set; } = new Dictionary<string, IItem>();
 
         public event EventHandler<YEventArgs> EventHandler;
         public event EventHandler<YDeepEventArgs> DeepEventHandler;
 
-        public YDoc Doc { get; protected set; }
-        public AbstractType Parent => Item != null ? Item.Parent as AbstractType : null;
+        public IYDoc Doc { get; protected set; }
+        public IAbstractType Parent => Item != null ? Item.Parent as AbstractType : null;
 
         public virtual int Length { get; set; }
 
-        public virtual void Integrate(YDoc doc, Item item)
+        public virtual void Integrate(IYDoc doc, IItem item)
         {
             Doc = doc;
             Item = item;
         }
-        public virtual AbstractType InternalCopy() { throw new NotImplementedException(); }
-        public virtual AbstractType InternalClone() { throw new NotImplementedException(); }
+        public virtual IAbstractType InternalCopy() { throw new NotImplementedException(); }
+        public virtual IAbstractType InternalClone() { throw new NotImplementedException(); }
 
         public virtual void Write(IUpdateEncoder encoder) { throw new NotImplementedException(); }
 
@@ -99,12 +99,12 @@ namespace Ycs.Types
             // Do nothing.
         }
 
-        public Item _First()
+        public IItem _First()
         {
             var n = Start;
             while (n != null && n.Deleted)
             {
-                n = n.Right as Item;
+                n = n.Right as IItem;
             }
             return n;
         }
@@ -182,7 +182,7 @@ namespace Ycs.Types
             return false;
         }
 
-        protected object TypeMapGetSnapshot(string key, Snapshot snapshot)
+        protected object TypeMapGetSnapshot(string key, ISnapshot snapshot)
         {
             if (!Map.TryGetValue(key, out var v))
             {
@@ -191,13 +191,13 @@ namespace Ycs.Types
 
             while (v != null && (!snapshot.StateVector.ContainsKey(v.Id.Client) || v.Id.Clock >= snapshot.StateVector[v.Id.Client]))
             {
-                v = v.Left as Item;
+                v = v.Left as IItem;
             }
 
             return v != null && v.IsVisible(snapshot) ? v.Content.GetContent()[v.Length - 1] : null;
         }
 
-        protected IEnumerable<KeyValuePair<string, Item>> TypeMapEnumerate() => Map.Where(kvp => !kvp.Value.Deleted);
+        protected IEnumerable<KeyValuePair<string, IItem>> TypeMapEnumerate() => Map.Where(kvp => !kvp.Value.Deleted);
 
         protected IEnumerable<KeyValuePair<string, object>> TypeMapEnumerateValues()
         {

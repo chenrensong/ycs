@@ -6,6 +6,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using Ycs.Contracts;
 using Ycs.Protocols;
 using Ycs.Types;
 

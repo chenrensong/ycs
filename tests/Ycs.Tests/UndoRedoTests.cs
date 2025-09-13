@@ -280,7 +280,7 @@ namespace Ycs
         {
             Init(users: 3);
             var array0 = Arrays[Users[0]];
-            var undoManager = new UndoManager(new[] { array0 }, 500, it => !(it is Item item) || (item.Content is ContentType ct && ct.Type.Map.Count == 0), new HashSet<object> { null });
+            var undoManager = new UndoManager(new[] { array0 }, 500, it => !(it is IItem item) || (item.Content is ContentType ct && ct.Type.Map.Count == 0), new HashSet<object> { null });
             var map0 = new YMap();
             map0.Set("hi", 1);
             var map1 = new YMap();

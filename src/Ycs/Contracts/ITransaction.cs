@@ -5,7 +5,6 @@
 // ------------------------------------------------------------------------------
 
 using System.Collections.Generic;
-using Ycs.Structs;
 using Ycs.Types;
 
 namespace Ycs.Contracts
@@ -14,21 +13,20 @@ namespace Ycs.Contracts
     {
         IDictionary<long, long> AfterState { get; set; }
         IDictionary<long, long> BeforeState { get; set; }
-        IDictionary<AbstractType, ISet<string>> Changed { get; }
-        IDictionary<AbstractType, IList<YEvent>> ChangedParentTypes { get; }
-        DeleteSet DeleteSet { get; }
-        YDoc Doc { get; }
+        IDictionary<IAbstractType, ISet<string>> Changed { get; }
+        IDictionary<IAbstractType, IList<YEvent>> ChangedParentTypes { get; }
+        IDeleteSet DeleteSet { get; }
+        IYDoc Doc { get; }
         bool Local { get; }
         IDictionary<string, object> Meta { get; }
         object Origin { get; }
-        ISet<YDoc> SubdocsAdded { get; }
-        ISet<YDoc> SubdocsLoaded { get; }
-        ISet<YDoc> SubdocsRemoved { get; }
-        IList<AbstractStruct> MergeStructs { get; }
-
+        ISet<IYDoc> SubdocsAdded { get; }
+        ISet<IYDoc> SubdocsLoaded { get; }
+        ISet<IYDoc> SubdocsRemoved { get; }
+        IList<IItem> MergeStructs { get; }
         void AddChangedTypeToTransaction(AbstractType type, string parentSub);
         StructID GetNextId();
-        AbstractStruct RedoItem(Item item, ISet<Item> redoItems);
+        IItem RedoItem(IItem item, ISet<IItem> redoItems);
         bool WriteUpdateMessageFromTransaction(IUpdateEncoder encoder);
     }
 }

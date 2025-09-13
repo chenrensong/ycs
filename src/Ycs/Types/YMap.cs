@@ -99,12 +99,12 @@ namespace Ycs.Types
 
         public YMap Clone() => InternalClone() as YMap;
 
-        public override AbstractType InternalCopy()
+        public override IAbstractType InternalCopy()
         {
             return new YMap();
         }
 
-        public override AbstractType InternalClone()
+        public override IAbstractType InternalClone()
         {
             var map = new YMap();
 
@@ -117,7 +117,7 @@ namespace Ycs.Types
             return map;
         }
 
-        public override void Integrate(YDoc doc, Item item)
+        public override void Integrate(IYDoc doc, IItem item)
         {
             base.Integrate(doc, item);
 

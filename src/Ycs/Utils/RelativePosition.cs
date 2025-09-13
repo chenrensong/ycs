@@ -124,7 +124,7 @@ namespace Ycs.Utils
                     return new RelativePosition(type, t.LastId, assoc);
                 }
 
-                t = t.Right as Item;
+                t = t.Right as IItem;
             }
 
             return new RelativePosition(type, type.Item?.Id, assoc);

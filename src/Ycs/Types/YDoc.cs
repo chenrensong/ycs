@@ -15,81 +15,28 @@ using Ycs.Utils;
 
 namespace Ycs.Types
 {
-    public class YDocOptions
-    {
-        private static Predicate<Item> DefaultPredicate = (item) => true;
-
-        public bool Gc { get; set; } = true;
-        public Predicate<Item> GcFilter { get; set; } = DefaultPredicate;
-        public string Guid { get; set; } = System.Guid.NewGuid().ToString("D");
-        public IDictionary<string, string> Meta { get; set; } = null;
-        public bool AutoLoad { get; set; } = false;
-
-        internal YDocOptions Clone()
-        {
-            return new YDocOptions
-            {
-                Gc = Gc,
-                GcFilter = GcFilter,
-                Guid = Guid,
-                Meta = Meta == null ? null : new Dictionary<string, string>(Meta),
-                AutoLoad = AutoLoad
-            };
-        }
-
-        internal void Write(IUpdateEncoder encoder, int offset)
-        {
-            var dict = new Dictionary<string, object>();
-            dict["gc"] = Gc;
-            dict["guid"] = Guid;
-            dict["autoLoad"] = AutoLoad;
-
-            if (Meta != null)
-            {
-                dict["meta"] = Meta;
-            }
-
-            encoder.WriteAny(dict);
-        }
-
-        internal static YDocOptions Read(IUpdateDecoder decoder)
-        {
-            var dict = (IDictionary<string, object>)decoder.ReadAny();
-
-            var result = new YDocOptions();
-            result.Gc = dict.ContainsKey("gc") ? (bool)dict["gc"] : true;
-            result.Guid = dict.ContainsKey("guid") ? dict["guid"].ToString() : System.Guid.NewGuid().ToString("D");
-            result.Meta = dict.ContainsKey("meta") ? dict["meta"] as Dictionary<string, string> : null;
-            result.AutoLoad = dict.ContainsKey("autoLoad") ? (bool)dict["autoLoad"] : false;
-
-            return result;
-        }
-    }
 
     /// <summary>
     /// Yjs instance handles the state of shared data.
     /// </summary>
-    public class YDoc
+    public class YDoc : IYDoc
     {
-        private readonly YDocOptions _opts;
+        public YDocOptions Opts { get; }
+        public string Guid => Opts.Guid;
+        public bool Gc => Opts.Gc;
+        public Predicate<IItem> GcFilter => Opts.GcFilter;
+        public bool AutoLoad => Opts.AutoLoad;
+        public IDictionary<string, string> Meta => Opts.Meta;
 
-        public string Guid => _opts.Guid;
-        public bool Gc => _opts.Gc;
-        public Predicate<Item> GcFilter => _opts.GcFilter;
-        public bool AutoLoad => _opts.AutoLoad;
-        public IDictionary<string, string> Meta => _opts.Meta;
-
-        internal bool ShouldLoad;
-        internal readonly IList<ITransaction> _transactionCleanups;
-        internal ITransaction _transaction;
-        internal readonly ISet<YDoc> Subdocs;
-
+        public bool ShouldLoad { get; set; }
+        public IList<ITransaction> TransactionCleanups { get; }
+        public ITransaction Transaction { get; set; }
+        public ISet<IYDoc> Subdocs { get; }
         // If this document is a subdocument - a document integrated into another document - them _item is defined.
-        internal Item _item;
+        public IItem Item { get; set; }
+        public IDictionary<string, AbstractType> Share { get; set; }
 
-        private readonly IDictionary<string, AbstractType> _share;
-
-        internal static int GenerateNewClientId()
+        public static int GenerateNewClientId()
         {
             return new Random().Next(0, int.MaxValue);
         }
@@ -98,14 +45,14 @@ namespace Ycs.Types
         /// <param name="gcFilter">WIll be called before an Item is garbage collected. Return false to keep the item.</param>
         public YDoc(YDocOptions opts = null)
         {
-            _opts = opts ?? new YDocOptions();
-            _transactionCleanups = new List<ITransaction>();
+            Opts = opts ?? new YDocOptions();
+            TransactionCleanups = new List<ITransaction>();
 
             ClientId = GenerateNewClientId();
-            _share = new Dictionary<string, AbstractType>();
+            Share = new Dictionary<string, AbstractType>();
             Store = new StructStore();
-            Subdocs = new HashSet<YDoc>();
-            ShouldLoad = _opts.AutoLoad;
+            Subdocs = new HashSet<IYDoc>();
+            ShouldLoad = Opts.AutoLoad;
         }
 
         /// <summary>
@@ -115,7 +62,7 @@ namespace Ycs.Types
         /// </summary>
         public void Load()
         {
-            var item = _item;
+            var item = Item;
             if (item != null && !ShouldLoad)
             {
                 Debug.Assert(item.Parent is AbstractType);
@@ -127,7 +74,7 @@ namespace Ycs.Types
             ShouldLoad = true;
         }
 
-        public Snapshot CreateSnapshot() => new Snapshot(new DeleteSet(Store), Store.GetStateVector());
+        public ISnapshot CreateSnapshot() => new Snapshot(new DeleteSet(Store), Store.GetStateVector());
 
         public IEnumerable<string> GetSubdocGuids()
         {
@@ -141,10 +88,10 @@ namespace Ycs.Types
                 sd.Destroy();
             }
 
-            var item = _item;
+            var item = Item;
             if (item != null)
             {
-                _item = null;
+                Item = null;
                 var content = item.Content as ContentDoc;
 
                 if (item.Deleted)
@@ -161,7 +108,7 @@ namespace Ycs.Types
                     newOpts.Guid = Guid;
 
                     content.Doc = new YDoc(newOpts);
-                    content.Doc._item = item;
+                    content.Doc.Item = item;
                 }
 
                 (item.Parent as AbstractType).Doc.Transact(tr =>
@@ -187,10 +134,10 @@ namespace Ycs.Types
         public event EventHandler<IList<ITransaction>> AfterAllTransactions;
         public event EventHandler<(byte[] data, object origin, ITransaction transaction)> UpdateV2;
         public event EventHandler Destroyed;
-        public event EventHandler<(ISet<YDoc> Loaded, ISet<YDoc> Added, ISet<YDoc> Removed)> SubdocsChanged;
+        public event EventHandler<(ISet<IYDoc> Loaded, ISet<IYDoc> Added, ISet<IYDoc> Removed)> SubdocsChanged;
 
-        public int ClientId { get; internal set; }
-        internal IStructStore Store { get; private set; }
+        public int ClientId { get; set; }
+        public IStructStore Store { get; set; }
 
         /// <summary>
         /// Changes that happen inside of a transaction are bundled.
@@ -204,32 +151,32 @@ namespace Ycs.Types
         public void Transact(Action<ITransaction> fun, object origin = null, bool local = true)
         {
             bool initialCall = false;
-            if (_transaction == null)
+            if (Transaction == null)
             {
                 initialCall = true;
-                _transaction = new Transaction(this, origin, local);
-                _transactionCleanups.Add(_transaction);
-                if (_transactionCleanups.Count == 1)
+                Transaction = new Transaction(this, origin, local);
+                TransactionCleanups.Add(Transaction);
+                if (TransactionCleanups.Count == 1)
                 {
                     InvokeBeforeAllTransactions();
                 }
 
-                InvokeOnBeforeTransaction(_transaction);
+                InvokeOnBeforeTransaction(Transaction);
             }
 
             try
             {
-                fun(_transaction);
+                fun(Transaction);
             }
             finally
             {
-                if (initialCall && _transactionCleanups[0] == _transaction)
+                if (initialCall && TransactionCleanups[0] == Transaction)
                 {
                     // The first transaction ended, now process observer calls.
                     // Observer call may create new transacations for which we need to call the observers and do cleanup.
                     // We don't want to nest these calls, so we execute these calls one after another.
                     // Also we need to ensure that all cleanups are called, even if the observers throw errors.
-                    Transaction.CleanupTransactions(_transactionCleanups, 0);
+                    Utils.Transaction.CleanupTransactions(TransactionCleanups, 0);
                 }
             }
         }
@@ -252,11 +199,11 @@ namespace Ycs.Types
         public T Get<T>(string name)
             where T : AbstractType, new()
         {
-            if (!_share.TryGetValue(name, out var type))
+            if (!Share.TryGetValue(name, out var type))
             {
                 type = new T();
                 type.Integrate(this, null);
-                _share[name] = type;
+                Share[name] = type;
             }
 
             // Remote type is realized when this method is called.
@@ -270,21 +217,21 @@ namespace Ycs.Types
                     foreach (var kvp in type.Map)
                     {
                         var n = kvp.Value;
-                        for (; n != null; n = n.Left as Item)
+                        for (; n != null; n = n.Left as IItem)
                         {
                             n.Parent = t;
                         }
                     }
 
                     t.Start = type.Start;
-                    for (var n = t.Start; n != null; n = n.Right as Item)
+                    for (var n = t.Start; n != null; n = n.Right as IItem)
                     {
                         n.Parent = t;
                     }
 
                     t.Length = type.Length;
 
-                    _share[name] = t;
+                    Share[name] = t;
                     t.Integrate(this, null);
                     return t;
                 }
@@ -353,58 +300,58 @@ namespace Ycs.Types
         /// Write all the document as a single update message. If you specify the satte of the remote client, it will only
         /// write the operations that are missing.
         /// </summary>
-        internal void WriteStateAsUpdate(IUpdateEncoder encoder, IDictionary<long, long> targetStateVector)
+        public void WriteStateAsUpdate(IUpdateEncoder encoder, IDictionary<long, long> targetStateVector)
         {
             EncodingUtils.WriteClientsStructs(encoder, Store, targetStateVector);
             new DeleteSet(Store).Write(encoder);
         }
 
-        internal void WriteStateVector(IDSEncoder encoder)
+        public void WriteStateVector(IDSEncoder encoder)
         {
             EncodingUtils.WriteStateVector(encoder, Store.GetStateVector());
         }
 
-        internal void InvokeSubdocsChanged(ISet<YDoc> loaded, ISet<YDoc> added, ISet<YDoc> removed)
+        public void InvokeSubdocsChanged(ISet<IYDoc> loaded, ISet<IYDoc> added, ISet<IYDoc> removed)
         {
             SubdocsChanged?.Invoke(this, (loaded, added, removed));
         }
 
-        internal void InvokeOnBeforeObserverCalls(ITransaction transaction)
+        public void InvokeOnBeforeObserverCalls(ITransaction transaction)
         {
             BeforeObserverCalls?.Invoke(this, transaction);
         }
 
-        internal void InvokeAfterAllTransactions(IList<ITransaction> transactions)
+        public void InvokeAfterAllTransactions(IList<ITransaction> transactions)
         {
             AfterAllTransactions?.Invoke(this, transactions);
         }
 
-        internal void InvokeOnBeforeTransaction(ITransaction transaction)
+        public void InvokeOnBeforeTransaction(ITransaction transaction)
         {
             BeforeTransaction?.Invoke(this, transaction);
         }
 
-        internal void InvokeOnAfterTransaction(ITransaction transaction)
+        public void InvokeOnAfterTransaction(ITransaction transaction)
         {
             AfterTransaction?.Invoke(this, transaction);
         }
 
-        internal void InvokeOnAfterTransactionCleanup(ITransaction transaction)
+        public void InvokeOnAfterTransactionCleanup(ITransaction transaction)
         {
             AfterTransactionCleanup?.Invoke(this, transaction);
         }
 
-        internal void InvokeBeforeAllTransactions()
+        public void InvokeBeforeAllTransactions()
         {
             BeforeAllTransactions?.Invoke(this, null);
         }
 
-        internal void InvokeDestroyed()
+        public void InvokeDestroyed()
         {
             Destroyed?.Invoke(this, null);
         }
 
-        internal void InvokeUpdateV2(ITransaction transaction)
+        public void InvokeUpdateV2(ITransaction transaction)
         {
             var handler = UpdateV2;
             if (handler != null)
@@ -420,16 +367,16 @@ namespace Ycs.Types
             }
         }
 
-        internal YDocOptions CloneOptionsWithNewGuid()
+        public YDocOptions CloneOptionsWithNewGuid()
         {
-            var newOpts = _opts.Clone();
+            var newOpts = Opts.Clone();
             newOpts.Guid = System.Guid.NewGuid().ToString("D");
             return newOpts;
         }
 
-        internal string FindRootTypeKey(AbstractType type)
+        public string FindRootTypeKey(AbstractType type)
         {
-            foreach (var kvp in _share)
+            foreach (var kvp in Share)
             {
                 if (type?.Equals(kvp.Value) ?? false)
                 {

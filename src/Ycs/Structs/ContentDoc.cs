@@ -17,7 +17,7 @@ namespace Ycs.Structs
 
         internal ContentDoc(YDoc doc)
         {
-            if (doc._item != null)
+            if (doc.Item != null)
             {
                 throw new Exception("This document was already integrated as a sub-document. You should create a second instance instead with the same guid.");
             }
@@ -63,10 +63,10 @@ namespace Ycs.Structs
             return false;
         }
 
-        void IContentEx.Integrate(ITransaction transaction, Item item)
+        void IContentEx.Integrate(ITransaction transaction, IItem item)
         {
             // This needs to be reflected in doc.destroy as well.
-            Doc._item = item;
+            Doc.Item = item;
             transaction.SubdocsAdded.Add(Doc);
 
             if (Doc.ShouldLoad)

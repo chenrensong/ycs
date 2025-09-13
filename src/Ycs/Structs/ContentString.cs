@@ -86,7 +86,7 @@ namespace Ycs.Structs
             return true;
         }
 
-        void IContentEx.Integrate(ITransaction transaction, Item item)
+        void IContentEx.Integrate(ITransaction transaction, IItem item)
         {
             // Do nothing.
         }

@@ -268,11 +268,11 @@ namespace Ycs
                         Assert.Fail("Structs don't match");
                     }
 
-                    if (s1 is Item s1Item)
+                    if (s1 is IItem s1Item)
                     {
-                        if (!(s2 is Item s2Item) ||
-                            !((s1Item.Left == null && s2Item.Left == null) || (s1Item.Left != null && s2Item.Left != null && StructID.Equals((s1Item.Left as Item)?.LastId, (s2Item.Left as Item)?.LastId))) ||
-                            !CompareItemIds(s1Item.Right as Item, s2Item.Right as Item) ||
+                        if (!(s2 is IItem s2Item) ||
+                            !((s1Item.Left == null && s2Item.Left == null) || (s1Item.Left != null && s2Item.Left != null && StructID.Equals((s1Item.Left as IItem)?.LastId, (s2Item.Left as IItem)?.LastId))) ||
+                            !CompareItemIds(s1Item.Right as IItem, s2Item.Right as IItem) ||
                             !StructID.Equals(s1Item.LeftOrigin, s2Item.LeftOrigin) ||
                             !StructID.Equals(s1Item.RightOrigin, s2Item.RightOrigin) ||
                             !string.Equals(s1Item.ParentSub, s2Item.ParentSub))
@@ -281,10 +281,10 @@ namespace Ycs
                         }
 
                         // Make sure that items are connected correctly.
-                        Assert.IsTrue(s1Item.Left == null || (s1Item.Left as Item)?.Right == s1Item);
-                        Assert.IsTrue(s1Item.Right == null || (s1Item.Right as Item)?.Left == s1Item);
-                        Assert.IsTrue((s2 as Item).Left == null || ((s2 as Item).Left as Item).Right == s2);
-                        Assert.IsTrue((s2 as Item).Right == null || ((s2 as Item).Right as Item).Left == s2);
+                        Assert.IsTrue(s1Item.Left == null || (s1Item.Left as IItem)?.Right == s1Item);
+                        Assert.IsTrue(s1Item.Right == null || (s1Item.Right as IItem)?.Left == s1Item);
+                        Assert.IsTrue((s2 as IItem).Left == null || ((s2 as IItem).Left as IItem).Right == s2);
+                        Assert.IsTrue((s2 as IItem).Right == null || ((s2 as IItem).Right as IItem).Left == s2);
                     }
                 }
             }
@@ -314,7 +314,7 @@ namespace Ycs
             }
         }
 
-        protected bool CompareItemIds(Item a, Item b)
+        protected bool CompareItemIds(IItem a, IItem b)
         {
             var result = a == b || (a != null && b != null & StructID.Equals(a.Id, b.Id));
             Assert.IsTrue(result);

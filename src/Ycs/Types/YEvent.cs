@@ -13,8 +13,8 @@ namespace Ycs.Types
 {
     public class ChangesCollection
     {
-        public ISet<Item> Added;
-        public ISet<Item> Deleted;
+        public ISet<IItem> Added;
+        public ISet<IItem> Deleted;
         public IList<Delta> Delta;
         public IDictionary<string, ChangeKey> Keys;
     }
@@ -51,8 +51,8 @@ namespace Ycs.Types
             Transaction = transaction;
         }
 
-        public AbstractType Target { get; set; }
-        public AbstractType CurrentTarget { get; set; }
+        public IAbstractType Target { get; set; }
+        public IAbstractType CurrentTarget { get; set; }
         public ITransaction Transaction { get; set; }
 
         public IReadOnlyCollection<object> Path => GetPathTo(CurrentTarget, Target);
@@ -61,12 +61,12 @@ namespace Ycs.Types
         /// <summary>
         /// Check if a struct is added by this event.
         /// </summary>
-        internal bool Deletes(AbstractStruct str)
+        internal bool Deletes(IItem str)
         {
             return Transaction.DeleteSet.IsDeleted(str.Id);
         }
 
-        internal bool Adds(AbstractStruct str)
+        internal bool Adds(IItem str)
         {
             return !Transaction.BeforeState.TryGetValue(str.Id.Client, out var clock) || str.Id.Clock >= clock;
         }
@@ -76,8 +76,8 @@ namespace Ycs.Types
             if (_changes == null)
             {
                 var target = Target;
-                var added = new HashSet<Item>();
-                var deleted = new HashSet<Item>();
+                var added = new HashSet<IItem>();
+                var deleted = new HashSet<IItem>();
                 var delta = new List<Delta>();
                 var keys = new Dictionary<string, ChangeKey>();
 
@@ -107,7 +107,7 @@ namespace Ycs.Types
                         }
                     }
 
-                    for (var item = Target.Start; item != null; item = item.Right as Item)
+                    for (var item = Target.Start; item != null; item = item.Right as IItem)
                     {
                         if (item.Deleted)
                         {
@@ -172,7 +172,7 @@ namespace Ycs.Types
                             var prev = item.Left;
                             while (prev != null && Adds(prev))
                             {
-                                prev = (prev as Item).Left;
+                                prev = (prev as IItem).Left;
                             }
 
                             if (Deletes(item))
@@ -180,7 +180,7 @@ namespace Ycs.Types
                                 if (prev != null && Deletes(prev))
                                 {
                                     action = ChangeAction.Delete;
-                                    oldValue = (prev as Item).Content.GetContent().Last();
+                                    oldValue = (prev as IItem).Content.GetContent().Last();
                                 }
                                 else
                                 {
@@ -192,7 +192,7 @@ namespace Ycs.Types
                                 if (prev != null && Deletes(prev))
                                 {
                                     action = ChangeAction.Update;
-                                    oldValue = (prev as Item).Content.GetContent().Last();
+                                    oldValue = (prev as IItem).Content.GetContent().Last();
                                 }
                                 else
                                 {
@@ -225,7 +225,7 @@ namespace Ycs.Types
         /// <summary>
         /// Compute the path from this type to the specified target.
         /// </summary>
-        private IReadOnlyCollection<object> GetPathTo(AbstractType parent, AbstractType child)
+        private IReadOnlyCollection<object> GetPathTo(IAbstractType parent, IAbstractType child)
         {
             var path = new Stack<object>();
 
@@ -240,7 +240,7 @@ namespace Ycs.Types
                 {
                     // Parent is array-ish.
                     int i = 0;
-                    AbstractStruct c = (child.Item.Parent as AbstractType).Start;
+                    IItem c = (child.Item.Parent as AbstractType).Start;
                     while (c != child.Item && c != null)
                     {
                         if (!c.Deleted)
@@ -248,7 +248,7 @@ namespace Ycs.Types
                             i++;
                         }
 
-                        c = (c as Item)?.Right;
+                        c = (c as IItem)?.Right;
                     }
 
                     path.Push(i);

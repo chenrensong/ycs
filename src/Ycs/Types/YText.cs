@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.Text;
 using Ycs.Contracts;
 using Ycs.Structs;
-using Ycs.Contracts;
 using Ycs.Utils;
 
 namespace Ycs.Types
@@ -303,7 +302,7 @@ namespace Ycs.Types
                                     break;
                             }
 
-                            item = item.Right as Item;
+                            item = item.Right as IItem;
                         }
 
                         addOp();
@@ -336,12 +335,12 @@ namespace Ycs.Types
     {
         private class ItemTextListPosition
         {
-            public Item Left;
-            public Item Right;
+            public IItem Left;
+            public IItem Right;
             public int Index;
             public IDictionary<string, object> CurrentAttributes;
 
-            public ItemTextListPosition(Item left, Item right, int index, IDictionary<string, object> currentAttributes)
+            public ItemTextListPosition(IItem left, IItem right, int index, IDictionary<string, object> currentAttributes)
             {
                 Left = left;
                 Right = right;
@@ -374,7 +373,7 @@ namespace Ycs.Types
                 }
 
                 Left = Right;
-                Right = Right.Right as Item;
+                Right = Right.Right as IItem;
             }
 
             public void FindNextPosition(ITransaction transaction, int count)
@@ -406,7 +405,7 @@ namespace Ycs.Types
                     }
 
                     Left = Right;
-                    Right = Right.Right as Item;
+                    Right = Right.Right as IItem;
                     // We don't forward() because that would halve the performance because we already do the checks above.
                 }
             }
@@ -542,7 +541,7 @@ namespace Ycs.Types
             }
         }
 
-        public IList<Delta> ToDelta(Snapshot snapshot = null, Snapshot prevSnapshot = null, Func<YTextChangeType, StructID, YTextChangeAttributes> computeYChange = null)
+        public IList<Delta> ToDelta(ISnapshot snapshot = null, ISnapshot prevSnapshot = null, Func<YTextChangeType, StructID, YTextChangeAttributes> computeYChange = null)
         {
             var ops = new List<Delta>();
             var currentAttributes = new Dictionary<string, object>();
@@ -652,7 +651,7 @@ namespace Ycs.Types
                         }
                     }
 
-                    n = n.Right as Item;
+                    n = n.Right as IItem;
                 }
 
                 packStr();
@@ -770,7 +769,7 @@ namespace Ycs.Types
                     cs.AppendToBuilder(sb);
                 }
 
-                n = n.Right as Item;
+                n = n.Right as IItem;
             }
 
             return sb.ToString();
@@ -812,7 +811,7 @@ namespace Ycs.Types
 
         public IEnumerable<KeyValuePair<string, object>> GetAttributes() => TypeMapEnumerateValues();
 
-        public override void Integrate(YDoc doc, Item item)
+        public override void Integrate(IYDoc doc, IItem item)
         {
             base.Integrate(doc, item);
 
@@ -824,7 +823,7 @@ namespace Ycs.Types
             _pending = null;
         }
 
-        public override AbstractType InternalClone()
+        public override IAbstractType InternalClone()
         {
             var text = new YText();
             text.ApplyDelta(ToDelta());
@@ -860,7 +859,7 @@ namespace Ycs.Types
 
                     transaction.Doc.Store.IterateStructs(transaction, doc.Store.Clients[client], clock, afterClock, item =>
                     {
-                        if (item is Item it && !it.Deleted && it.Content is ContentFormat)
+                        if (item is IItem it && !it.Deleted && it.Content is ContentFormat)
                         {
                             foundFormattingItem = true;
 
@@ -881,7 +880,7 @@ namespace Ycs.Types
                 {
                     transaction.DeleteSet.IterateDeletedStructs(transaction, item =>
                     {
-                        var it = item as Item;
+                        var it = item as IItem;
                         if (it != null && it.Parent == this && it.Content is ContentFormat)
                         {
                             foundFormattingItem = true;
@@ -908,7 +907,7 @@ namespace Ycs.Types
                         // Contextless: it is not necessary to compute currentAttributes for the affected position.
                         tr.DeleteSet.IterateDeletedStructs(tr, item =>
                         {
-                            var it = item as Item;
+                            var it = item as IItem;
                             if (it != null && it.Parent == this)
                             {
                                 CleanupContextlessFormattingGap(tr, it);
@@ -930,7 +929,7 @@ namespace Ycs.Types
 
             if (marker != null)
             {
-                var pos = new ItemTextListPosition(marker.P.Left as Item, marker.P, marker.Index, currentAttributes);
+                var pos = new ItemTextListPosition(marker.P.Left as IItem, marker.P, marker.Index, currentAttributes);
                 pos.FindNextPosition(transaction, index - marker.Index);
                 return pos;
             }
@@ -1068,7 +1067,7 @@ namespace Ycs.Types
         /// <summary>
         /// Call this function after string content has been deleted in order to clean up formatting Items.
         /// </summary>
-        private int CleanupFormattingGap(ITransaction transaction, Item start, Item end, IDictionary<string, object> startAttributes, IDictionary<string, object> endAttributes)
+        private int CleanupFormattingGap(ITransaction transaction, IItem start, IItem end, IDictionary<string, object> startAttributes, IDictionary<string, object> endAttributes)
         {
             while (end != null && !(end.Content is ContentString) && !(end.Content is ContentEmbed))
             {
@@ -1077,7 +1076,7 @@ namespace Ycs.Types
                     UpdateCurrentAttributes(endAttributes, cf);
                 }
 
-                end = end.Right as Item;
+                end = end.Right as IItem;
             }
 
             int cleanups = 0;
@@ -1111,20 +1110,20 @@ namespace Ycs.Types
                     }
                 }
 
-                start = start.Right as Item;
+                start = start.Right as IItem;
             }
 
             return cleanups;
         }
 
-        private void CleanupContextlessFormattingGap(ITransaction transaction, Item item)
+        private void CleanupContextlessFormattingGap(ITransaction transaction, IItem item)
         {
             // Iterate until item.Right is null or content.
             while (item != null && item.Right != null && (item.Right.Deleted || (
-                !((item.Right as Item).Content is ContentString) && !((item.Right as Item).Content is ContentEmbed)
+                !((item.Right as IItem).Content is ContentString) && !((item.Right as IItem).Content is ContentEmbed)
                 )))
             {
-                item = item.Right as Item;
+                item = item.Right as IItem;
             }
 
             var attrs = new HashSet<object>();
@@ -1147,7 +1146,7 @@ namespace Ycs.Types
                     }
                 }
 
-                item = item.Left as Item;
+                item = item.Left as IItem;
             }
         }
 
@@ -1189,7 +1188,7 @@ namespace Ycs.Types
                         }
                     }
 
-                    end = end.Right as Item;
+                    end = end.Right as IItem;
                 }
             });
 

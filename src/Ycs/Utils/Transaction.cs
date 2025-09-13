@@ -23,31 +23,31 @@ namespace Ycs.Utils
     public class Transaction : ITransaction
     {
         // TODO: [alekseyk] To private?
-        public readonly IList<AbstractStruct> _mergeStructs;
+        public readonly IList<IItem> _mergeStructs;
 
-        public IList<AbstractStruct> MergeStructs => _mergeStructs;
+        public IList<IItem> MergeStructs => _mergeStructs;
 
-        public Transaction(YDoc doc, object origin, bool local)
+        public Transaction(IYDoc doc, object origin, bool local)
         {
             Doc = doc;
             DeleteSet = new DeleteSet();
             BeforeState = Doc.Store.GetStateVector();
             AfterState = new Dictionary<long, long>();
-            Changed = new Dictionary<AbstractType, ISet<string>>();
-            ChangedParentTypes = new Dictionary<AbstractType, IList<YEvent>>();
-            _mergeStructs = new List<AbstractStruct>();
+            Changed = new Dictionary<IAbstractType, ISet<string>>();
+            ChangedParentTypes = new Dictionary<IAbstractType, IList<YEvent>>();
+            _mergeStructs = new List<IItem>();
             Origin = origin;
             Meta = new Dictionary<string, object>();
             Local = local;
-            SubdocsAdded = new HashSet<YDoc>();
-            SubdocsRemoved = new HashSet<YDoc>();
-            SubdocsLoaded = new HashSet<YDoc>();
+            SubdocsAdded = new HashSet<IYDoc>();
+            SubdocsRemoved = new HashSet<IYDoc>();
+            SubdocsLoaded = new HashSet<IYDoc>();
         }
 
         /// <summary>
         /// The Yjs instance.
         /// </summary>
-        public YDoc Doc { get; }
+        public IYDoc Doc { get; }
 
         public object Origin { get; }
 
@@ -66,13 +66,13 @@ namespace Ycs.Utils
         /// inserted/deleted). New types are not included in this Set.
         /// Maps from type to parentSubs ('item.parentSub = null' for YArray).
         /// </summary>
-        public IDictionary<AbstractType, ISet<string>> Changed { get; }
+        public IDictionary<IAbstractType, ISet<string>> Changed { get; }
 
         /// <summary>
         /// Stores the events for the types that observe also child elements.
         /// It is mainly used by 'observeDeep'.
         /// </summary>
-        public IDictionary<AbstractType, IList<YEvent>> ChangedParentTypes { get; }
+        public IDictionary<IAbstractType, IList<YEvent>> ChangedParentTypes { get; }
 
         /// <summary>
         /// Stores meta information on the transaction.
@@ -84,16 +84,16 @@ namespace Ycs.Utils
         /// </summary>
         public bool Local { get; }
 
-        public ISet<YDoc> SubdocsAdded { get; }
+        public ISet<IYDoc> SubdocsAdded { get; }
 
-        public ISet<YDoc> SubdocsRemoved { get; }
+        public ISet<IYDoc> SubdocsRemoved { get; }
 
-        public ISet<YDoc> SubdocsLoaded { get; }
+        public ISet<IYDoc> SubdocsLoaded { get; }
 
         /// <summary>
         /// Describes the set of deleted items by Ids.
         /// </summary>
-        public DeleteSet DeleteSet { get; }
+        public IDeleteSet DeleteSet { get; }
 
         public StructID GetNextId()
         {
@@ -134,7 +134,7 @@ namespace Ycs.Utils
                 {
                     ds.SortAndMergeDeleteSet();
                     transaction.AfterState = store.GetStateVector();
-                    doc._transaction = null;
+                    doc.Transaction = null;
 
                     actions.Add(() =>
                     {
@@ -222,7 +222,7 @@ namespace Ycs.Utils
                             var firstChangePos = Math.Max(StructStore.FindIndexSS(structs, beforeClock), 1);
                             for (int j = structs.Count - 1; j >= firstChangePos; j--)
                             {
-                                DeleteSet.TryToMergeWithLeft(structs, j);
+                                Ycs.Types.DeleteSet.TryToMergeWithLeft(structs, j);
                             }
                         }
                     }
@@ -239,12 +239,12 @@ namespace Ycs.Utils
 
                         if (replacedStructPos + 1 < structs.Count)
                         {
-                            DeleteSet.TryToMergeWithLeft(structs, replacedStructPos + 1);
+                            Ycs.Types.DeleteSet.TryToMergeWithLeft(structs, replacedStructPos + 1);
                         }
 
                         if (replacedStructPos > 0)
                         {
-                            DeleteSet.TryToMergeWithLeft(structs, replacedStructPos);
+                            Ycs.Types.DeleteSet.TryToMergeWithLeft(structs, replacedStructPos);
                         }
                     }
 
@@ -291,7 +291,7 @@ namespace Ycs.Utils
 
                     if (transactionCleanups.Count <= i + 1)
                     {
-                        doc._transactionCleanups.Clear();
+                        doc.TransactionCleanups.Clear();
                         doc.InvokeAfterAllTransactions(transactionCleanups);
                     }
                     else
@@ -305,7 +305,7 @@ namespace Ycs.Utils
         /// <summary>
         /// Redoes the effect of this operation.
         /// </summary>
-        public AbstractStruct RedoItem(Item item, ISet<Item> redoItems)
+        public IItem RedoItem(IItem item, ISet<IItem> redoItems)
         {
             var doc = Doc;
             var store = doc.Store;
@@ -318,8 +318,8 @@ namespace Ycs.Utils
             }
 
             var parentItem = (item.Parent as AbstractType)?.Item;
-            AbstractStruct left;
-            AbstractStruct right;
+            IItem left;
+            IItem right;
 
             if (item.ParentSub == null)
             {
@@ -331,9 +331,9 @@ namespace Ycs.Utils
             {
                 // Is a map item. Insert at current value.
                 left = item;
-                while ((left as Item)?.Right != null)
+                while ((left as IItem)?.Right != null)
                 {
-                    left = (left as Item).Right;
+                    left = (left as IItem).Right;
                     if (left.Id.Client != ownClientId)
                     {
                         // It is not possible to redo this item because it conflicts with a change from another client.
@@ -341,7 +341,7 @@ namespace Ycs.Utils
                     }
                 }
 
-                if ((left as Item)?.Right != null)
+                if ((left as IItem)?.Right != null)
                 {
                     left = (item.Parent as AbstractType)?.Map[item.ParentSub];
                 }
@@ -363,42 +363,42 @@ namespace Ycs.Utils
             {
                 while (parentItem.Redone != null)
                 {
-                    parentItem = (Item)store.GetItemCleanStart(this, parentItem.Redone.Value);
+                    parentItem = (IItem)store.GetItemCleanStart(this, parentItem.Redone.Value);
                 }
 
                 // Find next cloned_redo items.
                 while (left != null)
                 {
                     var leftTrace = left;
-                    while (leftTrace != null && ((leftTrace as Item)?.Parent as AbstractType)?.Item != parentItem)
+                    while (leftTrace != null && ((leftTrace as IItem)?.Parent as AbstractType)?.Item != parentItem)
                     {
-                        leftTrace = (leftTrace as Item).Redone == null ? null : store.GetItemCleanStart(this, (leftTrace as Item).Redone.Value);
+                        leftTrace = (leftTrace as IItem).Redone == null ? null : store.GetItemCleanStart(this, (leftTrace as IItem).Redone.Value);
                     }
 
-                    if (leftTrace != null && ((leftTrace as Item)?.Parent as AbstractType)?.Item == parentItem)
+                    if (leftTrace != null && ((leftTrace as IItem)?.Parent as AbstractType)?.Item == parentItem)
                     {
                         left = leftTrace;
                         break;
                     }
 
-                    left = (left as Item)?.Left;
+                    left = (left as IItem)?.Left;
                 }
 
                 while (right != null)
                 {
                     var rightTrace = right;
-                    while (rightTrace != null && ((rightTrace as Item)?.Parent as AbstractType)?.Item != parentItem)
+                    while (rightTrace != null && ((rightTrace as IItem)?.Parent as AbstractType)?.Item != parentItem)
                     {
-                        rightTrace = (rightTrace as Item).Redone == null ? null : store.GetItemCleanStart(this, (rightTrace as Item).Redone.Value);
+                        rightTrace = (rightTrace as IItem).Redone == null ? null : store.GetItemCleanStart(this, (rightTrace as IItem).Redone.Value);
                     }
 
-                    if (rightTrace != null && ((rightTrace as Item)?.Parent as AbstractType)?.Item == parentItem)
+                    if (rightTrace != null && ((rightTrace as IItem)?.Parent as AbstractType)?.Item == parentItem)
                     {
                         right = rightTrace;
                         break;
                     }
 
-                    right = (right as Item)?.Right;
+                    right = (right as IItem)?.Right;
                 }
             }
 
@@ -408,7 +408,7 @@ namespace Ycs.Utils
             var redoneItem = new Item(
                 nextId,
                 left,
-                (left as Item)?.LastId,
+                (left as IItem)?.LastId,
                 right,
                 right?.Id,
                 parentItem == null ? item.Parent : (parentItem.Content as ContentType)?.Type,
@@ -423,15 +423,15 @@ namespace Ycs.Utils
             return redoneItem;
         }
 
-        public static void SplitSnapshotAffectedStructs(ITransaction transaction, Snapshot snapshot)
+        public static void SplitSnapshotAffectedStructs(ITransaction transaction, ISnapshot snapshot)
         {
             if (!transaction.Meta.TryGetValue("splitSnapshotAffectedStructs", out var metaObj))
             {
-                metaObj = new HashSet<Snapshot>();
+                metaObj = new HashSet<ISnapshot>();
                 transaction.Meta["splitSnapshotAffectedStructs"] = metaObj;
             }
 
-            var meta = metaObj as ISet<Snapshot>;
+            var meta = metaObj as ISet<ISnapshot>;
             var store = transaction.Doc.Store;
 
             // Check if we already split for this snapshot.

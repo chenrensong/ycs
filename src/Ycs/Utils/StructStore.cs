@@ -22,11 +22,11 @@ namespace Ycs.Utils
         private class PendingClientStructRef
         {
             public int NextReadOperation { get; set; }
-            public List<AbstractStruct> Refs { get; set; } = new List<AbstractStruct>(1);
+            public List<IItem> Refs { get; set; } = new List<IItem>(1);
         }
 
         // TODO: [alekseyk] To private?
-        public IDictionary<long, List<AbstractStruct>> Clients { get; } = new Dictionary<long, List<AbstractStruct>>();
+        public IDictionary<long, List<IItem>> Clients { get; } = new Dictionary<long, List<IItem>>();
 
         /// <summary>
         /// Store incompleted struct reads here.
@@ -36,7 +36,7 @@ namespace Ycs.Utils
         /// <summary>
         /// Stack of pending structs waiting for struct dependencies.
         /// </summary>
-        private readonly Stack<AbstractStruct> _pendingStack = new Stack<AbstractStruct>();
+        private readonly Stack<IItem> _pendingStack = new Stack<IItem>();
 
         private readonly IList<DSDecoderV2> _pendingDeleteReaders = new List<DSDecoderV2>();
 
@@ -125,11 +125,11 @@ namespace Ycs.Utils
             }
         }
 
-        public void AddStruct(AbstractStruct str)
+        public void AddStruct(IItem str)
         {
             if (!Clients.TryGetValue(str.Id.Client, out var structs))
             {
-                structs = new List<AbstractStruct>();
+                structs = new List<IItem>();
                 Clients[str.Id.Client] = structs;
             }
             else
@@ -147,8 +147,8 @@ namespace Ycs.Utils
         /// <summary>
         /// Perform a binary search on a sorted array.
         /// </summary>
-        // TODO: [alekseyk] IList<AbstractStruct> to custom class, and move this method there?
-        public static int FindIndexSS(IList<AbstractStruct> structs, long clock)
+        // TODO: [alekseyk] IList<IItem> to custom class, and move this method there?
+        public static int FindIndexSS(IList<IItem> structs, long clock)
         {
             Debug.Assert(structs.Count > 0);
 
@@ -196,7 +196,7 @@ namespace Ycs.Utils
         /// <summary>
         /// Expects that id is actually in store. This function throws or is an infinite loop otherwise.
         /// </summary>
-        public AbstractStruct Find(StructID id)
+        public IItem Find(StructID id)
         {
             if (!Clients.TryGetValue(id.Client, out var structs))
             {
@@ -212,11 +212,11 @@ namespace Ycs.Utils
             return structs[index];
         }
 
-        public int FindIndexCleanStart(ITransaction transaction, List<AbstractStruct> structs, long clock)
+        public int FindIndexCleanStart(ITransaction transaction, List<IItem> structs, long clock)
         {
             int index = FindIndexSS(structs, clock);
             var str = structs[index];
-            if (str.Id.Clock < clock && str is Item item)
+            if (str.Id.Clock < clock && str is IItem item)
             {
                 structs.Insert(index + 1, item.SplitItem(transaction, (int)(clock - item.Id.Clock)));
                 return index + 1;
@@ -225,7 +225,7 @@ namespace Ycs.Utils
             return index;
         }
 
-        public AbstractStruct GetItemCleanStart(ITransaction transaction, StructID id)
+        public IItem GetItemCleanStart(ITransaction transaction, StructID id)
         {
             if (!Clients.TryGetValue(id.Client, out var structs))
             {
@@ -237,7 +237,7 @@ namespace Ycs.Utils
             return structs[indexCleanStart];
         }
 
-        public AbstractStruct GetItemCleanEnd(ITransaction transaction, StructID id)
+        public IItem GetItemCleanEnd(ITransaction transaction, StructID id)
         {
             if (!Clients.TryGetValue(id.Client, out var structs))
             {
@@ -249,13 +249,13 @@ namespace Ycs.Utils
 
             if ((id.Clock != str.Id.Clock + str.Length - 1) && !(str is GC))
             {
-                structs.Insert(index + 1, (str as Item).SplitItem(transaction, (int)(id.Clock - str.Id.Clock + 1)));
+                structs.Insert(index + 1, (str as IItem).SplitItem(transaction, (int)(id.Clock - str.Id.Clock + 1)));
             }
 
             return str;
         }
 
-        public void ReplaceStruct(AbstractStruct oldStruct, AbstractStruct newStruct)
+        public void ReplaceStruct(IItem oldStruct, IItem newStruct)
         {
             if (!Clients.TryGetValue(oldStruct.Id.Client, out var structs))
             {
@@ -266,7 +266,7 @@ namespace Ycs.Utils
             structs[index] = newStruct;
         }
 
-        public void IterateStructs(ITransaction transaction, List<AbstractStruct> structs, long clockStart, long length, Predicate<AbstractStruct> fun)
+        public void IterateStructs(ITransaction transaction, List<IItem> structs, long clockStart, long length, Predicate<IItem> fun)
         {
             if (length <= 0)
             {
@@ -276,7 +276,7 @@ namespace Ycs.Utils
             var clockEnd = clockStart + length;
 
             var index = FindIndexCleanStart(transaction, structs, clockStart);
-            AbstractStruct str;
+            IItem str;
 
             do
             {
@@ -296,11 +296,11 @@ namespace Ycs.Utils
             } while (index < structs.Count && structs[index].Id.Clock < clockEnd);
         }
 
-        public (AbstractStruct item, int diff) FollowRedone(StructID id)
+        public (IItem item, int diff) FollowRedone(StructID id)
         {
             StructID? nextId = id;
             int diff = 0;
-            AbstractStruct item;
+            IItem item;
 
             do
             {
@@ -311,8 +311,8 @@ namespace Ycs.Utils
 
                 item = Find(nextId.Value);
                 diff = (int)(nextId.Value.Clock - item.Id.Clock);
-                nextId = (item as Item)?.Redone;
-            } while (nextId != null && item is Item);
+                nextId = (item as IItem)?.Redone;
+            } while (nextId != null && item is IItem);
 
             return (item, diff);
         }
@@ -331,7 +331,7 @@ namespace Ycs.Utils
 
                 if (!Clients.TryGetValue(client, out var structs))
                 {
-                    structs = new List<AbstractStruct>();
+                    structs = new List<IItem>();
                     // NOTE: Clients map is not updated.
                 }
 
@@ -356,7 +356,7 @@ namespace Ycs.Utils
                         // Split the first item if necessary.
                         if (!str.Deleted && str.Id.Clock < clock)
                         {
-                            var splitItem = (str as Item).SplitItem(transaction, (int)(clock - str.Id.Clock));
+                            var splitItem = (str as IItem).SplitItem(transaction, (int)(clock - str.Id.Clock));
                             structs.Insert(index + 1, splitItem);
 
                             // Increase, we now want to use the next struct.
@@ -372,7 +372,7 @@ namespace Ycs.Utils
                                 {
                                     if (clockEnd < str.Id.Clock + str.Length)
                                     {
-                                        var splitItem = (str as Item).SplitItem(transaction, (int)(clockEnd - str.Id.Clock));
+                                        var splitItem = (str as IItem).SplitItem(transaction, (int)(clockEnd - str.Id.Clock));
                                         structs.Insert(index, splitItem);
                                     }
 
@@ -403,7 +403,7 @@ namespace Ycs.Utils
             }
         }
 
-        public void MergeReadStructsIntoPendingReads(IDictionary<long, List<AbstractStruct>> clientStructsRefs)
+        public void MergeReadStructsIntoPendingReads(IDictionary<long, List<IItem>> clientStructsRefs)
         {
             var pendingClientStructRefs = _pendingClientStructRefs;
             foreach (var kvp in clientStructsRefs)

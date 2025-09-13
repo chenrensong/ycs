@@ -12,7 +12,7 @@ namespace Ycs.Types
 {
     public class YArrayEvent : YEvent
     {
-        internal YArrayEvent(YArray arr, ITransaction transaction)
+        public YArrayEvent(YArray arr, ITransaction transaction)
             : base(arr, transaction)
         {
             // Do nothing.
@@ -40,19 +40,19 @@ namespace Ycs.Types
 
         public YArray Clone() => InternalClone() as YArray;
 
-        public override void Integrate(YDoc doc, Item item)
+        public override void Integrate(IYDoc doc, IItem item)
         {
             base.Integrate(doc, item);
             Insert(0, _prelimContent);
             _prelimContent = null;
         }
 
-        public override AbstractType InternalCopy()
+        public override IAbstractType InternalCopy()
         {
             return new YArray();
         }
 
-        public override AbstractType InternalClone()
+        public override IAbstractType InternalClone()
         {
             var arr = new YArray();
 
@@ -148,7 +148,7 @@ namespace Ycs.Types
                 index -= marker.Index;
             }
 
-            for (; n != null; n = n.Right as Item)
+            for (; n != null; n = n.Right as IItem)
             {
                 if (!n.Deleted && n.Countable)
                 {
@@ -186,7 +186,7 @@ namespace Ycs.Types
                     }
                 }
 
-                n = n.Right as Item;
+                n = n.Right as IItem;
             }
         }
     }
