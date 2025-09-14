@@ -4,9 +4,16 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
+
+// ------------------------------------------------------------------------------
+//  <copyright company="Microsoft Corporation">
+//      Copyright (c) Microsoft Corporation.  All rights reserved.
+//  </copyright>
+// ------------------------------------------------------------------------------
+
 using Ycs.Contracts;
 
-namespace Ycs.Core
+namespace Ycs.Content
 {
     /// <summary>
     /// Global accessor for ContentFactory to avoid circular dependencies

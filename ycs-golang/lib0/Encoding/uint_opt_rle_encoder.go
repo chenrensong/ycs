@@ -6,7 +6,9 @@
 
 package encoding
 
-import "github.com/chenrensong/ygo/lib0"
+import (
+	"ycs/lib0"
+)
 
 // UintOptRleEncoder implements optimized run-length encoding for unsigned integers.
 type UintOptRleEncoder struct {
@@ -54,9 +56,14 @@ func (e *UintOptRleEncoder) writeEncodedValue() error {
 		return nil
 	}
 
+	writer, err := e.GetWriter()
+	if err != nil {
+		return err
+	}
+
 	if e.count == 1 {
 		// Single value - write as positive varint
-		if err := lib0.WriteVarInt(e.buffer, int64(e.state), nil); err != nil {
+		if err := lib0.WriteVarInt(writer, int64(e.state), nil); err != nil {
 			return err
 		}
 	} else {
@@ -69,12 +76,12 @@ func (e *UintOptRleEncoder) writeEncodedValue() error {
 			encodedValue = -int64(e.state)
 		}
 
-		if err := lib0.WriteVarInt(e.buffer, encodedValue, nil); err != nil {
+		if err := lib0.WriteVarInt(writer, encodedValue, nil); err != nil {
 			return err
 		}
 
 		// Write count (non-standard encoding: count - 2)
-		if err := lib0.WriteVarUint(e.buffer, e.count-2); err != nil {
+		if err := lib0.WriteVarUint(writer, e.count-2); err != nil {
 			return err
 		}
 	}

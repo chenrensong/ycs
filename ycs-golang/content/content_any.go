@@ -1,7 +1,7 @@
 package content
 
 import (
-	"github.com/chenrensong/ygo/contracts"
+	"ycs/contracts"
 )
 
 const ContentAnyRef = 8

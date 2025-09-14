@@ -27,4 +27,5 @@ type IUpdateEncoder interface {
 	WriteBuffer(buf []byte)
 	WriteKey(key string)
 	WriteJSON(any interface{})
+	WriteEmbed(embed interface{}) // Add missing method
 }

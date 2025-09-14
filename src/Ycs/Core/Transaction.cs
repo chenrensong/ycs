@@ -10,7 +10,6 @@ using System.Diagnostics;
 using System.Linq;
 using Ycs.Content;
 using Ycs.Contracts;
-using Ycs.Types;
 
 namespace Ycs.Core
 {

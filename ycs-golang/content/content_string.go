@@ -1,118 +1,98 @@
 package content
 
 import (
-	"strings"
-
-	"github.com/chenrensong/ygo/contracts"
+	"ycs/contracts"
 )
 
 const ContentStringRef = 4
 
+// ContentString represents string content
 type ContentString struct {
-	content []rune
+	content string
 }
 
-func NewContentString(value string) *ContentString {
+// NewContentString creates a new ContentString instance
+func NewContentString(content string) *ContentString {
 	return &ContentString{
-		content: []rune(value),
+		content: content,
 	}
 }
 
-func NewContentStringFromRunes(content []rune) *ContentString {
-	runes := make([]rune, len(content))
-	copy(runes, content)
-	return &ContentString{
-		content: runes,
-	}
-}
-
+// GetRef returns the reference ID for this content type
 func (c *ContentString) GetRef() int {
 	return ContentStringRef
 }
 
+// GetCountable returns whether this content is countable
 func (c *ContentString) GetCountable() bool {
 	return true
 }
 
+// GetLength returns the length of this content
 func (c *ContentString) GetLength() int {
 	return len(c.content)
 }
 
-func (c *ContentString) AppendToBuilder(sb *strings.Builder) {
-	for _, r := range c.content {
-		sb.WriteRune(r)
-	}
-}
-
-func (c *ContentString) GetString() string {
-	return string(c.content)
-}
-
+// GetContent returns the content as an interface slice
 func (c *ContentString) GetContent() []interface{} {
-	result := make([]interface{}, len(c.content))
-	for i, r := range c.content {
-		result[i] = r
+	runes := []rune(c.content)
+	result := make([]interface{}, len(runes))
+	for i, r := range runes {
+		result[i] = string(r)
 	}
 	return result
 }
 
+// Copy creates a copy of this content
 func (c *ContentString) Copy() contracts.IContent {
-	runes := make([]rune, len(c.content))
-	copy(runes, c.content)
-	return &ContentString{content: runes}
+	return &ContentString{
+		content: c.content,
+	}
 }
 
+// Splice splits this content at the given offset
 func (c *ContentString) Splice(offset int) contracts.IContent {
+	runes := []rune(c.content)
 	right := &ContentString{
-		content: make([]rune, len(c.content)-offset),
+		content: string(runes[offset:]),
 	}
-	copy(right.content, c.content[offset:])
-	c.content = c.content[:offset]
-
-	// Prevent encoding invalid documents because of splitting of surrogate pairs.
-	if offset > 0 {
-		firstCharCode := c.content[offset-1]
-		if firstCharCode >= 0xD800 && firstCharCode <= 0xDBFF {
-			// Last character of the left split is the start of a surrogate utf16/ucs2 pair.
-			// We don't support splitting of surrogate pairs because this may lead to invalid documents.
-			// Replace the invalid character with a unicode replacement character U+FFFD.
-			c.content[offset-1] = '\uFFFD'
-
-			// Replace right as well.
-			right.content[0] = '\uFFFD'
-		}
-	}
-
+	c.content = string(runes[:offset])
 	return right
 }
 
+// MergeWith attempts to merge this content with another
 func (c *ContentString) MergeWith(right contracts.IContent) bool {
 	rightString, ok := right.(*ContentString)
 	if !ok {
 		return false
 	}
-	c.content = append(c.content, rightString.content...)
+	c.content += rightString.content
 	return true
 }
 
+// Integrate integrates this content into a transaction
 func (c *ContentString) Integrate(transaction contracts.ITransaction, item contracts.IStructItem) {
-	// Do nothing
+	// Implementation would go here
 }
 
+// Delete deletes this content
 func (c *ContentString) Delete(transaction contracts.ITransaction) {
-	// Do nothing
+	// Implementation would go here
 }
 
+// Gc garbage collects this content
 func (c *ContentString) Gc(store contracts.IStructStore) {
-	// Do nothing
+	// Implementation would go here
 }
 
+// Write writes this content to an encoder
 func (c *ContentString) Write(encoder contracts.IUpdateEncoder, offset int) {
-	str := string(c.content[offset:])
-	encoder.WriteString(str)
+	runes := []rune(c.content)
+	encoder.WriteString(string(runes[offset:]))
 }
 
+// ReadContentString reads ContentString from a decoder
 func ReadContentString(decoder contracts.IUpdateDecoder) *ContentString {
 	str := decoder.ReadString()
-	return &ContentString{content: []rune(str)}
+	return &ContentString{content: str}
 }

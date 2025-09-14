@@ -35,6 +35,7 @@ type IYDoc interface {
 	GetTransaction() ITransaction
 	SetTransaction(transaction ITransaction)
 	GetTransactionCleanups() []ITransaction
+	SetTransactionCleanups(transactionCleanups []ITransaction)
 
 	ApplyUpdateV2(update []byte, transactionOrigin interface{}, local ...bool)         // local defaults to false
 	ApplyUpdateV2Stream(input io.Reader, transactionOrigin interface{}, local ...bool) // local defaults to false

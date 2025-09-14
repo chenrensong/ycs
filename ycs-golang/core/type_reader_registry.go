@@ -1,36 +1,33 @@
-// ------------------------------------------------------------------------------
-//  <copyright company="Microsoft Corporation">
-//      Copyright (c) Microsoft Corporation.  All rights reserved.
-//  </copyright>
-// ------------------------------------------------------------------------------
-
 package core
 
 import (
-	"github.com/chenrensong/ygo/contracts"
+	"errors"
+	"fmt"
+	"ycs/contracts"
 )
 
-// TypeReaderRegistry implements ITypeReaderRegistry
+// TypeReaderRegistry is the default implementation of type reader registry
 type TypeReaderRegistry struct {
 	readers map[uint32]func(contracts.IUpdateDecoder) contracts.IAbstractType
 }
 
 // NewTypeReaderRegistry creates a new TypeReaderRegistry
-func NewTypeReaderRegistry() contracts.ITypeReaderRegistry {
+func NewTypeReaderRegistry() *TypeReaderRegistry {
 	return &TypeReaderRegistry{
 		readers: make(map[uint32]func(contracts.IUpdateDecoder) contracts.IAbstractType),
 	}
 }
 
-// RegisterTypeReader registers a type reader for a specific type
-func (tr *TypeReaderRegistry) RegisterTypeReader(typeId uint32, reader func(contracts.IUpdateDecoder) contracts.IAbstractType) {
-	tr.readers[typeId] = reader
+// RegisterTypeReader registers a type reader for a given type reference ID
+func (tr *TypeReaderRegistry) RegisterTypeReader(typeRefID uint32, reader func(contracts.IUpdateDecoder) contracts.IAbstractType) {
+	tr.readers[typeRefID] = reader
 }
 
-// ReadType reads a type using the appropriate reader
-func (tr *TypeReaderRegistry) ReadType(typeId uint32, decoder contracts.IUpdateDecoder) contracts.IAbstractType {
-	if reader, exists := tr.readers[typeId]; exists {
-		return reader(decoder)
+// ReadType reads a type using the registered reader
+func (tr *TypeReaderRegistry) ReadType(typeRefID uint32, decoder contracts.IUpdateDecoder) (contracts.IAbstractType, error) {
+	if reader, exists := tr.readers[typeRefID]; exists {
+		return reader(decoder), nil
 	}
-	return nil
+
+	return nil, errors.New(fmt.Sprintf("Type %d not implemented", typeRefID))
 }

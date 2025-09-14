@@ -9,10 +9,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using Ycs.Content;
 using Ycs.Contracts;
-using Ycs.Core;
 
-namespace Ycs.Types
+namespace Ycs.Core
 {
     public abstract class YArrayBase : AbstractType, IYArrayBase, IEnumerable<object>
     {

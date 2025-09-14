@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using Ycs.Contracts;
 using Ycs.Lib0;
 
@@ -202,7 +203,10 @@ namespace Ycs.Core
             CheckDisposed();
 
             var jsonString = Reader.ReadVarString();
-            var result = Newtonsoft.Json.JsonConvert.DeserializeObject(jsonString);
+            // 或直接反序列化为 object（需注意 JsonElement 的用法差异）
+            var result = JsonSerializer.Deserialize<object>(jsonString);
+
+            //var result = Newtonsoft.Json.JsonConvert.DeserializeObject(jsonString);
             return result;
         }
 

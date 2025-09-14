@@ -9,7 +9,7 @@ package decoding
 import (
 	"io"
 
-	lib0 "github.com/chenrensong/ygo/lib0"
+	"ycs/lib0"
 )
 
 // IntDiffOptRleDecoder decodes optimized run-length encoded integer differences.
@@ -31,8 +31,14 @@ func NewIntDiffOptRleDecoder(stream io.ReadSeekCloser, leaveOpen bool) *IntDiffO
 func (d *IntDiffOptRleDecoder) Read() (int64, error) {
 	d.CheckDisposed()
 
+	// Type assert to StreamReader interface
+	streamReader, ok := d.Stream().(lib0.StreamReader)
+	if !ok {
+		return 0, &lib0.TypeAssertionError{Message: "failed to convert stream to StreamReader"}
+	}
+
 	if d.count == 0 {
-		diff, _, err := lib0.ReadVarInt(d.Stream().(lib0.StreamReader))
+		diff, _, err := lib0.ReadVarInt(streamReader)
 		if err != nil {
 			return 0, err
 		}
@@ -47,7 +53,7 @@ func (d *IntDiffOptRleDecoder) Read() (int64, error) {
 		}
 
 		if hasCount {
-			count, err := lib0.ReadVarUint(d.Stream().(lib0.StreamReader))
+			count, err := lib0.ReadVarUint(streamReader)
 			if err != nil {
 				return 0, err
 			}

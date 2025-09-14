@@ -6,8 +6,8 @@
 
 using System;
 using System.IO;
+using Ycs.Core;
 using Ycs.Lib0;
-using Ycs.Types;
 
 namespace Ycs.Protocols
 {

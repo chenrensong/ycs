@@ -12,7 +12,6 @@ using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Ycs.Contracts;
 using Ycs.Core;
-using Ycs.Types;
 
 namespace Ycs
 {

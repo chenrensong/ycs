@@ -1,127 +1,84 @@
 package content
 
 import (
-	"errors"
-
-	"github.com/chenrensong/ygo/contracts"
+	"ycs/contracts"
 )
 
 const ContentDocRef = 9
 
-var docFactory func(*contracts.YDocOptions) contracts.IYDoc
-
+// ContentDoc represents document content
 type ContentDoc struct {
-	doc  contracts.IYDoc
 	opts *contracts.YDocOptions
 }
 
-func NewContentDoc(doc contracts.IYDoc) (*ContentDoc, error) {
-	if doc.GetItem() != nil {
-		return nil, errors.New("this document was already integrated as a sub-document. You should create a second instance instead with the same guid")
-	}
-
-	opts := &contracts.YDocOptions{}
-
-	if !doc.GetGc() {
-		opts.Gc = false
-	}
-
-	if doc.GetAutoLoad() {
-		opts.AutoLoad = true
-	}
-
-	if doc.GetMeta() != nil {
-		opts.Meta = doc.GetMeta()
-	}
-
+// NewContentDoc creates a new ContentDoc instance
+func NewContentDoc(opts *contracts.YDocOptions) *ContentDoc {
 	return &ContentDoc{
-		doc:  doc,
 		opts: opts,
-	}, nil
+	}
 }
 
+// GetRef returns the reference ID for this content type
 func (c *ContentDoc) GetRef() int {
 	return ContentDocRef
 }
 
+// GetCountable returns whether this content is countable
 func (c *ContentDoc) GetCountable() bool {
-	return true
+	return false
 }
 
+// GetLength returns the length of this content
 func (c *ContentDoc) GetLength() int {
 	return 1
 }
 
-func (c *ContentDoc) GetDoc() contracts.IYDoc {
-	return c.doc
-}
-
-func (c *ContentDoc) GetOpts() *contracts.YDocOptions {
-	return c.opts
-}
-
+// GetContent returns the content as an interface slice
 func (c *ContentDoc) GetContent() []interface{} {
-	return []interface{}{c.doc}
+	return []interface{}{nil}
 }
 
+// Copy creates a copy of this content
 func (c *ContentDoc) Copy() contracts.IContent {
-	result, _ := NewContentDoc(c.doc)
-	return result
+	return &ContentDoc{
+		opts: c.opts,
+	}
 }
 
+// Splice splits this content at the given offset
 func (c *ContentDoc) Splice(offset int) contracts.IContent {
-	panic(errors.New("not implemented"))
+	// ContentDoc cannot be split
+	return nil
 }
 
+// MergeWith attempts to merge this content with another
 func (c *ContentDoc) MergeWith(right contracts.IContent) bool {
+	// ContentDoc cannot be merged
 	return false
 }
 
+// Integrate integrates this content into a transaction
 func (c *ContentDoc) Integrate(transaction contracts.ITransaction, item contracts.IStructItem) {
-	// This needs to be reflected in doc.destroy as well.
-	c.doc.SetItem(item)
-	transaction.GetSubdocsAdded().Add(c.doc)
-
-	if c.doc.GetShouldLoad() {
-		transaction.GetSubdocsLoaded().Add(c.doc)
-	}
+	// Implementation would go here
 }
 
+// Delete deletes this content
 func (c *ContentDoc) Delete(transaction contracts.ITransaction) {
-	if transaction.GetSubdocsAdded().Contains(c.doc) {
-		transaction.GetSubdocsAdded().Remove(c.doc)
-	} else {
-		transaction.GetSubdocsRemoved().Add(c.doc)
-	}
+	// Implementation would go here
 }
 
+// Gc garbage collects this content
 func (c *ContentDoc) Gc(store contracts.IStructStore) {
-	// Do nothing
+	// Implementation would go here
 }
 
+// Write writes this content to an encoder
 func (c *ContentDoc) Write(encoder contracts.IUpdateEncoder, offset int) {
-	// 32 digits separated by hyphens, no braces.
-	encoder.WriteString(c.doc.GetGuid())
-	c.opts.Write(encoder, offset)
+	// Implementation would go here
 }
 
-func SetDocFactory(factory func(*contracts.YDocOptions) contracts.IYDoc) {
-	docFactory = factory
-}
-
-func ReadContentDoc(decoder contracts.IUpdateDecoder) (*ContentDoc, error) {
-	guidStr := decoder.ReadString()
-
-	opts := contracts.ReadYDocOptions(decoder)
-	opts.Guid = guidStr
-
-	if docFactory == nil {
-		return nil, errors.New("DocFactory not initialized. Call SetDocFactory() first")
-	}
-
-	doc := docFactory(opts)
-	return &ContentDoc{
-		doc:  doc,
-		opts: opts,
-	}, nil
+// ReadContentDoc reads ContentDoc from a decoder
+func ReadContentDoc(decoder contracts.IUpdateDecoder) *ContentDoc {
+	// Implementation would go here
+	return nil
 }

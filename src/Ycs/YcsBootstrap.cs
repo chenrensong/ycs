@@ -4,10 +4,9 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-using Ycs.Contracts;
 using Ycs.Content;
+using Ycs.Contracts;
 using Ycs.Core;
-using Ycs.Types;
 
 namespace Ycs
 {
@@ -35,9 +34,9 @@ namespace Ycs
             _contentFactory = new ContentFactory();
             
             // Register all type readers directly here to ensure they are registered
-            _typeReaderRegistry.RegisterTypeReader(0, decoder => Types.YArray.Read(decoder)); // YArray
-            _typeReaderRegistry.RegisterTypeReader(1, decoder => Types.YMap.Read(decoder));   // YMap  
-            _typeReaderRegistry.RegisterTypeReader(2, decoder => Types.YText.Read(decoder));  // YText
+            _typeReaderRegistry.RegisterTypeReader(0, decoder => YArray.Read(decoder)); // YArray
+            _typeReaderRegistry.RegisterTypeReader(1, decoder => YMap.Read(decoder));   // YMap  
+            _typeReaderRegistry.RegisterTypeReader(2, decoder => YText.Read(decoder));  // YText
             
             // Register all content readers
             _contentReaderRegistry.RegisterContentReader(1, decoder => ContentDeleted.Read(decoder));  // Deleted

@@ -1,80 +1,89 @@
-// ------------------------------------------------------------------------------
-//  Copyright (c) Microsoft Corporation.  All rights reserved.
-// ------------------------------------------------------------------------------
-
 package protocols
 
 import (
+	"bytes"
 	"fmt"
-
-	"github.com/chenrensong/ygo/lib0"
-	"github.com/chenrensong/ygo/types"
+	"io"
+	"ycs/core"
+	"ycs/lib0"
 )
 
+// Message type constants for Y.js sync protocol
 const (
-	MessageYjsSyncStep1 uint32 = 0
-	MessageYjsSyncStep2 uint32 = 1
-	MessageYjsUpdate    uint32 = 2
+	MessageYjsSyncStep1 = 0
+	MessageYjsSyncStep2 = 1
+	MessageYjsUpdate    = 2
 )
 
 // WriteSyncStep1 writes sync step 1 message to stream
-func WriteSyncStep1(stream lib0.StreamWriter, doc *types.YDoc) error {
-	if err := lib0.WriteVarUint(stream, MessageYjsSyncStep1); err != nil {
+func WriteSyncStep1(writer io.Writer, doc *core.YDoc) error {
+	streamWriter := writer.(lib0.StreamWriter)
+	if err := lib0.WriteVarUint(streamWriter, MessageYjsSyncStep1); err != nil {
 		return err
 	}
+
 	sv, err := doc.EncodeStateVectorV2()
 	if err != nil {
 		return err
 	}
-	return lib0.WriteVarUint8Array(stream, sv)
+	return lib0.WriteVarUint8Array(streamWriter, sv)
 }
 
 // WriteSyncStep2 writes sync step 2 message to stream
-func WriteSyncStep2(stream lib0.StreamWriter, doc *types.YDoc, encodedStateVector []byte) error {
-	if err := lib0.WriteVarUint(stream, MessageYjsSyncStep2); err != nil {
+func WriteSyncStep2(writer io.Writer, doc *core.YDoc, encodedStateVector []byte) error {
+	streamWriter := writer.(lib0.StreamWriter)
+	if err := lib0.WriteVarUint(streamWriter, MessageYjsSyncStep2); err != nil {
 		return err
 	}
+
 	update, err := doc.EncodeStateAsUpdateV2(encodedStateVector)
 	if err != nil {
 		return err
 	}
-	return lib0.WriteVarUint8Array(stream, update)
+	return lib0.WriteVarUint8Array(streamWriter, update)
 }
 
-// ReadSyncStep1 reads sync step 1 message and writes response
-func ReadSyncStep1(reader lib0.StreamReader, writer lib0.StreamWriter, doc *types.YDoc) error {
-	encodedStateVector, err := lib0.ReadVarUint8Array(reader)
+// ReadSyncStep1 reads sync step 1 message and responds with step 2
+func ReadSyncStep1(reader io.Reader, writer io.Writer, doc *core.YDoc) error {
+	streamReader := reader.(lib0.StreamReader)
+	encodedStateVector, err := lib0.ReadVarUint8Array(streamReader)
 	if err != nil {
 		return err
 	}
+
 	return WriteSyncStep2(writer, doc, encodedStateVector)
 }
 
-// ReadSyncStep2 reads sync step 2 message and applies update
-func ReadSyncStep2(stream lib0.StreamReader, doc *types.YDoc, transactionOrigin interface{}) error {
-	update, err := lib0.ReadVarUint8Array(stream)
+// ReadSyncStep2 reads sync step 2 message and applies update to document
+func ReadSyncStep2(reader io.Reader, doc *core.YDoc, transactionOrigin interface{}) error {
+	streamReader := reader.(lib0.StreamReader)
+	update, err := lib0.ReadVarUint8Array(streamReader)
 	if err != nil {
 		return err
 	}
-	return doc.ApplyUpdateV2Bytes(update, transactionOrigin, false)
+
+	return doc.ApplyUpdateV2(bytes.NewReader(update), transactionOrigin, false)
 }
 
-// WriteUpdate writes update message to stream
-func WriteUpdate(stream lib0.StreamWriter, update []byte) error {
-	if err := lib0.WriteVarUint(stream, MessageYjsUpdate); err != nil {
+// WriteUpdate writes an update message to stream
+func WriteUpdate(writer io.Writer, update []byte) error {
+	streamWriter := writer.(lib0.StreamWriter)
+	if err := lib0.WriteVarUint(streamWriter, MessageYjsUpdate); err != nil {
 		return err
 	}
-	return lib0.WriteVarUint8Array(stream, update)
+
+	return lib0.WriteVarUint8Array(streamWriter, update)
 }
 
-// ReadUpdate reads update message and applies it
-func ReadUpdate(stream lib0.StreamReader, doc *types.YDoc, transactionOrigin interface{}) error {
-	return ReadSyncStep2(stream, doc, transactionOrigin)
+// ReadUpdate reads an update message from stream
+func ReadUpdate(reader io.Reader, doc *core.YDoc, transactionOrigin interface{}) error {
+	return ReadSyncStep2(reader, doc, transactionOrigin)
 }
 
-// ReadSyncMessage reads and processes sync message, returns message type
-func ReadSyncMessage(reader lib0.StreamReader, writer lib0.StreamWriter, doc *types.YDoc, transactionOrigin interface{}) (uint32, error) {
-	messageType, err := lib0.ReadVarUint(reader)
+// ReadSyncMessage reads and processes a sync message, returning the message type
+func ReadSyncMessage(reader io.Reader, writer io.Writer, doc *core.YDoc, transactionOrigin interface{}) (uint32, error) {
+	streamReader := reader.(lib0.StreamReader)
+	messageType, err := lib0.ReadVarUint(streamReader)
 	if err != nil {
 		return 0, err
 	}
@@ -87,11 +96,12 @@ func ReadSyncMessage(reader lib0.StreamReader, writer lib0.StreamWriter, doc *ty
 	case MessageYjsUpdate:
 		err = ReadUpdate(reader, doc, transactionOrigin)
 	default:
-		return 0, fmt.Errorf("unknown message type: %d", messageType)
+		return messageType, fmt.Errorf("unknown message type: %d", messageType)
 	}
 
 	if err != nil {
-		return 0, err
+		return messageType, err
 	}
+
 	return messageType, nil
 }

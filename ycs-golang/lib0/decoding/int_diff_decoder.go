@@ -9,7 +9,7 @@ package decoding
 import (
 	"io"
 
-	"github.com/chenrensong/ygo/lib0"
+	"ycs/lib0"
 )
 
 // IntDiffDecoder decodes integer differences from a stream.
@@ -30,7 +30,13 @@ func NewIntDiffDecoder(stream io.ReadSeekCloser, start int64, leaveOpen bool) *I
 func (d *IntDiffDecoder) Read() (int64, error) {
 	d.CheckDisposed()
 
-	value, _, err := lib0.ReadVarInt(d.Stream().(lib0.StreamReader))
+	// Type assert to StreamReader interface
+	streamReader, ok := d.Stream().(lib0.StreamReader)
+	if !ok {
+		return 0, &lib0.TypeAssertionError{Message: "failed to convert stream to StreamReader"}
+	}
+
+	value, _, err := lib0.ReadVarInt(streamReader)
 	if err != nil {
 		return 0, err
 	}

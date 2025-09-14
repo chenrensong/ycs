@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net9.0</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>latest</LangVersion>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\Ycs.Lib0\Ycs.Lib0.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<InternalsVisibleTo Include="Ycs" />
+		<InternalsVisibleTo Include="Ycs.Contracts" />
+		<InternalsVisibleTo Include="Ycs.Types" />
+	</ItemGroup>
+
+</Project>

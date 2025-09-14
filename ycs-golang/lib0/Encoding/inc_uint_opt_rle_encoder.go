@@ -6,7 +6,9 @@
 
 package encoding
 
-import lib0 "github.com/chenrensong/ygo/lib0"
+import (
+	"ycs/lib0"
+)
 
 // IncUintOptRleEncoder encodes increasing unsigned integers with run-length encoding optimization.
 type IncUintOptRleEncoder struct {
@@ -54,8 +56,13 @@ func (e *IncUintOptRleEncoder) writeEncodedValue() error {
 		return nil
 	}
 
+	writer, err := e.GetWriter()
+	if err != nil {
+		return err
+	}
+
 	if e.count == 1 {
-		if err := lib0.WriteVarInt(e.buffer, int64(e.state), nil); err != nil {
+		if err := lib0.WriteVarInt(writer, int64(e.state), nil); err != nil {
 			return err
 		}
 	} else {
@@ -65,12 +72,12 @@ func (e *IncUintOptRleEncoder) writeEncodedValue() error {
 			// Special case for zero to ensure it's treated as negative
 			negValue = 0
 		}
-		if err := lib0.WriteVarInt(e.buffer, negValue, nil); err != nil {
+		if err := lib0.WriteVarInt(writer, negValue, nil); err != nil {
 			return err
 		}
 
 		// Write count (decremented by 2 as per non-standard encoding)
-		if err := lib0.WriteVarUint(e.buffer, uint32(e.count-2)); err != nil {
+		if err := lib0.WriteVarUint(writer, uint32(e.count-2)); err != nil {
 			return err
 		}
 	}

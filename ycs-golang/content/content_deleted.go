@@ -3,7 +3,7 @@ package content
 import (
 	"errors"
 
-	"github.com/chenrensong/ygo/contracts"
+	"ycs/contracts"
 )
 
 const ContentDeletedRef = 1

@@ -6,7 +6,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Ycs.Core;
-using Ycs.Types;
 
 namespace Ycs
 {

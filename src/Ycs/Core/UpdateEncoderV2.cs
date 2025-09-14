@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using Ycs.Contracts;
 using Ycs.Lib0;
 
@@ -206,7 +207,8 @@ namespace Ycs.Core
 
         public void WriteJson<T>(T any)
         {
-            var jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(any, typeof(T), null);
+            var jsonString = JsonSerializer.Serialize(any, typeof(T), new JsonSerializerOptions());
+            //var jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(any, typeof(T), null);
             RestWriter.WriteVarString(jsonString);
         }
 

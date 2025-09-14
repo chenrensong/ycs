@@ -1,6 +1,8 @@
 package encoding
 
-import lib0 "github.com/chenrensong/ygo/lib0"
+import (
+	"ycs/lib0"
+)
 
 // RleIntDiffEncoder combines IntDiffEncoder and RleEncoder functionality.
 type RleIntDiffEncoder struct {
@@ -26,16 +28,21 @@ func (e *RleIntDiffEncoder) Write(value int64) error {
 	if e.state == value && e.count > 0 {
 		e.count++
 	} else {
+		writer, err := e.GetWriter()
+		if err != nil {
+			return err
+		}
+
 		if e.count > 0 {
 			// Write count (non-standard encoding: count - 1)
-			if err := lib0.WriteVarUint(e.buffer, e.count-1); err != nil {
+			if err := lib0.WriteVarUint(writer, e.count-1); err != nil {
 				return err
 			}
 		}
 
 		// Write difference
 		diff := value - e.state
-		if err := lib0.WriteVarInt(e.buffer, diff, nil); err != nil {
+		if err := lib0.WriteVarInt(writer, diff, nil); err != nil {
 			return err
 		}
 
@@ -48,7 +55,12 @@ func (e *RleIntDiffEncoder) Write(value int64) error {
 // Flush writes any remaining values to the stream.
 func (e *RleIntDiffEncoder) Flush() error {
 	if e.count > 0 {
-		if err := lib0.WriteVarUint(e.buffer, e.count-1); err != nil {
+		writer, err := e.GetWriter()
+		if err != nil {
+			return err
+		}
+
+		if err := lib0.WriteVarUint(writer, e.count-1); err != nil {
 			return err
 		}
 	}

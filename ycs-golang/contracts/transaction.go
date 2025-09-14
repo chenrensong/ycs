@@ -17,6 +17,7 @@ type ITransaction interface {
 	GetSubdocsLoaded() map[IYDoc]struct{}
 	GetSubdocsRemoved() map[IYDoc]struct{}
 	GetMergeStructs() []IStructItem
+	AddMergeStruct(item IStructItem)
 
 	AddChangedTypeToTransaction(abstractType IAbstractType, parentSub string)
 	GetNextID() StructID

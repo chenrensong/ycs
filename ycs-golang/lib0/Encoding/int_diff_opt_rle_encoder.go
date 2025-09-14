@@ -3,7 +3,7 @@ package encoding
 import (
 	"errors"
 
-	lib0 "github.com/chenrensong/ygo/lib0"
+	"ycs/lib0"
 )
 
 const (
@@ -63,6 +63,11 @@ func (e *IntDiffOptRleEncoder) writeEncodedValue() error {
 		return nil
 	}
 
+	writer, err := e.GetWriter()
+	if err != nil {
+		return err
+	}
+
 	var encodedDiff int64
 	var bitFlag uint32
 	if e.count == 1 {
@@ -77,12 +82,12 @@ func (e *IntDiffOptRleEncoder) writeEncodedValue() error {
 		encodedDiff = int64((uint32(e.diff) << 1) | bitFlag)
 	}
 
-	if err := lib0.WriteVarInt(e.buffer, encodedDiff, nil); err != nil {
+	if err := lib0.WriteVarInt(writer, encodedDiff, nil); err != nil {
 		return err
 	}
 
 	if e.count > 1 {
-		if err := lib0.WriteVarUint(e.buffer, uint32(e.count-2)); err != nil {
+		if err := lib0.WriteVarUint(writer, uint32(e.count-2)); err != nil {
 			return err
 		}
 	}

@@ -4,9 +4,6 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-using System;
-using System.Collections.Generic;
-
 namespace Ycs.Contracts
 {
     public class YDocOptions

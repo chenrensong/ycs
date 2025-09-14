@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30611.23
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36127.28
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ycs", "src\Ycs\Ycs.csproj", "{DFF8A62E-F42A-4974-A9E5-7B180C989762}"
 EndProject
@@ -10,6 +10,12 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YcsSample", "samples\YcsSample\YcsSample.csproj", "{83B32035-B539-4CFC-BA34-E2568BE0918D}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ycs.Benchmarks", "tests\Ycs.Benchmarks\Ycs.Benchmarks.csproj", "{DDBA8F8C-A8D3-4C23-A36B-C2DD0BBAB10C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ycs.Content", "src\Ycs.Content\Ycs.Content.csproj", "{932A0EB7-53A6-7B5A-0E9C-81C65D802B72}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ycs.Contracts", "src\Ycs.Contracts\Ycs.Contracts.csproj", "{AEDD87D4-599E-5238-76ED-C7933F2D26CF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ycs.Lib0", "src\Ycs.Lib0\Ycs.Lib0.csproj", "{72016331-0C55-118A-C042-6C88DEE645D9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +39,18 @@ Global
 		{DDBA8F8C-A8D3-4C23-A36B-C2DD0BBAB10C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DDBA8F8C-A8D3-4C23-A36B-C2DD0BBAB10C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DDBA8F8C-A8D3-4C23-A36B-C2DD0BBAB10C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{932A0EB7-53A6-7B5A-0E9C-81C65D802B72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{932A0EB7-53A6-7B5A-0E9C-81C65D802B72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{932A0EB7-53A6-7B5A-0E9C-81C65D802B72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{932A0EB7-53A6-7B5A-0E9C-81C65D802B72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEDD87D4-599E-5238-76ED-C7933F2D26CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEDD87D4-599E-5238-76ED-C7933F2D26CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEDD87D4-599E-5238-76ED-C7933F2D26CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEDD87D4-599E-5238-76ED-C7933F2D26CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72016331-0C55-118A-C042-6C88DEE645D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72016331-0C55-118A-C042-6C88DEE645D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72016331-0C55-118A-C042-6C88DEE645D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72016331-0C55-118A-C042-6C88DEE645D9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

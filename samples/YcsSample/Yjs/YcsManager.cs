@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Ycs.Types;
+using Ycs.Core;
 using YcsSample.Middleware;
 
 namespace YcsSample.Yjs

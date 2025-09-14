@@ -9,6 +9,7 @@ package lib0
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"unicode/utf8"
@@ -19,6 +20,15 @@ var (
 	ErrEndOfStream       = errors.New("end of stream reached")
 	ErrUnknownObjectType = errors.New("unknown object type")
 )
+
+// TypeAssertionError represents an error when type assertion fails
+type TypeAssertionError struct {
+	Message string
+}
+
+func (e *TypeAssertionError) Error() string {
+	return fmt.Sprintf("TypeAssertionError: %s", e.Message)
+}
 
 // StreamReader is an interface that extends io.Reader with additional methods
 type StreamReader interface {
@@ -202,33 +212,39 @@ func ReadAny(reader StreamReader) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		arr := make([]interface{}, length)
-		for i := range arr {
-			val, err := ReadAny(reader)
+
+		array := make([]interface{}, length)
+		for i := uint32(0); i < length; i++ {
+			item, err := ReadAny(reader)
 			if err != nil {
 				return nil, err
 			}
-			arr[i] = val
+			array[i] = item
 		}
-		return arr, nil
-	case 118: // object (map[string]interface{})
+		return array, nil
+
+	case 118: // Dictionary<string, object>
 		length, err := ReadVarUint(reader)
 		if err != nil {
 			return nil, err
 		}
-		obj := make(map[string]interface{}, length)
-		for i := 0; i < int(length); i++ {
+
+		dict := make(map[string]interface{})
+		for i := uint32(0); i < length; i++ {
 			key, err := ReadVarString(reader)
 			if err != nil {
 				return nil, err
 			}
-			val, err := ReadAny(reader)
+
+			value, err := ReadAny(reader)
 			if err != nil {
 				return nil, err
 			}
-			obj[key] = val
+
+			dict[key] = value
 		}
-		return obj, nil
+		return dict, nil
+
 	default:
 		return nil, ErrUnknownObjectType
 	}

@@ -2,7 +2,14 @@ package encoding
 
 import (
 	"bytes"
+	"io"
 )
+
+// StreamWriter is an interface that extends io.Writer with additional methods
+type StreamWriter interface {
+	io.Writer
+	io.ByteWriter
+}
 
 // AbstractStreamEncoder is an abstract base class for stream encoders.
 type AbstractStreamEncoder[T any] struct {
@@ -37,6 +44,14 @@ func (e *AbstractStreamEncoder[T]) GetBuffer() ([]byte, int, error) {
 		return nil, 0, err
 	}
 	return e.buffer.Bytes(), e.buffer.Len(), nil
+}
+
+// GetWriter returns the underlying buffer as a StreamWriter for derived classes.
+func (e *AbstractStreamEncoder[T]) GetWriter() (StreamWriter, error) {
+	if err := e.CheckDisposed(); err != nil {
+		return nil, err
+	}
+	return e.buffer, nil
 }
 
 // Dispose releases the resources used by the encoder.

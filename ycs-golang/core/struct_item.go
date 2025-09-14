@@ -1,51 +1,36 @@
-// ------------------------------------------------------------------------------
-//  <copyright company="Microsoft Corporation">
-//      Copyright (c) Microsoft Corporation.  All rights reserved.
-//  </copyright>
-// ------------------------------------------------------------------------------
-
 package core
 
 import (
-	"github.com/chenrensong/ygo/contracts"
+	"ycs/contracts"
 )
 
-// InfoEnum flags for StructItem
-type InfoEnum int
+// InfoFlags represents the bit flags for struct item properties
+type InfoFlags int
 
 const (
-	Keep      InfoEnum = 1 << 0
-	Countable InfoEnum = 1 << 1
-	Deleted   InfoEnum = 1 << 2
-	Marker    InfoEnum = 1 << 3
+	InfoKeep      InfoFlags = 1 << 0
+	InfoCountable InfoFlags = 1 << 1
+	InfoDeleted   InfoFlags = 1 << 2
+	InfoMarker    InfoFlags = 1 << 3
 )
 
-// StructItem represents a structure item
+// StructItem represents the main struct item implementation
 type StructItem struct {
-	id          contracts.StructID
-	leftOrigin  *contracts.StructID
+	id          StructID
+	length      int
+	leftOrigin  *StructID
 	left        contracts.IStructItem
-	rightOrigin *contracts.StructID
+	rightOrigin *StructID
 	right       contracts.IStructItem
 	parent      interface{}
-	parentSub   string
-	redone      *contracts.StructID
+	parentSub   *string
+	redone      *StructID
 	content     contracts.IContent
-	info        InfoEnum
-	length      int
+	info        InfoFlags
 }
 
 // NewStructItem creates a new StructItem
-func NewStructItem(
-	id contracts.StructID,
-	left contracts.IStructItem,
-	leftOrigin *contracts.StructID,
-	right contracts.IStructItem,
-	rightOrigin *contracts.StructID,
-	parent interface{},
-	parentSub string,
-	content contracts.IContent,
-) *StructItem {
+func NewStructItem(id StructID, left contracts.IStructItem, leftOrigin *StructID, right contracts.IStructItem, rightOrigin *StructID, parent interface{}, parentSub *string, content contracts.IContent) *StructItem {
 	item := &StructItem{
 		id:          id,
 		length:      content.GetLength(),
@@ -57,27 +42,43 @@ func NewStructItem(
 		parentSub:   parentSub,
 		redone:      nil,
 		content:     content,
+		info:        0,
 	}
 
-	if content.GetCountable() {
-		item.info |= Countable
+	if content.IsCountable() {
+		item.info |= InfoCountable
 	}
 
 	return item
 }
 
-// GetID returns the ID
-func (si *StructItem) GetID() contracts.StructID {
+// GetID returns the struct ID
+func (si *StructItem) GetID() StructID {
 	return si.id
 }
 
+// SetID sets the struct ID
+func (si *StructItem) SetID(id StructID) {
+	si.id = id
+}
+
+// GetLength returns the length
+func (si *StructItem) GetLength() int {
+	return si.length
+}
+
+// SetLength sets the length
+func (si *StructItem) SetLength(length int) {
+	si.length = length
+}
+
 // GetLeftOrigin returns the left origin
-func (si *StructItem) GetLeftOrigin() *contracts.StructID {
+func (si *StructItem) GetLeftOrigin() *StructID {
 	return si.leftOrigin
 }
 
 // SetLeftOrigin sets the left origin
-func (si *StructItem) SetLeftOrigin(leftOrigin *contracts.StructID) {
+func (si *StructItem) SetLeftOrigin(leftOrigin *StructID) {
 	si.leftOrigin = leftOrigin
 }
 
@@ -92,12 +93,12 @@ func (si *StructItem) SetLeft(left contracts.IStructItem) {
 }
 
 // GetRightOrigin returns the right origin
-func (si *StructItem) GetRightOrigin() *contracts.StructID {
+func (si *StructItem) GetRightOrigin() *StructID {
 	return si.rightOrigin
 }
 
 // SetRightOrigin sets the right origin
-func (si *StructItem) SetRightOrigin(rightOrigin *contracts.StructID) {
+func (si *StructItem) SetRightOrigin(rightOrigin *StructID) {
 	si.rightOrigin = rightOrigin
 }
 
@@ -121,32 +122,29 @@ func (si *StructItem) SetParent(parent interface{}) {
 	si.parent = parent
 }
 
-// GetParentSub returns the parent sub
-func (si *StructItem) GetParentSub() string {
+// GetParentSub returns the parent sub key
+func (si *StructItem) GetParentSub() *string {
 	return si.parentSub
 }
 
-// SetParentSub sets the parent sub
-func (si *StructItem) SetParentSub(parentSub string) {
+// SetParentSub sets the parent sub key
+func (si *StructItem) SetParentSub(parentSub *string) {
 	si.parentSub = parentSub
 }
 
 // GetRedone returns the redone ID
-func (si *StructItem) GetRedone() *contracts.StructID {
+func (si *StructItem) GetRedone() *StructID {
 	return si.redone
 }
 
 // SetRedone sets the redone ID
-func (si *StructItem) SetRedone(redone *contracts.StructID) {
+func (si *StructItem) SetRedone(redone *StructID) {
 	si.redone = redone
 }
 
 // GetContent returns the content
-func (si *StructItem) GetContent() contracts.IContentEx {
-	if contentEx, ok := si.content.(contracts.IContentEx); ok {
-		return contentEx
-	}
-	return nil
+func (si *StructItem) GetContent() contracts.IContent {
+	return si.content
 }
 
 // SetContent sets the content
@@ -154,148 +152,508 @@ func (si *StructItem) SetContent(content contracts.IContent) {
 	si.content = content
 }
 
-// GetMarker returns the marker flag
-func (si *StructItem) GetMarker() bool {
-	return si.info&Marker != 0
+// IsMarker returns whether this is a marker item
+func (si *StructItem) IsMarker() bool {
+	return si.info&InfoMarker != 0
 }
 
 // SetMarker sets the marker flag
-func (si *StructItem) SetMarker(value bool) {
-	if value {
-		si.info |= Marker
+func (si *StructItem) SetMarker(marker bool) {
+	if marker {
+		si.info |= InfoMarker
 	} else {
-		si.info &= ^Marker
+		si.info &^= InfoMarker
 	}
 }
 
-// GetKeep returns the keep flag
-func (si *StructItem) GetKeep() bool {
-	return si.info&Keep != 0
+// IsKeep returns whether this item should be kept (not garbage collected)
+func (si *StructItem) IsKeep() bool {
+	return si.info&InfoKeep != 0
 }
 
 // SetKeep sets the keep flag
-func (si *StructItem) SetKeep(value bool) {
-	if value {
-		si.info |= Keep
+func (si *StructItem) SetKeep(keep bool) {
+	if keep {
+		si.info |= InfoKeep
 	} else {
-		si.info &= ^Keep
+		si.info &^= InfoKeep
 	}
 }
 
-// GetCountable returns the countable flag
-func (si *StructItem) GetCountable() bool {
-	return si.info&Countable != 0
+// IsCountable returns whether this item is countable
+func (si *StructItem) IsCountable() bool {
+	return si.info&InfoCountable != 0
 }
 
-// GetDeleted returns the deleted flag
-func (si *StructItem) GetDeleted() bool {
-	return si.info&Deleted != 0
-}
-
-// SetDeleted sets the deleted flag
-func (si *StructItem) SetDeleted(value bool) {
-	if value {
-		si.info |= Deleted
+// SetCountable sets the countable flag
+func (si *StructItem) SetCountable(countable bool) {
+	if countable {
+		si.info |= InfoCountable
 	} else {
-		si.info &= ^Deleted
+		si.info &^= InfoCountable
 	}
 }
 
-// GetLength returns the length
-func (si *StructItem) GetLength() int {
-	return si.length
+// IsDeleted returns whether this item is deleted
+func (si *StructItem) IsDeleted() bool {
+	return si.info&InfoDeleted != 0
 }
 
-// SetLength sets the length
-func (si *StructItem) SetLength(length int) {
-	si.length = length
+// IsGC returns false since this is not a GC struct
+func (si *StructItem) IsGC() bool {
+	return false
 }
 
-// GetLastID returns the last ID
-func (si *StructItem) GetLastID() contracts.StructID {
+// GetLastID returns the last ID of this item
+func (si *StructItem) GetLastID() *StructID {
 	if si.length == 1 {
-		return si.id
+		return &si.id
 	}
-	return contracts.StructID{
+	lastID := StructID{
 		Client: si.id.Client,
 		Clock:  si.id.Clock + int64(si.length) - 1,
 	}
+	return &lastID
 }
 
-// Delete marks the item as deleted
+// GetNext returns the next non-deleted item
+func (si *StructItem) GetNext() contracts.IStructItem {
+	n := si.right
+	for n != nil && n.IsDeleted() {
+		n = n.GetRight()
+	}
+	return n
+}
+
+// GetPrev returns the previous non-deleted item
+func (si *StructItem) GetPrev() contracts.IStructItem {
+	n := si.left
+	for n != nil && n.IsDeleted() {
+		n = n.GetLeft()
+	}
+	return n
+}
+
+// MarkDeleted marks this item as deleted
+func (si *StructItem) MarkDeleted() {
+	si.info |= InfoDeleted
+}
+
+// TryToMergeWithRight tries to merge this item with the right item
+func (si *StructItem) TryToMergeWithRight(right contracts.IStructItem) bool {
+	rightItem, ok := right.(*StructItem)
+	if !ok {
+		return false
+	}
+
+	// Check if merge conditions are met
+	if structIDEquals(rightItem.GetLeftOrigin(), si.GetLastID()) &&
+		si.right == right &&
+		structIDEquals(rightItem.GetRightOrigin(), si.rightOrigin) &&
+		si.id.Client == right.GetID().Client &&
+		si.id.Clock+int64(si.length) == right.GetID().Clock &&
+		si.IsDeleted() == right.IsDeleted() &&
+		si.redone == nil &&
+		rightItem.redone == nil &&
+		si.content.CanMergeWith(rightItem.content) &&
+		si.content.MergeWith(rightItem.content) {
+
+		if rightItem.IsKeep() {
+			si.SetKeep(true)
+		}
+
+		si.right = rightItem.right
+		if si.right != nil {
+			si.right.SetLeft(si)
+		}
+
+		si.length += rightItem.length
+		return true
+	}
+
+	return false
+}
+
+// Delete marks this item as deleted
 func (si *StructItem) Delete(transaction contracts.ITransaction) {
-	if !si.GetDeleted() {
-		parent := si.GetParent()
-		if abstractType, ok := parent.(contracts.IAbstractType); ok {
-			// Remove from parent's map if it has a parentSub
-			if si.parentSub != "" {
-				delete(abstractType.GetMap(), si.parentSub)
+	if !si.IsDeleted() {
+		if parent, ok := si.parent.(contracts.IAbstractType); ok {
+			if si.IsCountable() && si.parentSub == nil {
+				parent.SetLength(parent.GetLength() - si.length)
 			}
 		}
-		si.SetDeleted(true)
+
+		si.MarkDeleted()
 		transaction.GetDeleteSet().Add(si.id.Client, si.id.Clock, int64(si.length))
+
+		if parent, ok := si.parent.(contracts.IAbstractType); ok {
+			parentSub := ""
+			if si.parentSub != nil {
+				parentSub = *si.parentSub
+			}
+			transaction.AddChangedTypeToTransaction(parent, parentSub)
+		}
+
+		si.content.Delete(transaction)
 	}
 }
 
-// Gc garbage collects the item
-func (si *StructItem) Gc(store contracts.IStructStore, parentGCd bool) {
-	if !si.GetDeleted() && !si.GetKeep() {
-		si.content = nil
-	}
-}
-
-// IsVisible checks if the item is visible in a snapshot
-func (si *StructItem) IsVisible(snapshot contracts.ISnapshot) bool {
-	stateVector := snapshot.GetStateVector()
-	clientState, exists := stateVector[si.id.Client]
-	return exists && si.id.Clock < clientState && !si.GetDeleted()
-}
-
-// Integrate integrates the item into the document structure
+// Integrate integrates this item into the document
 func (si *StructItem) Integrate(transaction contracts.ITransaction, offset int) {
-	doc := transaction.GetDoc()
-	store := doc.GetStore()
+	if offset > 0 {
+		si.id = StructID{
+			Client: si.id.Client,
+			Clock:  si.id.Clock + int64(offset),
+		}
+
+		leftID := StructID{
+			Client: si.id.Client,
+			Clock:  si.id.Clock - 1,
+		}
+
+		var err error
+		si.left, err = transaction.GetDoc().GetStore().GetItemCleanEnd(transaction, leftID)
+		if err != nil {
+			// Handle error appropriately
+			si.left = nil
+		}
+
+		if si.left != nil {
+			si.leftOrigin = si.left.GetLastID()
+		}
+
+		si.content = si.content.Splice(offset)
+		si.length -= offset
+	}
+
+	if si.parent != nil {
+		si.integrateIntoParent(transaction)
+	} else {
+		// Parent is not defined. Integrate GC struct instead
+		gcStruct := NewStructGC(si.id, si.length)
+		gcStruct.Integrate(transaction, 0)
+		return
+	}
 
 	// Add to store
-	store.AddStruct(si)
+	transaction.GetDoc().GetStore().AddStruct(si)
 
-	// Handle parent integration
-	parent := si.GetParent()
-	if abstractType, ok := parent.(contracts.IAbstractType); ok {
-		if si.parentSub != "" {
-			// Map integration
-			abstractType.GetMap()[si.parentSub] = si
-		} else {
-			// List integration
-			if abstractType.GetStart() == nil {
-				abstractType.SetStart(si)
-			} else {
-				// Find insertion point and update left/right links
-				si.IntegrateIntoList(abstractType)
-			}
+	// Integrate content
+	si.content.Integrate(transaction, si)
+
+	// Add parent to transaction.changed
+	if parent, ok := si.parent.(contracts.IAbstractType); ok {
+		parentSub := ""
+		if si.parentSub != nil {
+			parentSub = *si.parentSub
 		}
+		transaction.AddChangedTypeToTransaction(parent, parentSub)
 
-		// Integrate content if it's a type
-		if contentType, ok := si.content.(interface {
-			GetType() contracts.IAbstractType
-		}); ok {
-			contentType.GetType().Integrate(doc, si)
+		// Delete if parent is deleted or if this is not the current attribute value of parent
+		if (parent.GetItem() != nil && parent.GetItem().IsDeleted()) ||
+			(si.parentSub != nil && si.right != nil) {
+			si.Delete(transaction)
 		}
 	}
 }
 
-// IntegrateIntoList integrates the item into a list structure
-func (si *StructItem) IntegrateIntoList(parent contracts.IAbstractType) {
-	// This is a simplified version - full implementation would handle conflict resolution
-	if parent.GetStart() == nil {
-		parent.SetStart(si)
-	} else {
-		// Find the correct position based on left/right origins
-		current := parent.GetStart()
-		for current.GetRight() != nil {
-			current = current.GetRight()
+// integrateIntoParent handles the complex integration logic into parent
+func (si *StructItem) integrateIntoParent(transaction contracts.ITransaction) {
+	// Check if we need to find the correct position
+	if (si.left == nil && (si.right == nil || si.right.GetLeft() != nil)) ||
+		(si.left != nil && si.left.GetRight() != si.right) {
+
+		var left contracts.IStructItem = si.left
+		var o contracts.IStructItem
+
+		// Set 'o' to the first conflicting item
+		if left != nil {
+			o = left.GetRight()
+		} else if si.parentSub != nil {
+			if parent, ok := si.parent.(contracts.IAbstractType); ok {
+				parentMap := parent.GetMap()
+				if item, exists := parentMap[*si.parentSub]; exists {
+					o = item
+					for o != nil && o.GetLeft() != nil {
+						o = o.GetLeft()
+					}
+				}
+			}
+		} else {
+			if parent, ok := si.parent.(contracts.IAbstractType); ok {
+				o = parent.GetStart()
+			}
 		}
-		current.SetRight(si)
-		si.SetLeft(current)
+
+		conflictingItems := make(map[contracts.IStructItem]struct{})
+		itemsBeforeOrigin := make(map[contracts.IStructItem]struct{})
+
+		for o != nil && o != si.right {
+			itemsBeforeOrigin[o] = struct{}{}
+			conflictingItems[o] = struct{}{}
+
+			if structIDEquals(si.leftOrigin, o.GetLeftOrigin()) {
+				// Case 1
+				if o.GetID().Client < si.id.Client {
+					left = o
+					conflictingItems = make(map[contracts.IStructItem]struct{})
+				} else if structIDEquals(si.rightOrigin, o.GetRightOrigin()) {
+					// This and 'o' are conflicting and point to the same integration points
+					// The id decides which item comes first
+					break
+				}
+			} else if o.GetLeftOrigin() != nil {
+				leftOriginItem, err := transaction.GetDoc().GetStore().Find(*o.GetLeftOrigin())
+				if err == nil && leftOriginItem != nil {
+					if _, exists := itemsBeforeOrigin[leftOriginItem]; exists {
+						// Case 2
+						if _, conflicts := conflictingItems[leftOriginItem]; !conflicts {
+							left = o
+							conflictingItems = make(map[contracts.IStructItem]struct{})
+						}
+					}
+				}
+			} else {
+				break
+			}
+
+			o = o.GetRight()
+		}
+
+		si.left = left
 	}
+
+	// Reconnect left/right + update parent map/start if necessary
+	if si.left != nil {
+		right := si.left.GetRight()
+		si.right = right
+		si.left.SetRight(si)
+	} else {
+		var r contracts.IStructItem
+
+		if si.parentSub != nil {
+			if parent, ok := si.parent.(contracts.IAbstractType); ok {
+				parentMap := parent.GetMap()
+				if item, exists := parentMap[*si.parentSub]; exists {
+					r = item
+					for r != nil && r.GetLeft() != nil {
+						r = r.GetLeft()
+					}
+				}
+			}
+		} else {
+			if parent, ok := si.parent.(contracts.IAbstractType); ok {
+				r = parent.GetStart()
+				parent.SetStart(si)
+			}
+		}
+
+		si.right = r
+	}
+
+	if si.right != nil {
+		si.right.SetLeft(si)
+	} else if si.parentSub != nil {
+		// Set as current parent value if right == nil and this is parentSub
+		if parent, ok := si.parent.(contracts.IAbstractType); ok {
+			parentMap := parent.GetMap()
+			parentMap[*si.parentSub] = si
+			// This is the current attribute value of parent. Delete left.
+			if si.left != nil {
+				si.left.Delete(transaction)
+			}
+		}
+	}
+
+	// Adjust length of parent
+	if si.parentSub == nil && si.IsCountable() && !si.IsDeleted() {
+		if parent, ok := si.parent.(contracts.IAbstractType); ok {
+			parent.SetLength(parent.GetLength() + si.length)
+		}
+	}
+}
+
+// GetMissing returns the creator ClientID of the missing OP or defines missing items and returns nil
+func (si *StructItem) GetMissing(transaction contracts.ITransaction, store contracts.IStructStore) *int64 {
+	if si.leftOrigin != nil && si.leftOrigin.Client != si.id.Client && si.leftOrigin.Clock >= store.GetState(si.leftOrigin.Client) {
+		return &si.leftOrigin.Client
+	}
+
+	if si.rightOrigin != nil && si.rightOrigin.Client != si.id.Client && si.rightOrigin.Clock >= store.GetState(si.rightOrigin.Client) {
+		return &si.rightOrigin.Client
+	}
+
+	if parentID, ok := si.parent.(StructID); ok && si.id.Client != parentID.Client && parentID.Clock >= store.GetState(parentID.Client) {
+		return &parentID.Client
+	}
+
+	// We have all missing ids, now find the items
+	if si.leftOrigin != nil {
+		var err error
+		si.left, err = store.GetItemCleanEnd(transaction, *si.leftOrigin)
+		if err == nil && si.left != nil {
+			si.leftOrigin = si.left.GetLastID()
+		}
+	}
+
+	if si.rightOrigin != nil {
+		var err error
+		si.right, err = store.GetItemCleanStart(transaction, *si.rightOrigin)
+		if err == nil && si.right != nil {
+			si.rightOrigin = &si.right.GetID()
+		}
+	}
+
+	if parentID, ok := si.parent.(StructID); ok {
+		si.parent, _ = store.Find(parentID)
+	}
+
+	return nil
+}
+
+// Write writes this item to an encoder
+func (si *StructItem) Write(encoder contracts.IUpdateEncoder, offset int) error {
+	origin := si.id.Client
+	hasLeftOrigin := si.leftOrigin != nil
+	hasRightOrigin := si.rightOrigin != nil
+	hasParentYKey := false
+	hasParentSub := si.parentSub != nil
+
+	// Determine parent info
+	var parentYKey *string
+	if si.parent != nil {
+		if _, isStructID := si.parent.(StructID); !isStructID {
+			if parent, ok := si.parent.(contracts.IAbstractType); ok {
+				key := parent.FindRootTypeKey()
+				parentYKey = &key
+				hasParentYKey = true
+			}
+		}
+	}
+
+	// Calculate info byte
+	info := si.content.GetRef()
+	if hasLeftOrigin {
+		info |= 0x80 // Bit8
+	}
+	if hasRightOrigin {
+		info |= 0x40 // Bit7
+	}
+	if hasParentSub {
+		info |= 0x20 // Bit6
+	}
+
+	encoder.WriteInfo(info)
+
+	if hasLeftOrigin {
+		encoder.WriteLeftID(*si.leftOrigin)
+	}
+	if hasRightOrigin {
+		encoder.WriteRightID(*si.rightOrigin)
+	}
+
+	if (info & (0x40 | 0x80)) == 0 {
+		encoder.WriteParentInfo(hasParentYKey)
+		if hasParentYKey {
+			encoder.WriteString(*parentYKey)
+		} else if !hasParentYKey {
+			if parentID, ok := si.parent.(StructID); ok {
+				encoder.WriteLeftID(parentID)
+			}
+		}
+	}
+
+	if hasParentSub {
+		encoder.WriteString(*si.parentSub)
+	}
+
+	return si.content.Write(encoder, offset)
+}
+
+// IsVisible returns whether this item is visible in a snapshot
+func (si *StructItem) IsVisible(snapshot contracts.ISnapshot) bool {
+	stateVector := snapshot.GetStateVector()
+	clientClock, exists := stateVector[si.id.Client]
+	return exists && si.id.Clock < clientClock && !snapshot.GetDeleteSet().IsDeleted(si.id)
+}
+
+// KeepItemAndParents marks this item and its parents as kept (not to be garbage collected)
+func (si *StructItem) KeepItemAndParents(keep bool) {
+	var item contracts.IStructItem = si
+	for item != nil && item.IsKeep() != keep {
+		item.SetKeep(keep)
+		if parent, ok := item.GetParent().(contracts.IAbstractType); ok {
+			item = parent.GetItem()
+		} else {
+			break
+		}
+	}
+}
+
+// SplitItem splits this item at the given difference
+func (si *StructItem) SplitItem(transaction contracts.ITransaction, diff int) contracts.IStructItem {
+	if diff == 0 {
+		return si
+	}
+
+	rightID := StructID{
+		Client: si.id.Client,
+		Clock:  si.id.Clock + int64(diff),
+	}
+
+	rightContent := si.content.Splice(diff)
+	rightItem := NewStructItem(
+		rightID,
+		si,
+		si.GetLastID(),
+		si.right,
+		si.rightOrigin,
+		si.parent,
+		si.parentSub,
+		rightContent,
+	)
+
+	if si.IsDeleted() {
+		rightItem.MarkDeleted()
+	}
+
+	if si.IsKeep() {
+		rightItem.SetKeep(true)
+	}
+
+	if si.redone != nil {
+		rightRedone := StructID{
+			Client: si.redone.Client,
+			Clock:  si.redone.Clock + int64(diff),
+		}
+		rightItem.redone = &rightRedone
+	}
+
+	// Update connections
+	si.right = rightItem
+	if rightItem.right != nil {
+		rightItem.right.SetLeft(rightItem)
+	}
+	si.rightOrigin = &rightID
+	si.length = diff
+
+	return rightItem
+}
+
+// Gc performs garbage collection on this item
+func (si *StructItem) Gc(store contracts.IStructStore, parentGCd bool) {
+	if !si.IsDeleted() && !si.IsKeep() {
+		si.content.Gc(store)
+	}
+}
+
+// Helper function to compare StructID pointers
+func structIDEquals(a, b *StructID) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Client == b.Client && a.Clock == b.Clock
 }

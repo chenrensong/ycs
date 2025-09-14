@@ -26,4 +26,5 @@ type IUpdateDecoder interface {
 	ReadBuffer() []byte
 	ReadKey() string
 	ReadJSON() interface{}
+	ReadEmbed() interface{} // Add missing method
 }

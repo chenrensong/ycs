@@ -4,12 +4,9 @@
 //  </copyright>
 // ------------------------------------------------------------------------------
 
-using System;
 using Ycs.Contracts;
-using Ycs.Content;
-using Ycs.Types;
 
-namespace Ycs.Core
+namespace Ycs.Content
 {
     /// <summary>
     /// Default implementation of content factory
@@ -23,7 +20,7 @@ namespace Ycs.Core
         
         public IContent CreateContentDoc(object doc)
         {
-            if (doc is YDoc yDoc)
+            if (doc is IYDoc yDoc)
             {
                 return new ContentDoc(yDoc);
             }
@@ -64,9 +61,9 @@ namespace Ycs.Core
             }
             switch (value)
             {
-                case YDoc d:
+                case IYDoc d:
                     return CreateContentDoc(d);
-                case AbstractType at:
+                case IAbstractType at:
                     return CreateContentType(at);
                 case byte[] ba:
                     return CreateContentBinary(ba);

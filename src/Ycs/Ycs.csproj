@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+		<TargetFrameworks>net9.0</TargetFrameworks>
 		<OutputType>Library</OutputType>
 		<Company>Microsoft</Company>
 		<Version>0.0.1</Version>
@@ -25,7 +25,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<InternalsVisibleTo Include="Ycs.Benchmarks" />
 		<InternalsVisibleTo Include="Ycs.Tests" />
 	</ItemGroup>
@@ -35,6 +34,12 @@
 			<Pack>True</Pack>
 			<PackagePath></PackagePath>
 		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\Ycs.Content\Ycs.Content.csproj" />
+	  <ProjectReference Include="..\Ycs.Contracts\Ycs.Contracts.csproj" />
+	  <ProjectReference Include="..\Ycs.Lib0\Ycs.Lib0.csproj" />
 	</ItemGroup>
 
 </Project>

@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Ycs.Contracts;
 
-namespace Ycs.Types
+namespace Ycs.Core
 {
 
     public class YEvent : IYEvent

@@ -8,7 +8,7 @@ using System;
 using System.Collections.Generic;
 using Ycs.Contracts;
 
-namespace Ycs.Core
+namespace Ycs.Content
 {
     /// <summary>
     /// Default implementation of content reader registry

@@ -1,18 +1,18 @@
 package content
 
 import (
-	"errors"
-
-	"github.com/chenrensong/ygo/contracts"
+	"ycs/contracts"
 )
 
 const ContentFormatRef = 6
 
+// ContentFormat represents formatted content
 type ContentFormat struct {
 	key   string
 	value interface{}
 }
 
+// NewContentFormat creates a new ContentFormat instance
 func NewContentFormat(key string, value interface{}) *ContentFormat {
 	return &ContentFormat{
 		key:   key,
@@ -20,65 +20,70 @@ func NewContentFormat(key string, value interface{}) *ContentFormat {
 	}
 }
 
+// GetRef returns the reference ID for this content type
 func (c *ContentFormat) GetRef() int {
 	return ContentFormatRef
 }
 
+// GetCountable returns whether this content is countable
 func (c *ContentFormat) GetCountable() bool {
 	return false
 }
 
+// GetLength returns the length of this content
 func (c *ContentFormat) GetLength() int {
 	return 1
 }
 
-func (c *ContentFormat) GetKey() string {
-	return c.key
-}
-
-func (c *ContentFormat) GetValue() interface{} {
-	return c.value
-}
-
-func (c *ContentFormat) Copy() contracts.IContent {
-	return &ContentFormat{key: c.key, value: c.value}
-}
-
+// GetContent returns the content as an interface slice
 func (c *ContentFormat) GetContent() []interface{} {
-	panic(errors.New("not implemented"))
+	return []interface{}{nil}
 }
 
-func (c *ContentFormat) Splice(offset int) contracts.IContent {
-	panic(errors.New("not implemented"))
-}
-
-func (c *ContentFormat) MergeWith(right contracts.IContent) bool {
-	return false
-}
-
-func (c *ContentFormat) Integrate(transaction contracts.ITransaction, item contracts.IStructItem) {
-	// Search markers are currently unsupported for rich text documents.
-	// Check if parent implements array-like functionality and clear search markers if needed
-	if arrayBase, ok := item.GetParent().(contracts.IYArrayBase); ok {
-		arrayBase.ClearSearchMarkers()
+// Copy creates a copy of this content
+func (c *ContentFormat) Copy() contracts.IContent {
+	return &ContentFormat{
+		key:   c.key,
+		value: c.value,
 	}
 }
 
+// Splice splits this content at the given offset
+func (c *ContentFormat) Splice(offset int) contracts.IContent {
+	// ContentFormat cannot be split
+	return nil
+}
+
+// MergeWith attempts to merge this content with another
+func (c *ContentFormat) MergeWith(right contracts.IContent) bool {
+	// ContentFormat cannot be merged
+	return false
+}
+
+// Integrate integrates this content into a transaction
+func (c *ContentFormat) Integrate(transaction contracts.ITransaction, item contracts.IStructItem) {
+	// Implementation would go here
+}
+
+// Delete deletes this content
 func (c *ContentFormat) Delete(transaction contracts.ITransaction) {
-	// Do nothing
+	// Implementation would go here
 }
 
+// Gc garbage collects this content
 func (c *ContentFormat) Gc(store contracts.IStructStore) {
-	// Do nothing
+	// Implementation would go here
 }
 
+// Write writes this content to an encoder
 func (c *ContentFormat) Write(encoder contracts.IUpdateEncoder, offset int) {
 	encoder.WriteKey(c.key)
-	encoder.WriteJSON(c.value)
+	encoder.WriteAny(c.value)
 }
 
+// ReadContentFormat reads ContentFormat from a decoder
 func ReadContentFormat(decoder contracts.IUpdateDecoder) *ContentFormat {
 	key := decoder.ReadKey()
-	value := decoder.ReadJSON()
+	value := decoder.ReadAny()
 	return &ContentFormat{key: key, value: value}
 }

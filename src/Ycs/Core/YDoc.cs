@@ -11,9 +11,8 @@ using System.IO;
 using System.Linq;
 using Ycs.Content;
 using Ycs.Contracts;
-using Ycs.Core;
 
-namespace Ycs.Types
+namespace Ycs.Core
 {
 
     /// <summary>

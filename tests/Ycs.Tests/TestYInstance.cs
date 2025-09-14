@@ -7,8 +7,8 @@
 using System.Collections.Generic;
 using System.IO;
 using Ycs.Contracts;
+using Ycs.Core;
 using Ycs.Protocols;
-using Ycs.Types;
 
 namespace Ycs
 {

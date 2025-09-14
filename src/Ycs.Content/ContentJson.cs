@@ -6,6 +6,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text.Json;
 using Ycs.Contracts;
 
 namespace Ycs.Content
@@ -70,7 +71,7 @@ namespace Ycs.Content
             encoder.WriteLength(len);
             for (int i = offset; i < len; i++)
             {
-                var jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(_content[i]);
+                var jsonStr = JsonSerializer.Serialize(_content[i]);
                 encoder.WriteString(jsonStr);
             }
         }
@@ -85,7 +86,7 @@ namespace Ycs.Content
                 var jsonStr = decoder.ReadString();
                 object jsonObj = string.Equals(jsonStr, "undefined")
                     ? null
-                    : Newtonsoft.Json.JsonConvert.DeserializeObject(jsonStr);
+                    : JsonSerializer.Deserialize<object>(jsonStr);
                 content.Add(jsonObj);
             }
 

@@ -6,7 +6,9 @@
 
 package encoding
 
-import "github.com/chenrensong/ygo/lib0"
+import (
+	"ycs/lib0"
+)
 
 // RleEncoder implements basic run-length encoding for byte values.
 type RleEncoder struct {
@@ -31,14 +33,19 @@ func (e *RleEncoder) Write(value byte) error {
 	if e.state != nil && *e.state == value {
 		e.count++
 	} else {
+		writer, err := e.GetWriter()
+		if err != nil {
+			return err
+		}
+
 		if e.count > 0 {
 			// Flush counter (non-standard encoding: count - 1)
-			if err := lib0.WriteVarUint(e.buffer, e.count-1); err != nil {
+			if err := lib0.WriteVarUint(writer, e.count-1); err != nil {
 				return err
 			}
 		}
 
-		if _, err := e.buffer.Write([]byte{value}); err != nil {
+		if _, err := writer.Write([]byte{value}); err != nil {
 			return err
 		}
 
@@ -51,7 +58,12 @@ func (e *RleEncoder) Write(value byte) error {
 // Flush writes any remaining values to the stream.
 func (e *RleEncoder) Flush() error {
 	if e.count > 0 && e.state != nil {
-		if err := lib0.WriteVarUint(e.buffer, e.count-1); err != nil {
+		writer, err := e.GetWriter()
+		if err != nil {
+			return err
+		}
+
+		if err := lib0.WriteVarUint(writer, e.count-1); err != nil {
 			return err
 		}
 	}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/chenrensong/ygo/lib0"
+	"ycs/lib0"
 )
 
 // StringEncoder encodes strings with optimized length encoding.

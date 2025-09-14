@@ -9,7 +9,7 @@ package decoding
 import (
 	"io"
 
-	"github.com/chenrensong/ygo/lib0"
+	"ycs/lib0"
 )
 
 // streamWrapper wraps io.ReadSeekCloser to implement lib0.StreamReader
@@ -43,16 +43,22 @@ func NewRleDecoder(stream io.ReadSeekCloser, leaveOpen bool) *RleDecoder {
 func (d *RleDecoder) Read() (byte, error) {
 	d.CheckDisposed()
 
+	// Type assert to StreamReader interface
+	streamReader, ok := d.Stream().(lib0.StreamReader)
+	if !ok {
+		return 0, &lib0.TypeAssertionError{Message: "failed to convert stream to StreamReader"}
+	}
+
 	if d.count == 0 {
 		var err error
-		d.state, err = lib0.ReadByte(d.Stream().(lib0.StreamReader))
+		d.state, err = lib0.ReadByte(streamReader)
 		if err != nil {
 			return 0, err
 		}
 
 		if d.HasContent() {
 			// See encoder implementation for the reason why this is incremented.
-			count, err := lib0.ReadVarUint(d.Stream().(lib0.StreamReader))
+			count, err := lib0.ReadVarUint(streamReader)
 			if err != nil {
 				return 0, err
 			}

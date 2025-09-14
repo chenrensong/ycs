@@ -1,56 +1,43 @@
-// ------------------------------------------------------------------------------
-//  <copyright company="Microsoft Corporation">
-//      Copyright (c) Microsoft Corporation.  All rights reserved.
-//  </copyright>
-// ------------------------------------------------------------------------------
-
 package core
 
 import (
 	"errors"
-	"fmt"
+	"io"
 	"sort"
-
-	"github.com/chenrensong/ygo/contracts"
-	"github.com/chenrensong/ygo/lib0"
+	"ycs/contracts"
+	"ycs/lib0/decoding"
 )
 
-// EncodingUtils provides utilities for encoding and decoding structs
-// We use first five bits in the info flag for determining the type of the struct.
-// 0: GC
-// 1: Deleted content
-// 2: JSON content
-// 3: Binary content
-// 4: String content
-// 5: Embed content (for richtext content)
-// 6: Format content (a formatting marker for richtext content)
-// 7: Type content
-// 8: Any content
-// 9: Doc content
-type EncodingUtils struct{}
+// EncodingUtils provides encoding and decoding utilities
+type EncodingUtils struct {
+	contentReaderRegistry contracts.IContentReaderRegistry
+}
 
-var contentReaderRegistry contracts.IContentReaderRegistry
+var encodingUtils *EncodingUtils
 
 // SetContentReaderRegistry sets the content reader registry
 func SetContentReaderRegistry(registry contracts.IContentReaderRegistry) {
-	contentReaderRegistry = registry
+	if encodingUtils == nil {
+		encodingUtils = &EncodingUtils{}
+	}
+	encodingUtils.contentReaderRegistry = registry
 }
 
-// ReadItemContent reads item content from decoder
+// ReadItemContent reads item content from a decoder
 func ReadItemContent(decoder contracts.IUpdateDecoder, info byte) (contracts.IContent, error) {
-	contentRef := int(info & byte(lib0.Bits5))
-	if contentRef == 0 { // GC
+	contentRef := int(info & 0x1F) // Bits5
+	if contentRef == 0 {           // GC
 		return nil, errors.New("GC is not ItemContent")
 	}
 
-	if contentReaderRegistry == nil {
-		return nil, errors.New("ContentReaderRegistry not initialized. Call YcsBootstrap.Initialize() first")
+	if encodingUtils == nil || encodingUtils.contentReaderRegistry == nil {
+		return nil, errors.New("ContentReaderRegistry not initialized. Call Initialize() first")
 	}
 
-	return contentReaderRegistry.ReadContent(contentRef, decoder), nil
+	return encodingUtils.contentReaderRegistry.ReadContent(contentRef, decoder), nil
 }
 
-// ReadStructs reads the next Item in a Decoder and fills this Item with the read data.
+// ReadStructs reads the next Item in a Decoder and fills structs with the read data.
 // This is called when data is received from a remote peer.
 func ReadStructs(decoder contracts.IUpdateDecoder, transaction contracts.ITransaction, store contracts.IStructStore) error {
 	clientStructRefs, err := ReadClientStructRefs(decoder, transaction.GetDoc())
@@ -67,7 +54,7 @@ func ReadStructs(decoder contracts.IUpdateDecoder, transaction contracts.ITransa
 }
 
 // WriteStructs writes structs starting with ID(client,clock)
-func WriteStructs(encoder contracts.IUpdateEncoder, structs []contracts.IStructItem, client int64, clock int64) error {
+func WriteStructs(encoder contracts.IUpdateEncoder, structs []contracts.IStructItem, client, clock int64) error {
 	// Write first id
 	startNewStructs := FindIndexSS(structs, clock)
 
@@ -78,10 +65,16 @@ func WriteStructs(encoder contracts.IUpdateEncoder, structs []contracts.IStructI
 
 	// Write first struct with offset
 	firstStruct := structs[startNewStructs]
-	firstStruct.Write(encoder, int(clock-firstStruct.GetID().Clock))
+	err := firstStruct.Write(encoder, int(clock-firstStruct.GetID().Clock))
+	if err != nil {
+		return err
+	}
 
 	for i := startNewStructs + 1; i < len(structs); i++ {
-		structs[i].Write(encoder, 0)
+		err := structs[i].Write(encoder, 0)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -91,7 +84,6 @@ func WriteStructs(encoder contracts.IUpdateEncoder, structs []contracts.IStructI
 func WriteClientsStructs(encoder contracts.IUpdateEncoder, store contracts.IStructStore, sm map[int64]int64) error {
 	// We filter all valid sm entries into filteredSm
 	filteredSm := make(map[int64]int64)
-
 	for client, clock := range sm {
 		// Only write if new structs are available
 		if store.GetState(client) > clock {
@@ -137,7 +129,7 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 	for i := uint64(0); i < numOfStateUpdates; i++ {
 		numberOfStructs := int(decoder.GetReader().ReadVarUint())
 		if numberOfStructs < 0 {
-			return nil, fmt.Errorf("invalid numberOfStructs: %d", numberOfStructs)
+			return nil, errors.New("invalid number of structs")
 		}
 
 		refs := make([]contracts.IStructItem, 0, numberOfStructs)
@@ -148,28 +140,28 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 
 		for j := 0; j < numberOfStructs; j++ {
 			info := decoder.ReadInfo()
-			if (lib0.Bits5 & info) != 0 {
+			if (info & 0x1F) != 0 { // Bits5
 				// The item that was originally to the left of this item
-				var leftOrigin *contracts.StructID
-				if (info & lib0.Bit8) == lib0.Bit8 {
+				var leftOrigin *StructID
+				if (info & 0x80) == 0x80 { // Bit8
 					id := decoder.ReadLeftID()
 					leftOrigin = &id
 				}
 
 				// The item that was originally to the right of this item
-				var rightOrigin *contracts.StructID
-				if (info & lib0.Bit7) == lib0.Bit7 {
+				var rightOrigin *StructID
+				if (info & 0x40) == 0x40 { // Bit7
 					id := decoder.ReadRightID()
 					rightOrigin = &id
 				}
 
-				cantCopyParentInfo := (info & (lib0.Bit7 | lib0.Bit8)) == 0
+				cantCopyParentInfo := (info & (0x40 | 0x80)) == 0
 				var hasParentYKey bool
 				if cantCopyParentInfo {
 					hasParentYKey = decoder.ReadParentInfo()
 				}
 
-				// If parent == null and neither left nor right are defined, then we know that 'parent' is child of 'y'
+				// If parent == nil and neither left nor right are defined, then we know that 'parent' is child of 'y'
 				// and we read the next string as parentYKey.
 				// It indicates how we store/retrieve parent from 'y.share'.
 				var parentYKey *string
@@ -187,7 +179,7 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 				}
 
 				var parentSub *string
-				if cantCopyParentInfo && (info&lib0.Bit6) == lib0.Bit6 {
+				if cantCopyParentInfo && (info&0x20) == 0x20 { // Bit6
 					sub := decoder.ReadString()
 					parentSub = &sub
 				}
@@ -198,13 +190,13 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 				}
 
 				str := NewStructItem(
-					contracts.StructID{Client: client, Clock: clock},
+					StructID{Client: client, Clock: clock},
 					nil, // left
 					leftOrigin,
 					nil, // right
 					rightOrigin,
 					parent,
-					getStringValue(parentSub),
+					parentSub,
 					content,
 				)
 
@@ -212,7 +204,7 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 				clock += int64(str.GetLength())
 			} else {
 				length := decoder.ReadLength()
-				refs = append(refs, NewStructGC(contracts.StructID{Client: client, Clock: clock}, int(length)))
+				refs = append(refs, NewStructGC(StructID{Client: client, Clock: clock}, int(length)))
 				clock += int64(length)
 			}
 		}
@@ -224,17 +216,19 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 }
 
 // WriteStateVector writes state vector to encoder
-func WriteStateVector(encoder contracts.IDSEncoder, sv map[int64]int64) {
+func WriteStateVector(encoder contracts.IDSEncoder, sv map[int64]int64) error {
 	encoder.GetRestWriter().WriteVarUint(uint64(len(sv)))
 
 	for client, clock := range sv {
 		encoder.GetRestWriter().WriteVarUint(uint64(client))
 		encoder.GetRestWriter().WriteVarUint(uint64(clock))
 	}
+
+	return nil
 }
 
 // ReadStateVector reads state vector from decoder
-func ReadStateVector(decoder contracts.IDSDecoder) map[int64]int64 {
+func ReadStateVector(decoder contracts.IDSDecoder) (map[int64]int64, error) {
 	ssLength := int(decoder.GetReader().ReadVarUint())
 	ss := make(map[int64]int64, ssLength)
 
@@ -244,31 +238,49 @@ func ReadStateVector(decoder contracts.IDSDecoder) map[int64]int64 {
 		ss[client] = clock
 	}
 
-	return ss
+	return ss, nil
 }
 
-// FindIndexSS performs a binary search on a sorted array
+// DecodeStateVector decodes state vector from input stream
+func DecodeStateVector(input io.Reader) (map[int64]int64, error) {
+	decoder := decoding.NewDSDecoderV2(input)
+	return ReadStateVector(decoder)
+}
+
+// FindIndexSS performs binary search on a sorted array
 func FindIndexSS(structs []contracts.IStructItem, clock int64) int {
 	if len(structs) == 0 {
-		return 0
+		panic("structs array cannot be empty")
 	}
 
-	left, right := 0, len(structs)-1
+	left := 0
+	right := len(structs) - 1
+	mid := structs[right]
+	midClock := mid.GetID().Clock
+
+	if midClock == clock {
+		return right
+	}
+
+	// Binary search with pivoting
+	midIndex := int(clock * int64(right) / (midClock + int64(mid.GetLength()) - 1))
 	for left <= right {
-		mid := left + (right-left)/2
-		if structs[mid].GetID().Clock <= clock {
-			left = mid + 1
-		} else {
-			right = mid - 1
-		}
-	}
-	return left
-}
+		mid = structs[midIndex]
+		midClock = mid.GetID().Clock
 
-// Helper function to get string value from pointer
-func getStringValue(s *string) string {
-	if s == nil {
-		return ""
+		if midClock <= clock {
+			if clock < midClock+int64(mid.GetLength()) {
+				return midIndex
+			}
+			left = midIndex + 1
+		} else {
+			right = midIndex - 1
+		}
+
+		midIndex = (left + right) / 2
 	}
-	return *s
+
+	// Always check state before looking for a struct in StructStore
+	// Therefore the case of not finding a struct is unexpected
+	panic("struct not found - unexpected")
 }

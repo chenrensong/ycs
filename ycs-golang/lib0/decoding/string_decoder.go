@@ -9,7 +9,7 @@ package decoding
 import (
 	"io"
 
-	"github.com/chenrensong/ygo/lib0"
+	"ycs/lib0"
 )
 
 // StringDecoder decodes strings from a stream using length prefixes.
@@ -22,7 +22,13 @@ type StringDecoder struct {
 
 // NewStringDecoder creates a new instance of StringDecoder.
 func NewStringDecoder(input io.ReadSeekCloser, leaveOpen bool) *StringDecoder {
-	value, err := lib0.ReadVarString(input.(lib0.StreamReader))
+	// Type assert to StreamReader interface
+	streamReader, ok := input.(lib0.StreamReader)
+	if !ok {
+		panic(&lib0.TypeAssertionError{Message: "failed to convert input to StreamReader"})
+	}
+
+	value, err := lib0.ReadVarString(streamReader)
 	if err != nil {
 		panic(err) // Similar to Debug.Assert behavior
 	}

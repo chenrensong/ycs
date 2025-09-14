@@ -9,7 +9,7 @@ package decoding
 import (
 	"io"
 
-	"github.com/chenrensong/ygo/lib0"
+	"ycs/lib0"
 )
 
 // RleIntDiffDecoder decodes run-length encoded integer differences.
@@ -32,8 +32,14 @@ func NewRleIntDiffDecoder(stream io.ReadSeekCloser, start int64, leaveOpen bool)
 func (d *RleIntDiffDecoder) Read() (int64, error) {
 	d.CheckDisposed()
 
+	// Type assert to StreamReader interface
+	streamReader, ok := d.Stream().(lib0.StreamReader)
+	if !ok {
+		return 0, &lib0.TypeAssertionError{Message: "failed to convert stream to StreamReader"}
+	}
+
 	if d.count == 0 {
-		diff, _, err := lib0.ReadVarInt(d.Stream().(lib0.StreamReader))
+		diff, _, err := lib0.ReadVarInt(streamReader)
 		if err != nil {
 			return 0, err
 		}
@@ -42,7 +48,7 @@ func (d *RleIntDiffDecoder) Read() (int64, error) {
 
 		if d.HasContent() {
 			// See encoder implementation for the reason why this is incremented.
-			count, err := lib0.ReadVarUint(d.Stream().(lib0.StreamReader))
+			count, err := lib0.ReadVarUint(streamReader)
 			if err != nil {
 				return 0, err
 			}

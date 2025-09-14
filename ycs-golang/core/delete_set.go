@@ -1,345 +1,285 @@
-// ------------------------------------------------------------------------------
-//  <copyright company="Microsoft Corporation">
-//      Copyright (c) Microsoft Corporation.  All rights reserved.
-//  </copyright>
-// ------------------------------------------------------------------------------
-
 package core
 
 import (
 	"sort"
-
-	"github.com/chenrensong/ygo/contracts"
+	"ycs/contracts"
 )
 
-// DeleteSet is a temporary object that is created when needed.
-// - When created in a transaction, it must only be accessed after sorting and merging.
-//   - This DeleteSet is sent to other clients.
-//   - We do not create a DeleteSet when we send a sync message. The DeleteSet message is created
-//     directly from StructStore.
-//   - We read a DeleteSet as a apart of sync/update message. In this case the DeleteSet is already
-//     sorted and merged.
+// DeleteItem represents a deleted item range
+type DeleteItem struct {
+	Clock  int64
+	Length int64
+}
+
+// NewDeleteItem creates a new DeleteItem
+func NewDeleteItem(clock, length int64) *DeleteItem {
+	return &DeleteItem{
+		Clock:  clock,
+		Length: length,
+	}
+}
+
+// DeleteSet represents a set of deleted items organized by client
 type DeleteSet struct {
-	clients map[int64][]contracts.DeleteItem
+	clients map[int64][]*DeleteItem
 }
 
 // NewDeleteSet creates a new DeleteSet
 func NewDeleteSet() *DeleteSet {
 	return &DeleteSet{
-		clients: make(map[int64][]contracts.DeleteItem),
+		clients: make(map[int64][]*DeleteItem),
 	}
 }
 
-// NewDeleteSetFromDeleteSets creates a new DeleteSet by merging multiple DeleteSets
-func NewDeleteSetFromDeleteSets(dss []contracts.IDeleteSet) *DeleteSet {
+// NewDeleteSetFromStore creates a DeleteSet from a struct store
+func NewDeleteSetFromStore(store contracts.IStructStore) *DeleteSet {
 	ds := NewDeleteSet()
-	ds.MergeDeleteSets(dss)
-	return ds
-}
 
-// NewDeleteSetFromStructStore creates a new DeleteSet from a StructStore
-func NewDeleteSetFromStructStore(ss contracts.IStructStore) *DeleteSet {
-	ds := NewDeleteSet()
-	ds.CreateDeleteSetFromStructStore(ss)
+	for client, structs := range store.GetClients() {
+		var deleteItems []*DeleteItem
+
+		for _, item := range structs {
+			if item.GetDeleted() {
+				if len(deleteItems) > 0 {
+					lastItem := deleteItems[len(deleteItems)-1]
+					// Check if we can merge with the last delete item
+					if lastItem.Clock+lastItem.Length == item.GetID().Clock {
+						lastItem.Length += int64(item.GetLength())
+						continue
+					}
+				}
+
+				deleteItems = append(deleteItems, NewDeleteItem(item.GetID().Clock, int64(item.GetLength())))
+			}
+		}
+
+		if len(deleteItems) > 0 {
+			ds.clients[client] = deleteItems
+		}
+	}
+
 	return ds
 }
 
 // GetClients returns the clients map
-func (ds *DeleteSet) GetClients() map[int64][]contracts.DeleteItem {
+func (ds *DeleteSet) GetClients() map[int64][]*DeleteItem {
 	return ds.clients
 }
 
-// Add adds a delete item to the set
-func (ds *DeleteSet) Add(client int64, clock int64, length int64) {
-	deletes, exists := ds.clients[client]
+// IsDeleted checks if a struct ID is deleted
+func (ds *DeleteSet) IsDeleted(id StructID) bool {
+	deleteItems, exists := ds.clients[id.Client]
 	if !exists {
-		deletes = make([]contracts.DeleteItem, 0, 2)
+		return false
 	}
 
-	deletes = append(deletes, contracts.DeleteItem{
-		Clock:  clock,
-		Length: length,
-	})
-	ds.clients[client] = deletes
-}
-
-// IterateDeletedStructs iterates over all structs that the DeleteSet gc'd
-func (ds *DeleteSet) IterateDeletedStructs(transaction contracts.ITransaction, predicate func(contracts.IStructItem) bool) {
-	for client, deleteItems := range ds.clients {
-		structs := transaction.GetDoc().GetStore().GetClients()[client]
-		for _, del := range deleteItems {
-			transaction.GetDoc().GetStore().IterateStructs(transaction, structs, del.Clock, del.Length, predicate)
+	for _, item := range deleteItems {
+		if item.Clock <= id.Clock && id.Clock < item.Clock+item.Length {
+			return true
 		}
 	}
+
+	return false
 }
 
-// FindIndexSS performs binary search to find index of delete item
-func (ds *DeleteSet) FindIndexSS(dis []contracts.DeleteItem, clock int64) *int {
-	left := 0
-	right := len(dis) - 1
+// Add adds a delete range to the set
+func (ds *DeleteSet) Add(client, clock, length int64) {
+	if length <= 0 {
+		return
+	}
 
-	for left <= right {
-		midIndex := (left + right) / 2
-		mid := dis[midIndex]
-		midClock := mid.Clock
+	deleteItems := ds.clients[client]
+	newItem := NewDeleteItem(clock, length)
 
-		if midClock <= clock {
-			if clock < midClock+mid.Length {
-				return &midIndex
+	// Find insertion point and merge if possible
+	insertPos := 0
+	for i, item := range deleteItems {
+		if item.Clock > clock {
+			insertPos = i
+			break
+		}
+		insertPos = i + 1
+
+		// Check if we can merge with existing item
+		if item.Clock+item.Length == clock {
+			// Merge with this item
+			item.Length += length
+
+			// Check if we can merge with the next item too
+			if i+1 < len(deleteItems) {
+				nextItem := deleteItems[i+1]
+				if item.Clock+item.Length == nextItem.Clock {
+					item.Length += nextItem.Length
+					// Remove the next item
+					deleteItems = append(deleteItems[:i+1], deleteItems[i+2:]...)
+				}
 			}
-			left = midIndex + 1
-		} else {
-			right = midIndex - 1
+
+			ds.clients[client] = deleteItems
+			return
+		}
+
+		if clock+length == item.Clock {
+			// Merge by extending this item backwards
+			item.Clock = clock
+			item.Length += length
+			ds.clients[client] = deleteItems
+			return
+		}
+	}
+
+	// Insert new item at the correct position
+	if insertPos >= len(deleteItems) {
+		deleteItems = append(deleteItems, newItem)
+	} else {
+		deleteItems = append(deleteItems[:insertPos+1], deleteItems[insertPos:]...)
+		deleteItems[insertPos] = newItem
+	}
+
+	ds.clients[client] = deleteItems
+}
+
+// SortAndMergeDeleteSet sorts and merges the delete set
+func (ds *DeleteSet) SortAndMergeDeleteSet() {
+	for client, deleteItems := range ds.clients {
+		if len(deleteItems) <= 1 {
+			continue
+		}
+
+		// Sort by clock
+		sort.Slice(deleteItems, func(i, j int) bool {
+			return deleteItems[i].Clock < deleteItems[j].Clock
+		})
+
+		// Merge adjacent items
+		merged := make([]*DeleteItem, 0, len(deleteItems))
+		current := deleteItems[0]
+
+		for i := 1; i < len(deleteItems); i++ {
+			next := deleteItems[i]
+
+			if current.Clock+current.Length == next.Clock {
+				// Merge with current
+				current.Length += next.Length
+			} else {
+				// Add current and move to next
+				merged = append(merged, current)
+				current = next
+			}
+		}
+
+		// Add the last item
+		merged = append(merged, current)
+		ds.clients[client] = merged
+	}
+}
+
+// Write writes the delete set to an encoder
+func (ds *DeleteSet) Write(encoder contracts.IDSEncoder) error {
+	encoder.GetRestWriter().WriteVarUint(uint64(len(ds.clients)))
+
+	// Write clients in sorted order for consistency
+	var clients []int64
+	for client := range ds.clients {
+		clients = append(clients, client)
+	}
+	sort.Slice(clients, func(i, j int) bool {
+		return clients[i] < clients[j]
+	})
+
+	for _, client := range clients {
+		deleteItems := ds.clients[client]
+		encoder.GetRestWriter().WriteVarUint(uint64(client))
+		encoder.GetRestWriter().WriteVarUint(uint64(len(deleteItems)))
+
+		encoder.ResetDsCurVal()
+		for _, item := range deleteItems {
+			encoder.WriteDsClock(uint64(item.Clock))
+			encoder.WriteDsLength(uint64(item.Length))
 		}
 	}
 
 	return nil
 }
 
-// IsDeleted checks if a struct ID is deleted
-func (ds *DeleteSet) IsDeleted(id contracts.StructID) bool {
-	if dis, exists := ds.clients[id.Client]; exists {
-		return ds.FindIndexSS(dis, id.Clock) != nil
-	}
-	return false
-}
-
-// SortAndMergeDeleteSet sorts and merges the delete set
-func (ds *DeleteSet) SortAndMergeDeleteSet() {
-	for _, dels := range ds.clients {
-		// Sort by clock
-		sort.Slice(dels, func(i, j int) bool {
-			return dels[i].Clock < dels[j].Clock
-		})
-
-		// Merge items without filtering or splicing the array
-		// i is the current pointer
-		// j refers to the current insert position for the pointed item
-		// Try to merge dels[i] into dels[j-1] or set dels[j]=dels[i]
-		if len(dels) <= 1 {
+// TryGcDeleteSet tries to garbage collect the delete set
+func (ds *DeleteSet) TryGcDeleteSet(store contracts.IStructStore, gcFilter func(contracts.IStructItem) bool) {
+	for client, deleteItems := range ds.clients {
+		structs, exists := store.GetClients()[client]
+		if !exists {
 			continue
 		}
 
-		j := 1
-		for i := 1; i < len(dels); i++ {
-			left := dels[j-1]
-			right := dels[i]
-
-			if left.Clock+left.Length == right.Clock {
-				// Merge items
-				dels[j-1] = contracts.DeleteItem{
-					Clock:  left.Clock,
-					Length: left.Length + right.Length,
+		for _, deleteItem := range deleteItems {
+			ds.iterateDeletedStructs(store, structs, deleteItem.Clock, deleteItem.Length, func(item contracts.IStructItem) bool {
+				if item.GetDeleted() && (gcFilter == nil || gcFilter(item)) {
+					// Replace with GC item
+					gcItem := NewStructGC(item.GetID(), item.GetLength())
+					store.ReplaceStruct(item, gcItem)
 				}
-			} else {
-				if j < i {
-					dels[j] = right
-				}
-				j++
-			}
-		}
-
-		// Trim the slice
-		if j < len(dels) {
-			// Update the slice in the map
-			trimmed := make([]contracts.DeleteItem, j)
-			copy(trimmed, dels[:j])
-			for client, clientDels := range ds.clients {
-				if &clientDels[0] == &dels[0] { // Find the matching slice
-					ds.clients[client] = trimmed
-					break
-				}
-			}
+				return true
+			})
 		}
 	}
 }
 
-// TryGc tries to garbage collect the delete set
-func (ds *DeleteSet) TryGc(store contracts.IStructStore, gcFilter func(contracts.IStructItem) bool) {
-	ds.TryGcDeleteSet(store, gcFilter)
-	ds.TryMergeDeleteSet(store)
-}
-
-// TryGcDeleteSet tries to garbage collect deleted structs
-func (ds *DeleteSet) TryGcDeleteSet(store contracts.IStructStore, gcFilter func(contracts.IStructItem) bool) {
-	for client, deleteItems := range ds.clients {
-		structs := store.GetClients()[client]
-
-		for di := len(deleteItems) - 1; di >= 0; di-- {
-			deleteItem := deleteItems[di]
-			endDeleteItemClock := deleteItem.Clock + deleteItem.Length
-
-			for si := FindIndexSS(structs, deleteItem.Clock); si < len(structs); si++ {
-				str := structs[si]
-				if str.GetID().Clock >= endDeleteItemClock {
-					break
-				}
-
-				if str.GetDeleted() && !str.GetKeep() && gcFilter(str) {
-					str.Gc(store, false)
-				}
-			}
-		}
-	}
-}
-
-// TryMergeDeleteSet tries to merge deleted/gc'd items
+// TryMergeDeleteSet tries to merge the delete set
 func (ds *DeleteSet) TryMergeDeleteSet(store contracts.IStructStore) {
-	// Try to merge deleted / gc'd items
-	// Merge from right to left for better efficiency and so we don't miss any merge targets
 	for client, deleteItems := range ds.clients {
-		structs := store.GetClients()[client]
-
-		for di := len(deleteItems) - 1; di >= 0; di-- {
-			deleteItem := deleteItems[di]
-
-			// Start with merging the item next to the last deleted item
-			mostRightIndexToCheck := min(len(structs)-1, 1+FindIndexSS(structs, deleteItem.Clock+deleteItem.Length-1))
-			for si := mostRightIndexToCheck; si > 0 && structs[si].GetID().Clock >= deleteItem.Clock; si-- {
-				TryToMergeWithLeft(structs, si)
-			}
+		structs, exists := store.GetClients()[client]
+		if !exists {
+			continue
 		}
-	}
-}
 
-// TryToMergeWithLeft tries to merge a struct with the one to its left
-func TryToMergeWithLeft(structs []contracts.IStructItem, pos int) {
-	left := structs[pos-1]
-	right := structs[pos]
-
-	if left.GetDeleted() == right.GetDeleted() {
-		if left.MergeWith(right) {
-			// Remove the right item from the slice
-			copy(structs[pos:], structs[pos+1:])
-			structs = structs[:len(structs)-1]
-
-			// Update parent map if necessary
-			if right.GetParentSub() != "" {
-				if parent, ok := right.GetParent().(contracts.IAbstractType); ok {
-					if mapItem, exists := parent.GetMap()[right.GetParentSub()]; exists && mapItem == right {
-						parent.GetMap()[right.GetParentSub()] = left
-					}
+		for _, deleteItem := range deleteItems {
+			ds.iterateDeletedStructs(store, structs, deleteItem.Clock, deleteItem.Length, func(item contracts.IStructItem) bool {
+				if item.GetDeleted() {
+					// Try to merge with adjacent items
+					ds.tryToMergeWithLeft(structs, item)
 				}
-			}
+				return true
+			})
 		}
 	}
 }
 
-// MergeDeleteSets merges multiple delete sets into this one
-func (ds *DeleteSet) MergeDeleteSets(dss []contracts.IDeleteSet) {
-	for dssI := 0; dssI < len(dss); dssI++ {
-		for client, delsLeft := range dss[dssI].GetClients() {
-			if _, exists := ds.clients[client]; !exists {
-				// Write all missing keys from current ds and all following
-				// If merged already contains 'client' current ds has already been added
-				dels := make([]contracts.DeleteItem, len(delsLeft))
-				copy(dels, delsLeft)
-
-				for i := dssI + 1; i < len(dss); i++ {
-					if appends, exists := dss[i].GetClients()[client]; exists {
-						dels = append(dels, appends...)
-					}
-				}
-
-				ds.clients[client] = dels
-			}
-		}
+// iterateDeletedStructs iterates over deleted structs in a range
+func (ds *DeleteSet) iterateDeletedStructs(store contracts.IStructStore, structs []contracts.IStructItem, clock, length int64, fn func(contracts.IStructItem) bool) {
+	if length <= 0 {
+		return
 	}
 
-	ds.SortAndMergeDeleteSet()
-}
+	clockEnd := clock + length
+	index := FindIndexSS(structs, clock)
 
-// CreateDeleteSetFromStructStore creates delete set from struct store
-func (ds *DeleteSet) CreateDeleteSetFromStructStore(ss contracts.IStructStore) {
-	for client, structs := range ss.GetClients() {
-		var dsItems []contracts.DeleteItem
+	for index < len(structs) {
+		item := structs[index]
 
-		for i := 0; i < len(structs); i++ {
-			str := structs[i]
-			if str.GetDeleted() {
-				clock := str.GetID().Clock
-				length := int64(str.GetLength())
+		if item.GetID().Clock >= clockEnd {
+			break
+		}
 
-				// Merge consecutive deleted items
-				for i+1 < len(structs) {
-					next := structs[i+1]
-					if next.GetID().Clock == clock+length && next.GetDeleted() {
-						length += int64(next.GetLength())
-						i++
-					} else {
-						break
-					}
-				}
-
-				dsItems = append(dsItems, contracts.DeleteItem{
-					Clock:  clock,
-					Length: length,
-				})
+		if item.GetID().Clock >= clock {
+			if !fn(item) {
+				break
 			}
 		}
 
-		if len(dsItems) > 0 {
-			ds.clients[client] = dsItems
-		}
+		index++
 	}
 }
 
-// Write writes the delete set to an encoder
-func (ds *DeleteSet) Write(encoder contracts.IDSEncoder) {
-	encoder.GetRestWriter().WriteVarUint(uint64(len(ds.clients)))
-
-	for client, dsItems := range ds.clients {
-		length := len(dsItems)
-
-		encoder.ResetDsCurVal()
-		encoder.GetRestWriter().WriteVarUint(uint64(client))
-		encoder.GetRestWriter().WriteVarUint(uint64(length))
-
-		for i := 0; i < length; i++ {
-			item := dsItems[i]
-			encoder.WriteDsClock(item.Clock)
-			encoder.WriteDsLength(item.Length)
-		}
-	}
-}
-
-// ReadDeleteSet reads a delete set from a decoder
-func ReadDeleteSet(decoder contracts.IDSDecoder) *DeleteSet {
-	ds := NewDeleteSet()
-
-	numClients := decoder.GetReader().ReadVarUint()
-
-	for i := uint64(0); i < numClients; i++ {
-		decoder.ResetDsCurVal()
-
-		client := int64(decoder.GetReader().ReadVarUint())
-		numberOfDeletes := decoder.GetReader().ReadVarUint()
-
-		if numberOfDeletes > 0 {
-			dsField, exists := ds.clients[client]
-			if !exists {
-				dsField = make([]contracts.DeleteItem, 0, numberOfDeletes)
-			}
-
-			for j := uint64(0); j < numberOfDeletes; j++ {
-				deleteItem := contracts.DeleteItem{
-					Clock:  decoder.ReadDsClock(),
-					Length: decoder.ReadDsLength(),
-				}
-				dsField = append(dsField, deleteItem)
-			}
-
-			ds.clients[client] = dsField
-		}
+// tryToMergeWithLeft tries to merge an item with its left neighbor
+func (ds *DeleteSet) tryToMergeWithLeft(structs []contracts.IStructItem, item contracts.IStructItem) {
+	index := FindIndexSS(structs, item.GetID().Clock)
+	if index <= 0 {
+		return
 	}
 
-	return ds
-}
-
-// Helper function to find minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
+	left := structs[index-1]
+	if left.TryToMergeWithRight(item) {
+		// Remove the current item since it was merged into left
+		copy(structs[index:], structs[index+1:])
+		structs = structs[:len(structs)-1]
 	}
-	return b
 }
