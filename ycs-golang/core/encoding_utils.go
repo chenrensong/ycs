@@ -23,6 +23,11 @@ func SetContentReaderRegistry(registry contracts.IContentReaderRegistry) {
 	encodingUtils.contentReaderRegistry = registry
 }
 
+// SetGlobalContentReaderRegistry is an alias for SetContentReaderRegistry for consistency
+func SetGlobalContentReaderRegistry(registry contracts.IContentReaderRegistry) {
+	SetContentReaderRegistry(registry)
+}
+
 // ReadItemContent reads item content from a decoder
 func ReadItemContent(decoder contracts.IUpdateDecoder, info byte) (contracts.IContent, error) {
 	contentRef := int(info & 0x1F) // Bits5

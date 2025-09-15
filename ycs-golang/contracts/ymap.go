@@ -2,6 +2,7 @@ package contracts
 
 // IYMap represents a Y map interface
 type IYMap interface {
+	IAbstractType
 	GetCount() int
 	CallObserver(transaction ITransaction, parentSubs map[string]struct{})
 	Clone() IYMap

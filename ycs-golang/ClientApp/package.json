@@ -1,0 +1,56 @@
+{
+  "name": "ycs-sample",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@microsoft/signalr": "^5.0.2",
+    "bootstrap": "^4.6.0",
+    "lib0": "0.2.35",
+    "monaco-editor": "0.22.3",
+    "prosemirror-keymap": "^1.1.4",
+    "prosemirror-schema-basic": "^1.1.2",
+    "prosemirror-view": "^1.17.5",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "react-monaco-editor": "^0.42.0",
+    "react-router-dom": "^5.2.0",
+    "reactstrap": "^8.9.0",
+    "uuid": "8.3.1",
+    "web-vitals": "^1.0.1",
+    "y-monaco": "^0.1.2",
+    "y-prosemirror": "^1.0.5",
+    "y-protocols": "^1.0.3",
+    "yjs": "13.4.14"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.1",
+    "@types/react-dom": "^17.0.0",
+    "@types/react-router": "^5.1.11",
+    "@types/react-router-dom": "^5.1.7",
+    "@types/node": "^12.0.0",
+    "react-scripts": "4.0.2",
+    "typescript": "^4.1.2"
+  }
+}

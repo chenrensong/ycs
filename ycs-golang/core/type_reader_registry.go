@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"ycs/contracts"
 )
@@ -11,11 +10,23 @@ type TypeReaderRegistry struct {
 	readers map[uint32]func(contracts.IUpdateDecoder) contracts.IAbstractType
 }
 
+var globalTypeReaderRegistry contracts.ITypeReaderRegistry
+
 // NewTypeReaderRegistry creates a new TypeReaderRegistry
 func NewTypeReaderRegistry() *TypeReaderRegistry {
 	return &TypeReaderRegistry{
 		readers: make(map[uint32]func(contracts.IUpdateDecoder) contracts.IAbstractType),
 	}
+}
+
+// SetGlobalTypeReaderRegistry sets the global type reader registry
+func SetGlobalTypeReaderRegistry(registry contracts.ITypeReaderRegistry) {
+	globalTypeReaderRegistry = registry
+}
+
+// GetGlobalTypeReaderRegistry gets the global type reader registry
+func GetGlobalTypeReaderRegistry() contracts.ITypeReaderRegistry {
+	return globalTypeReaderRegistry
 }
 
 // RegisterTypeReader registers a type reader for a given type reference ID
@@ -24,10 +35,10 @@ func (tr *TypeReaderRegistry) RegisterTypeReader(typeRefID uint32, reader func(c
 }
 
 // ReadType reads a type using the registered reader
-func (tr *TypeReaderRegistry) ReadType(typeRefID uint32, decoder contracts.IUpdateDecoder) (contracts.IAbstractType, error) {
+func (tr *TypeReaderRegistry) ReadType(typeRefID uint32, decoder contracts.IUpdateDecoder) contracts.IAbstractType {
 	if reader, exists := tr.readers[typeRefID]; exists {
-		return reader(decoder), nil
+		return reader(decoder)
 	}
 
-	return nil, errors.New(fmt.Sprintf("Type %d not implemented", typeRefID))
+	panic(fmt.Sprintf("Type %d not implemented", typeRefID))
 }
