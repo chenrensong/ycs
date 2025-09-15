@@ -85,13 +85,9 @@ func (c *ContentJson) Gc(store contracts.IStructStore) {
 }
 
 // Write writes this content to an encoder
-func (c *ContentJson) Write(encoder contracts.IUpdateEncoder, offset int) {
-	length := len(c.content)
-	encoder.WriteLength(length - offset)
-
-	for i := offset; i < length; i++ {
-		encoder.WriteAny(c.content[i])
-	}
+func (c *ContentJson) Write(encoder contracts.IUpdateEncoder, offset int) error {
+	encoder.WriteJSON(c.content)
+	return nil
 }
 
 // ReadContentJson reads ContentJson from a decoder

@@ -28,7 +28,7 @@ type YTextEvent struct {
 // NewYTextEvent creates a new YTextEvent
 func NewYTextEvent(text contracts.IYText, transaction contracts.ITransaction, subs map[string]struct{}) *YTextEvent {
 	event := &YTextEvent{
-		YEvent:           NewYEvent(text, transaction),
+		YEvent:           NewYEvent(text.(contracts.IAbstractType), transaction),
 		Subs:             subs,
 		KeysChanged:      make(map[string]struct{}),
 		ChildListChanged: false,
@@ -99,7 +99,7 @@ func (yt *YText) Clone() contracts.IYText {
 func (yt *YText) Integrate(doc contracts.IYDoc, item contracts.IStructItem) {
 	yt.AbstractType.Integrate(doc, item)
 	if len(yt.prelimContent) > 0 {
-		yt.Insert(0, yt.prelimContent)
+		yt.InsertContent(0, yt.prelimContent)
 		yt.prelimContent = nil
 	}
 }
@@ -129,28 +129,14 @@ func ReadYText(decoder contracts.IUpdateDecoder) contracts.IAbstractType {
 // CallObserver creates YTextEvent and calls observers
 func (yt *YText) CallObserver(transaction contracts.ITransaction, parentSubs map[string]struct{}) {
 	yt.AbstractType.CallObserver(transaction, parentSubs)
-	yt.CallTypeObservers(transaction, NewYTextEvent(yt, transaction, parentSubs))
+	// Create interface reference for YText
+	var ytInterface contracts.IYText = yt
+	yt.CallTypeObservers(transaction, NewYTextEvent(ytInterface, transaction, parentSubs))
 }
 
-// Insert inserts content at the specified index
-func (yt *YText) Insert(index int, content []interface{}) {
-	if yt.GetDoc() != nil {
-		yt.GetDoc().Transact(func(tr contracts.ITransaction) {
-			yt.insertAt(tr, index, content)
-		}, "insert")
-	} else {
-		// Store as preliminary content
-		if index == len(yt.prelimContent) {
-			yt.prelimContent = append(yt.prelimContent, content...)
-		} else {
-			// Insert at specific position
-			newContent := make([]interface{}, 0, len(yt.prelimContent)+len(content))
-			newContent = append(newContent, yt.prelimContent[:index]...)
-			newContent = append(newContent, content...)
-			newContent = append(newContent, yt.prelimContent[index:]...)
-			yt.prelimContent = newContent
-		}
-	}
+// InsertContent inserts content array at the specified index (internal method)
+func (yt *YText) InsertContent(index int, content []interface{}) {
+	yt.insertContent(index, content)
 }
 
 // insertAt performs the actual insertion during a transaction
@@ -202,10 +188,13 @@ func (yt *YText) ToString() string {
 	var builder strings.Builder
 	item := yt.GetStart()
 	for item != nil {
-		if !item.GetDeleted() && item.IsCountable() {
+		if !item.GetDeleted() && item.GetCountable() {
 			content := item.GetContent()
-			if str, ok := content.(string); ok {
-				builder.WriteString(str)
+			contentData := content.GetContent()
+			if len(contentData) > 0 {
+				if str, ok := contentData[0].(string); ok {
+					builder.WriteString(str)
+				}
 			}
 		}
 		item = item.GetNext()
@@ -228,8 +217,8 @@ func (yt *YText) formatAt(transaction contracts.ITransaction, index int, length 
 	// The full implementation would handle complex formatting operations
 }
 
-// GetAttributes returns the attributes at the specified index
-func (yt *YText) GetAttributes(index int) map[string]interface{} {
+// GetAttributesAt returns the attributes at the specified index
+func (yt *YText) GetAttributesAt(index int) map[string]interface{} {
 	// This is a simplified implementation
 	return make(map[string]interface{})
 }
@@ -238,4 +227,70 @@ func (yt *YText) GetAttributes(index int) map[string]interface{} {
 func (yt *YText) TryGc(store contracts.IStructStore) {
 	// This is a simplified implementation
 	// The full implementation would handle garbage collection
+}
+
+// ApplyDelta applies delta operations to the text
+func (yt *YText) ApplyDelta(delta []contracts.Delta, sanitize ...bool) {
+	// TODO: Implement delta application
+}
+
+// GetAttribute returns a single attribute value
+func (yt *YText) GetAttribute(name string) interface{} {
+	// TODO: Implement attribute retrieval
+	return nil
+}
+
+// GetAttributes returns all attributes (implements IYText interface)
+func (yt *YText) GetAttributes() map[string]interface{} {
+	// TODO: Implement attributes retrieval
+	return make(map[string]interface{})
+}
+
+// Insert with string parameter (implements IYText interface)
+func (yt *YText) Insert(index int, text string, attributes ...map[string]interface{}) {
+	content := []interface{}{text}
+	yt.insertContent(index, content)
+}
+
+// insertContent is the internal method for inserting content
+func (yt *YText) insertContent(index int, content []interface{}) {
+	if yt.GetDoc() != nil {
+		yt.GetDoc().Transact(func(tr contracts.ITransaction) {
+			yt.insertAt(tr, index, content)
+		}, "insert")
+	} else {
+		// Store as preliminary content
+		if index == len(yt.prelimContent) {
+			yt.prelimContent = append(yt.prelimContent, content...)
+		} else {
+			// Insert at specific position
+			newContent := make([]interface{}, 0, len(yt.prelimContent)+len(content))
+			newContent = append(newContent, yt.prelimContent[:index]...)
+			newContent = append(newContent, content...)
+			newContent = append(newContent, yt.prelimContent[index:]...)
+			yt.prelimContent = newContent
+		}
+	}
+}
+
+// InsertEmbed inserts an embed object at the specified index
+func (yt *YText) InsertEmbed(index int, embed interface{}, attributes ...map[string]interface{}) {
+	content := []interface{}{embed}
+	yt.insertContent(index, content)
+}
+
+// RemoveAttribute removes an attribute
+func (yt *YText) RemoveAttribute(name string) {
+	// TODO: Implement attribute removal
+}
+
+// SetAttribute sets an attribute
+func (yt *YText) SetAttribute(name string, value interface{}) {
+	// TODO: Implement attribute setting
+}
+
+// ToDelta converts the text to delta format
+func (yt *YText) ToDelta(snapshot contracts.ISnapshot, prevSnapshot contracts.ISnapshot, computeYChange func(contracts.YTextChangeType, contracts.StructID, contracts.YTextChangeAttributes) interface{}) []contracts.Delta {
+	// TODO: Implement delta conversion
+	return []contracts.Delta{}
 }

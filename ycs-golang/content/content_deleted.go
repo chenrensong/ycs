@@ -66,8 +66,9 @@ func (c *ContentDeleted) Gc(store contracts.IStructStore) {
 	// Do nothing
 }
 
-func (c *ContentDeleted) Write(encoder contracts.IUpdateEncoder, offset int) {
-	encoder.WriteLength(c.length - offset)
+func (c *ContentDeleted) Write(encoder contracts.IUpdateEncoder, offset int) error {
+	encoder.WriteLength(c.length)
+	return nil
 }
 
 func ReadContentDeleted(decoder contracts.IUpdateDecoder) *ContentDeleted {

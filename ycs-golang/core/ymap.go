@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"ycs/contracts"
 )
 
@@ -59,12 +58,12 @@ func (ym *YMap) GetCount() int {
 }
 
 // Get returns the value for the specified key
-func (ym *YMap) Get(key string) (interface{}, error) {
+func (ym *YMap) Get(key string) interface{} {
 	value, exists := ym.tryTypeMapGet(key)
 	if !exists {
-		return nil, errors.New("key not found")
+		return nil
 	}
-	return value, nil
+	return value
 }
 
 // Set sets a value for the specified key
@@ -164,5 +163,10 @@ func ReadYMap(decoder contracts.IUpdateDecoder) contracts.IYMap {
 
 // Entries returns all key-value pairs in the map
 func (ym *YMap) Entries() map[string]interface{} {
+	return ym.typeMapEnumerateValues()
+}
+
+// GetEnumerator returns all key-value pairs (implements IYMap interface)
+func (ym *YMap) GetEnumerator() map[string]interface{} {
 	return ym.typeMapEnumerateValues()
 }

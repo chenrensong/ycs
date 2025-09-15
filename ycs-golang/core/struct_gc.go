@@ -6,12 +6,12 @@ import (
 
 // StructGC represents a garbage collected struct
 type StructGC struct {
-	id     StructID
+	id     contracts.StructID
 	length int
 }
 
 // NewStructGC creates a new StructGC
-func NewStructGC(id StructID, length int) *StructGC {
+func NewStructGC(id contracts.StructID, length int) *StructGC {
 	return &StructGC{
 		id:     id,
 		length: length,
@@ -19,8 +19,13 @@ func NewStructGC(id StructID, length int) *StructGC {
 }
 
 // GetID returns the struct ID
-func (gc *StructGC) GetID() StructID {
+func (gc *StructGC) GetID() contracts.StructID {
 	return gc.id
+}
+
+// SetID sets the struct ID
+func (gc *StructGC) SetID(id contracts.StructID) {
+	gc.id = id
 }
 
 // GetLength returns the length
@@ -28,8 +33,18 @@ func (gc *StructGC) GetLength() int {
 	return gc.length
 }
 
+// SetLength sets the length
+func (gc *StructGC) SetLength(length int) {
+	gc.length = length
+}
+
 // IsDeleted returns true since GC structs are considered deleted
 func (gc *StructGC) IsDeleted() bool {
+	return true
+}
+
+// GetDeleted returns true since GC structs are considered deleted
+func (gc *StructGC) GetDeleted() bool {
 	return true
 }
 
@@ -38,9 +53,14 @@ func (gc *StructGC) IsGC() bool {
 	return true
 }
 
-// IsCountable returns false since GC structs are not countable
-func (gc *StructGC) IsCountable() bool {
+// GetCountable returns false since GC structs are not countable
+func (gc *StructGC) GetCountable() bool {
 	return false
+}
+
+// SetCountable does nothing for GC structs
+func (gc *StructGC) SetCountable(countable bool) {
+	// Do nothing
 }
 
 // GetLeft returns nil since GC structs don't have left references
@@ -64,22 +84,22 @@ func (gc *StructGC) SetRight(right contracts.IStructItem) {
 }
 
 // GetLeftOrigin returns nil
-func (gc *StructGC) GetLeftOrigin() *StructID {
+func (gc *StructGC) GetLeftOrigin() *contracts.StructID {
 	return nil
 }
 
 // SetLeftOrigin does nothing for GC structs
-func (gc *StructGC) SetLeftOrigin(leftOrigin *StructID) {
+func (gc *StructGC) SetLeftOrigin(leftOrigin *contracts.StructID) {
 	// Do nothing
 }
 
 // GetRightOrigin returns nil
-func (gc *StructGC) GetRightOrigin() *StructID {
+func (gc *StructGC) GetRightOrigin() *contracts.StructID {
 	return nil
 }
 
 // SetRightOrigin does nothing for GC structs
-func (gc *StructGC) SetRightOrigin(rightOrigin *StructID) {
+func (gc *StructGC) SetRightOrigin(rightOrigin *contracts.StructID) {
 	// Do nothing
 }
 
@@ -93,46 +113,46 @@ func (gc *StructGC) SetParent(parent interface{}) {
 	// Do nothing
 }
 
-// GetParentSub returns nil
-func (gc *StructGC) GetParentSub() *string {
-	return nil
+// GetParentSub returns empty string
+func (gc *StructGC) GetParentSub() string {
+	return ""
 }
 
 // SetParentSub does nothing for GC structs
-func (gc *StructGC) SetParentSub(parentSub *string) {
+func (gc *StructGC) SetParentSub(parentSub string) {
 	// Do nothing
 }
 
 // GetRedone returns nil
-func (gc *StructGC) GetRedone() *StructID {
+func (gc *StructGC) GetRedone() *contracts.StructID {
 	return nil
 }
 
 // SetRedone does nothing for GC structs
-func (gc *StructGC) SetRedone(redone *StructID) {
+func (gc *StructGC) SetRedone(redone *contracts.StructID) {
 	// Do nothing
 }
 
 // GetContent returns nil since GC structs don't have content
-func (gc *StructGC) GetContent() contracts.IContent {
+func (gc *StructGC) GetContent() contracts.IContentEx {
 	return nil
 }
 
 // SetContent does nothing for GC structs
-func (gc *StructGC) SetContent(content contracts.IContent) {
+func (gc *StructGC) SetContent(content contracts.IContentEx) {
 	// Do nothing
 }
 
 // GetLastID returns the last ID based on this struct's ID and length
-func (gc *StructGC) GetLastID() *StructID {
+func (gc *StructGC) GetLastID() contracts.StructID {
 	if gc.length <= 1 {
-		return &gc.id
+		return gc.id
 	}
-	lastID := StructID{
+	lastID := contracts.StructID{
 		Client: gc.id.Client,
 		Clock:  gc.id.Clock + int64(gc.length) - 1,
 	}
-	return &lastID
+	return lastID
 }
 
 // IsVisible returns false since GC structs are not visible
@@ -150,6 +170,11 @@ func (gc *StructGC) KeepItemAndParents(keep bool) {
 	// Do nothing
 }
 
+// MarkDeleted does nothing for GC structs
+func (gc *StructGC) MarkDeleted() {
+	// Do nothing
+}
+
 // SplitItem returns itself since GC structs can't be split
 func (gc *StructGC) SplitItem(transaction contracts.ITransaction, diff int) contracts.IStructItem {
 	if diff == 0 {
@@ -157,7 +182,7 @@ func (gc *StructGC) SplitItem(transaction contracts.ITransaction, diff int) cont
 	}
 
 	// Create a new GC struct for the split part
-	rightID := StructID{
+	rightID := contracts.StructID{
 		Client: gc.id.Client,
 		Clock:  gc.id.Clock + int64(diff),
 	}
@@ -193,4 +218,44 @@ func (gc *StructGC) TryToMergeWithRight(right contracts.IStructItem) bool {
 		}
 	}
 	return false
+}
+
+// MergeWith tries to merge with right struct
+func (gc *StructGC) MergeWith(right contracts.IStructItem) bool {
+	return gc.TryToMergeWithRight(right)
+}
+
+// Gc does nothing for GC structs
+func (gc *StructGC) Gc(store contracts.IStructStore, parentGCd bool) {
+	// Do nothing - already GC'd
+}
+
+// GetKeep returns false
+func (gc *StructGC) GetKeep() bool {
+	return false
+}
+
+// SetKeep does nothing
+func (gc *StructGC) SetKeep(keep bool) {
+	// Do nothing
+}
+
+// GetMarker returns false
+func (gc *StructGC) GetMarker() bool {
+	return false
+}
+
+// SetMarker does nothing
+func (gc *StructGC) SetMarker(marker bool) {
+	// Do nothing
+}
+
+// GetNext returns nil
+func (gc *StructGC) GetNext() contracts.IStructItem {
+	return nil
+}
+
+// GetPrev returns nil
+func (gc *StructGC) GetPrev() contracts.IStructItem {
+	return nil
 }

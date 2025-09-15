@@ -61,8 +61,8 @@ type IYDoc interface {
 	InvokeUpdateV2(transaction ITransaction)
 	Load()
 	Transact(fun func(ITransaction), origin interface{}, local ...bool) // local defaults to true
-	WriteStateAsUpdate(encoder IUpdateEncoder, targetStateVector map[int64]int64)
-	WriteStateVector(encoder IDSEncoder)
+	WriteStateAsUpdate(encoder IUpdateEncoder, targetStateVector map[int64]int64) error
+	WriteStateVector(encoder IDSEncoder) error
 
 	// Event handlers - Go doesn't have events like C#, so we use function fields
 	OnBeforeObserverCalls(handler BeforeObserverCallsHandler)

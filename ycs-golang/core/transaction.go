@@ -117,11 +117,26 @@ func (tr *Transaction) GetMergeStructs() []contracts.IStructItem {
 	return tr.mergeStructs
 }
 
+// AddMergeStruct adds a struct to the merge list
+func (tr *Transaction) AddMergeStruct(item contracts.IStructItem) {
+	tr.mergeStructs = append(tr.mergeStructs, item)
+}
+
+// GetStructStore returns the document's struct store
+func (tr *Transaction) GetStructStore() contracts.IStructStore {
+	return tr.doc.GetStore()
+}
+
+// Cleanup performs transaction cleanup
+func (tr *Transaction) Cleanup() {
+	// Implementation for cleanup logic
+}
+
 // GetNextID returns the next ID for this transaction
-func (tr *Transaction) GetNextID() StructID {
-	return StructID{
-		Client: tr.doc.GetClientID(),
-		Clock:  tr.doc.GetStore().GetState(tr.doc.GetClientID()),
+func (tr *Transaction) GetNextID() contracts.StructID {
+	return contracts.StructID{
+		Client: int64(tr.doc.GetClientID()),
+		Clock:  tr.doc.GetStore().GetState(int64(tr.doc.GetClientID())),
 	}
 }
 
@@ -140,7 +155,7 @@ func (tr *Transaction) AddChangedTypeToTransaction(yType contracts.IAbstractType
 	}
 
 	clock, exists := tr.beforeState[item.GetID().Client]
-	if exists && item.GetID().Clock < clock && !item.IsDeleted() {
+	if exists && item.GetID().Clock < clock && !item.GetDeleted() {
 		if tr.changed[yType] == nil {
 			tr.changed[yType] = make(map[string]struct{})
 		}
@@ -206,17 +221,17 @@ func CleanupTransactions(transactionCleanups []contracts.ITransaction, i int) {
 
 		if !transaction.GetLocal() {
 			afterClock := int64(-1)
-			if ac, exists := transaction.GetAfterState()[doc.GetClientID()]; exists {
+			if ac, exists := transaction.GetAfterState()[int64(doc.GetClientID())]; exists {
 				afterClock = ac
 			}
 
 			beforeClock := int64(-1)
-			if bc, exists := transaction.GetBeforeState()[doc.GetClientID()]; exists {
+			if bc, exists := transaction.GetBeforeState()[int64(doc.GetClientID())]; exists {
 				beforeClock = bc
 			}
 
 			if afterClock != beforeClock {
-				doc.SetClientID(generateNewClientID())
+				doc.SetClientID(int(generateNewClientID()))
 			}
 		}
 
@@ -265,7 +280,7 @@ func CleanupTransactions(transactionCleanups []contracts.ITransaction, i int) {
 
 	actions = append(actions, func() {
 		for itemType, subs := range transaction.GetChanged() {
-			if itemType.GetItem() == nil || !itemType.GetItem().IsDeleted() {
+			if itemType.GetItem() == nil || !itemType.GetItem().GetDeleted() {
 				itemType.CallObserver(transaction, subs)
 			}
 		}
@@ -275,9 +290,9 @@ func CleanupTransactions(transactionCleanups []contracts.ITransaction, i int) {
 		// Deep observe events
 		for yType, events := range transaction.GetChangedParentTypes() {
 			// We need to think about the possibility that the user transforms the YDoc in the event
-			if yType.GetItem() == nil || !yType.GetItem().IsDeleted() {
+			if yType.GetItem() == nil || !yType.GetItem().GetDeleted() {
 				for _, evt := range events {
-					if evt.GetTarget().GetItem() == nil || !evt.GetTarget().GetItem().IsDeleted() {
+					if evt.GetTarget().GetItem() == nil || !evt.GetTarget().GetItem().GetDeleted() {
 						evt.SetCurrentTarget(yType)
 					}
 				}
@@ -321,7 +336,7 @@ func (tr *Transaction) RedoItem(item contracts.IStructItem, redoItems map[contra
 	var left contracts.IStructItem
 	var right contracts.IStructItem
 
-	if item.GetParentSub() == nil {
+	if item.GetParentSub() == "" {
 		// Is an array item. Insert at the old position.
 		left = item.GetLeft()
 		right = item
@@ -330,7 +345,7 @@ func (tr *Transaction) RedoItem(item contracts.IStructItem, redoItems map[contra
 		left = item
 		for left.GetRight() != nil {
 			left = left.GetRight()
-			if left.GetID().Client != ownClientID {
+			if left.GetID().Client != int64(ownClientID) {
 				// It is not possible to redo this item because it conflicts with a change from another client.
 				return nil
 			}
@@ -338,14 +353,15 @@ func (tr *Transaction) RedoItem(item contracts.IStructItem, redoItems map[contra
 
 		if left.GetRight() != nil {
 			parent := item.GetParent().(contracts.IAbstractType)
-			left = parent.GetMap()[*item.GetParentSub()]
+			parentSub := item.GetParentSub()
+			left = parent.GetMap()[parentSub]
 		}
 
 		right = nil
 	}
 
 	// Make sure that parent is redone
-	if parentItem != nil && parentItem.IsDeleted() && parentItem.GetRedone() == nil {
+	if parentItem != nil && parentItem.GetDeleted() && parentItem.GetRedone() == nil {
 		// Try to undo parent if it will be undone anyway
 		if _, exists := redoItems[parentItem]; !exists || tr.RedoItem(parentItem, redoItems) == nil {
 			return nil
@@ -395,17 +411,19 @@ func (tr *Transaction) RedoItem(item contracts.IStructItem, redoItems map[contra
 		}
 	}
 
-	nextClock := store.GetState(ownClientID)
-	nextID := StructID{Client: ownClientID, Clock: nextClock}
+	nextClock := store.GetState(int64(ownClientID))
+	nextID := contracts.StructID{Client: int64(ownClientID), Clock: nextClock}
 
-	var lastID *StructID
+	var lastID *contracts.StructID
 	if left != nil {
-		lastID = left.GetLastID()
+		id := left.GetLastID()
+		lastID = &id
 	}
 
-	var rightID *StructID
+	var rightID *contracts.StructID
 	if right != nil {
-		rightID = &right.GetID()
+		id := right.GetID()
+		rightID = &id
 	}
 
 	var parent interface{}
@@ -423,8 +441,15 @@ func (tr *Transaction) RedoItem(item contracts.IStructItem, redoItems map[contra
 		right,
 		rightID,
 		parent,
-		item.GetParentSub(),
-		item.GetContent().Copy(),
+		func() *string {
+			s := item.GetParentSub()
+			if s == "" {
+				return nil
+			} else {
+				return &s
+			}
+		}(),
+		item.GetContent().Copy().(contracts.IContentEx),
 	)
 
 	item.SetRedone(&nextID)

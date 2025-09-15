@@ -72,13 +72,14 @@ func (c *ContentAny) Gc(store contracts.IStructStore) {
 	// Do nothing
 }
 
-func (c *ContentAny) Write(encoder contracts.IUpdateEncoder, offset int) {
+func (c *ContentAny) Write(encoder contracts.IUpdateEncoder, offset int) error {
 	length := len(c.content)
 	encoder.WriteLength(length - offset)
 
 	for i := offset; i < length; i++ {
 		encoder.WriteAny(c.content[i])
 	}
+	return nil
 }
 
 func ReadContentAny(decoder contracts.IUpdateDecoder) *ContentAny {

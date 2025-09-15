@@ -54,7 +54,7 @@ func (opts *YDocOptions) Clone() *YDocOptions {
 }
 
 // Write writes the options using an encoder
-func (opts *YDocOptions) Write(encoder IUpdateEncoder, offset int) {
+func (opts *YDocOptions) Write(encoder IUpdateEncoder, offset int) error {
 	dict := make(map[string]interface{})
 	dict["gc"] = opts.Gc
 	dict["guid"] = opts.Guid
@@ -65,6 +65,7 @@ func (opts *YDocOptions) Write(encoder IUpdateEncoder, offset int) {
 	}
 
 	encoder.WriteAny(dict)
+	return nil
 }
 
 // ReadYDocOptions reads YDocOptions from a decoder

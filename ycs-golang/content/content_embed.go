@@ -73,8 +73,9 @@ func (c *ContentEmbed) Gc(store contracts.IStructStore) {
 }
 
 // Write writes this content to an encoder
-func (c *ContentEmbed) Write(encoder contracts.IUpdateEncoder, offset int) {
+func (c *ContentEmbed) Write(encoder contracts.IUpdateEncoder, offset int) error {
 	encoder.WriteEmbed(c.embed)
+	return nil
 }
 
 // ReadContentEmbed reads ContentEmbed from a decoder

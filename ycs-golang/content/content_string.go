@@ -86,9 +86,10 @@ func (c *ContentString) Gc(store contracts.IStructStore) {
 }
 
 // Write writes this content to an encoder
-func (c *ContentString) Write(encoder contracts.IUpdateEncoder, offset int) {
+func (c *ContentString) Write(encoder contracts.IUpdateEncoder, offset int) error {
 	runes := []rune(c.content)
 	encoder.WriteString(string(runes[offset:]))
+	return nil
 }
 
 // ReadContentString reads ContentString from a decoder

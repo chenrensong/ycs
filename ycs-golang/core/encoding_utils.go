@@ -5,7 +5,7 @@ import (
 	"io"
 	"sort"
 	"ycs/contracts"
-	"ycs/lib0/decoding"
+	"ycs/lib0"
 )
 
 // EncodingUtils provides encoding and decoding utilities
@@ -59,9 +59,9 @@ func WriteStructs(encoder contracts.IUpdateEncoder, structs []contracts.IStructI
 	startNewStructs := FindIndexSS(structs, clock)
 
 	// Write # encoded structs
-	encoder.GetRestWriter().WriteVarUint(uint64(len(structs) - startNewStructs))
+	lib0.WriteVarUint(encoder.GetRestWriter(), uint32(len(structs)-startNewStructs))
 	encoder.WriteClient(client)
-	encoder.GetRestWriter().WriteVarUint(uint64(clock))
+	lib0.WriteVarUint(encoder.GetRestWriter(), uint32(clock))
 
 	// Write first struct with offset
 	firstStruct := structs[startNewStructs]
@@ -99,7 +99,7 @@ func WriteClientsStructs(encoder contracts.IUpdateEncoder, store contracts.IStru
 	}
 
 	// Write # states that were updated
-	encoder.GetRestWriter().WriteVarUint(uint64(len(filteredSm)))
+	lib0.WriteVarUint(encoder.GetRestWriter(), uint32(len(filteredSm)))
 
 	// Write items with higher client ids first
 	// This heavily improves the conflict resolution algorithm
@@ -123,18 +123,29 @@ func WriteClientsStructs(encoder contracts.IUpdateEncoder, store contracts.IStru
 
 // ReadClientStructRefs reads client struct references from decoder
 func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc) (map[int64][]contracts.IStructItem, error) {
-	clientRefs := make(map[int64][]contracts.IStructItem)
-	numOfStateUpdates := decoder.GetReader().ReadVarUint()
+	numOfStateUpdates, err := lib0.ReadVarUint(decoder.GetReader().(lib0.StreamReader))
+	if err != nil {
+		return nil, err
+	}
 
-	for i := uint64(0); i < numOfStateUpdates; i++ {
-		numberOfStructs := int(decoder.GetReader().ReadVarUint())
+	clientRefs := make(map[int64][]contracts.IStructItem)
+	for i := uint32(0); i < numOfStateUpdates; i++ {
+		numberOfStructsVal, err := lib0.ReadVarUint(decoder.GetReader().(lib0.StreamReader))
+		if err != nil {
+			return nil, err
+		}
+		numberOfStructs := int(numberOfStructsVal)
 		if numberOfStructs < 0 {
 			return nil, errors.New("invalid number of structs")
 		}
 
 		refs := make([]contracts.IStructItem, 0, numberOfStructs)
 		client := decoder.ReadClient()
-		clock := int64(decoder.GetReader().ReadVarUint())
+		clockVal, err := lib0.ReadVarUint(decoder.GetReader().(lib0.StreamReader))
+		if err != nil {
+			return nil, err
+		}
+		clock := int64(clockVal)
 
 		clientRefs[client] = refs
 
@@ -142,14 +153,14 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 			info := decoder.ReadInfo()
 			if (info & 0x1F) != 0 { // Bits5
 				// The item that was originally to the left of this item
-				var leftOrigin *StructID
+				var leftOrigin *contracts.StructID
 				if (info & 0x80) == 0x80 { // Bit8
 					id := decoder.ReadLeftID()
 					leftOrigin = &id
 				}
 
 				// The item that was originally to the right of this item
-				var rightOrigin *StructID
+				var rightOrigin *contracts.StructID
 				if (info & 0x40) == 0x40 { // Bit7
 					id := decoder.ReadRightID()
 					rightOrigin = &id
@@ -175,7 +186,7 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 					id := decoder.ReadLeftID()
 					parent = id
 				} else if parentYKey != nil {
-					parent = doc.Get(*parentYKey)
+					parent = doc.Get(*parentYKey, nil) // Pass nil as typeConstructor
 				}
 
 				var parentSub *string
@@ -190,21 +201,21 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 				}
 
 				str := NewStructItem(
-					StructID{Client: client, Clock: clock},
+					contracts.StructID{Client: client, Clock: clock},
 					nil, // left
 					leftOrigin,
 					nil, // right
 					rightOrigin,
 					parent,
 					parentSub,
-					content,
+					content.(contracts.IContentEx), // Convert IContent to IContentEx
 				)
 
 				refs = append(refs, str)
 				clock += int64(str.GetLength())
 			} else {
 				length := decoder.ReadLength()
-				refs = append(refs, NewStructGC(StructID{Client: client, Clock: clock}, int(length)))
+				refs = append(refs, NewStructGC(contracts.StructID{Client: client, Clock: clock}, int(length)))
 				clock += int64(length)
 			}
 		}
@@ -217,11 +228,11 @@ func ReadClientStructRefs(decoder contracts.IUpdateDecoder, doc contracts.IYDoc)
 
 // WriteStateVector writes state vector to encoder
 func WriteStateVector(encoder contracts.IDSEncoder, sv map[int64]int64) error {
-	encoder.GetRestWriter().WriteVarUint(uint64(len(sv)))
+	lib0.WriteVarUint(encoder.GetRestWriter(), uint32(len(sv)))
 
 	for client, clock := range sv {
-		encoder.GetRestWriter().WriteVarUint(uint64(client))
-		encoder.GetRestWriter().WriteVarUint(uint64(clock))
+		lib0.WriteVarUint(encoder.GetRestWriter(), uint32(client))
+		lib0.WriteVarUint(encoder.GetRestWriter(), uint32(clock))
 	}
 
 	return nil
@@ -229,12 +240,26 @@ func WriteStateVector(encoder contracts.IDSEncoder, sv map[int64]int64) error {
 
 // ReadStateVector reads state vector from decoder
 func ReadStateVector(decoder contracts.IDSDecoder) (map[int64]int64, error) {
-	ssLength := int(decoder.GetReader().ReadVarUint())
+	ssLengthVal, err := lib0.ReadVarUint(decoder.GetReader().(lib0.StreamReader))
+	if err != nil {
+		return nil, err
+	}
+	ssLength := int(ssLengthVal)
 	ss := make(map[int64]int64, ssLength)
 
 	for i := 0; i < ssLength; i++ {
-		client := int64(decoder.GetReader().ReadVarUint())
-		clock := int64(decoder.GetReader().ReadVarUint())
+		clientVal, err := lib0.ReadVarUint(decoder.GetReader().(lib0.StreamReader))
+		if err != nil {
+			return nil, err
+		}
+		client := int64(clientVal)
+
+		clockVal, err := lib0.ReadVarUint(decoder.GetReader().(lib0.StreamReader))
+		if err != nil {
+			return nil, err
+		}
+		clock := int64(clockVal)
+
 		ss[client] = clock
 	}
 
@@ -243,7 +268,7 @@ func ReadStateVector(decoder contracts.IDSDecoder) (map[int64]int64, error) {
 
 // DecodeStateVector decodes state vector from input stream
 func DecodeStateVector(input io.Reader) (map[int64]int64, error) {
-	decoder := decoding.NewDSDecoderV2(input)
+	decoder := NewDSDecoderV2(input)
 	return ReadStateVector(decoder)
 }
 

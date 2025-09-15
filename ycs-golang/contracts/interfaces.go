@@ -6,7 +6,7 @@ type IStructItem interface {
 	Delete(transaction ITransaction)
 	Integrate(transaction ITransaction, offset int)
 	GetMissing(transaction ITransaction, store IStructStore) *int64
-	Write(encoder IUpdateEncoder, offset int)
+	Write(encoder IUpdateEncoder, offset int) error
 
 	GetID() StructID
 	SetID(id StructID)
@@ -40,10 +40,12 @@ type IStructItem interface {
 	SetLength(length int)
 
 	Gc(store IStructStore, parentGCd bool)
+	IsGC() bool
 	IsVisible(snap ISnapshot) bool
 	KeepItemAndParents(value bool)
 	MarkDeleted()
 	SplitItem(transaction ITransaction, diff int) IStructItem
+	TryToMergeWithRight(right IStructItem) bool
 }
 
 // IAbstractType represents an abstract type interface
@@ -88,7 +90,7 @@ type IContentEx interface {
 	Integrate(transaction ITransaction, item IStructItem)
 	Delete(transaction ITransaction)
 	Gc(store IStructStore)
-	Write(encoder IUpdateEncoder, offset int)
+	Write(encoder IUpdateEncoder, offset int) error
 }
 
 // This file contains the core interfaces for the YCS contracts

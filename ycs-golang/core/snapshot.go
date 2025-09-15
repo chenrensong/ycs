@@ -1,8 +1,8 @@
 package core
 
 import (
-	"fmt"
 	"ycs/contracts"
+	"ycs/lib0"
 )
 
 // Snapshot represents a snapshot of a document state
@@ -20,10 +20,10 @@ func NewSnapshot(ds contracts.IDeleteSet, stateMap map[int64]int64) *Snapshot {
 }
 
 // RestoreDocument restores a document from this snapshot
-func (s *Snapshot) RestoreDocument(originDoc contracts.IYDoc, opts contracts.YDocOptions) (contracts.IYDoc, error) {
-	if originDoc.IsGc() {
+func (s *Snapshot) RestoreDocument(originDoc contracts.IYDoc, opts *contracts.YDocOptions) contracts.IYDoc {
+	if originDoc.GetGc() {
 		// We should try to restore a GC-ed document, because some of the restored items might have their content deleted.
-		return nil, fmt.Errorf("originDoc must not be garbage collected")
+		panic("originDoc must not be garbage collected")
 	}
 
 	encoder := NewUpdateEncoderV2()
@@ -37,7 +37,7 @@ func (s *Snapshot) RestoreDocument(originDoc contracts.IYDoc, opts contracts.YDo
 				size++
 			}
 		}
-		encoder.RestWriter.WriteVarUint(uint64(size))
+		lib0.WriteVarUint(encoder.restWriter, uint32(size))
 
 		// Splitting the structs before writing them to the encoder.
 		for client, clock := range s.StateVector {
@@ -53,11 +53,11 @@ func (s *Snapshot) RestoreDocument(originDoc contracts.IYDoc, opts contracts.YDo
 			lastStructIndex := FindIndexSS(structs, clock-1)
 
 			// Write # encoded structs.
-			encoder.RestWriter.WriteVarUint(uint64(lastStructIndex + 1))
+			lib0.WriteVarUint(encoder.restWriter, uint32(lastStructIndex+1))
 			encoder.WriteClient(client)
 
 			// First clock written is 0.
-			encoder.RestWriter.WriteVarUint(0)
+			lib0.WriteVarUint(encoder.restWriter, uint32(0))
 
 			for i := 0; i <= lastStructIndex; i++ {
 				structs[i].Write(encoder, 0)
@@ -67,13 +67,10 @@ func (s *Snapshot) RestoreDocument(originDoc contracts.IYDoc, opts contracts.YDo
 		s.DeleteSet.Write(encoder)
 	}, "snapshot")
 
-	newDoc := NewYDoc(opts)
-	err := newDoc.ApplyUpdateV2(encoder.ToArray(), "snapshot")
-	if err != nil {
-		return nil, err
-	}
+	newDoc := NewYDoc(*opts)
+	newDoc.ApplyUpdateV2Bytes(encoder.ToArray(), "snapshot", true)
 
-	return newDoc, nil
+	return newDoc
 }
 
 // Equals compares two snapshots for equality
@@ -104,11 +101,27 @@ func (s *Snapshot) Equals(other *Snapshot) bool {
 		}
 
 		for i, item := range deleteItems {
-			if !item.Equals(otherDeleteItems[i]) {
+			if item.Clock != otherDeleteItems[i].Clock || item.Length != otherDeleteItems[i].Length {
 				return false
 			}
 		}
 	}
 
 	return true
+}
+
+// GetDeleteSet returns the delete set
+func (s *Snapshot) GetDeleteSet() contracts.IDeleteSet {
+	return s.DeleteSet
+}
+
+// GetStateVector returns the state vector
+func (s *Snapshot) GetStateVector() map[int64]int64 {
+	return s.StateVector
+}
+
+// EncodeSnapshotV2 encodes the snapshot as bytes
+func (s *Snapshot) EncodeSnapshotV2() []byte {
+	// TODO: Implement proper snapshot encoding
+	return []byte{}
 }

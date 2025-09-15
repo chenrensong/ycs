@@ -72,8 +72,9 @@ func (c *ContentType) Gc(store contracts.IStructStore) {
 }
 
 // Write writes this content to an encoder
-func (c *ContentType) Write(encoder contracts.IUpdateEncoder, offset int) {
+func (c *ContentType) Write(encoder contracts.IUpdateEncoder, offset int) error {
 	// Implementation would go here
+	return nil
 }
 
 // ReadContentType reads ContentType from a decoder

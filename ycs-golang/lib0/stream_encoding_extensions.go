@@ -41,14 +41,30 @@ func WriteUint32(writer StreamWriter, num uint32) error {
 }
 
 // WriteVarUint writes a variable length unsigned integer
-func WriteVarUint(writer StreamWriter, num uint32) error {
+func WriteVarUint(writer io.Writer, num uint32) error {
+	// Cast to StreamWriter if possible, otherwise use a wrapper
+	if streamWriter, ok := writer.(StreamWriter); ok {
+		for num > 0x7F {
+			if err := streamWriter.WriteByte(byte(0x80 | (num & 0x7F))); err != nil {
+				return err
+			}
+			num >>= 7
+		}
+		return streamWriter.WriteByte(byte(num & 0x7F))
+	}
+	
+	// Fallback implementation for regular io.Writer
+	buf := make([]byte, 1)
 	for num > 0x7F {
-		if err := writer.WriteByte(byte(0x80 | (num & 0x7F))); err != nil {
+		buf[0] = byte(0x80 | (num & 0x7F))
+		if _, err := writer.Write(buf); err != nil {
 			return err
 		}
 		num >>= 7
 	}
-	return writer.WriteByte(byte(num & 0x7F))
+	buf[0] = byte(num & 0x7F)
+	_, err := writer.Write(buf)
+	return err
 }
 
 // WriteVarInt writes a variable length integer
@@ -244,3 +260,5 @@ func WriteAny(writer StreamWriter, data interface{}) error {
 		}
 	}
 }
+
+

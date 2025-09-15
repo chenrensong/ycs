@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sort"
 	"ycs/contracts"
+	"ycs/lib0"
 )
 
 // PendingClientStructRef represents pending client struct references
@@ -67,10 +68,10 @@ func (ss *StructStore) GetState(clientID int64) int64 {
 }
 
 // IntegrityCheck performs integrity check on the store
-func (ss *StructStore) IntegrityCheck() error {
-	for client, structs := range ss.clients {
+func (ss *StructStore) IntegrityCheck() {
+	for _, structs := range ss.clients {
 		if len(structs) == 0 {
-			return errors.New("StructStore failed integrity check: no structs for client")
+			panic("StructStore failed integrity check: no structs for client")
 		}
 
 		for i := 1; i < len(structs); i++ {
@@ -78,16 +79,14 @@ func (ss *StructStore) IntegrityCheck() error {
 			right := structs[i]
 
 			if left.GetID().Clock+int64(left.GetLength()) != right.GetID().Clock {
-				return errors.New("StructStore failed integrity check: missing struct")
+				panic("StructStore failed integrity check: missing struct")
 			}
 		}
 	}
 
 	if len(ss.pendingDeleteReaders) != 0 || len(ss.pendingStack) != 0 || len(ss.pendingClientStructRefs) != 0 {
-		return errors.New("StructStore failed integrity check: still have pending items")
+		panic("StructStore failed integrity check: still have pending items")
 	}
-
-	return nil
 }
 
 // CleanupPendingStructs cleans up pending structs if not fully finished
@@ -109,7 +108,7 @@ func (ss *StructStore) CleanupPendingStructs() {
 }
 
 // AddStruct adds a struct to the store
-func (ss *StructStore) AddStruct(str contracts.IStructItem) error {
+func (ss *StructStore) AddStruct(str contracts.IStructItem) {
 	client := str.GetID().Client
 	structs, exists := ss.clients[client]
 
@@ -119,16 +118,15 @@ func (ss *StructStore) AddStruct(str contracts.IStructItem) error {
 	} else if len(structs) > 0 {
 		lastStruct := structs[len(structs)-1]
 		if lastStruct.GetID().Clock+int64(lastStruct.GetLength()) != str.GetID().Clock {
-			return errors.New("unexpected struct clock")
+			panic("unexpected struct clock")
 		}
 	}
 
 	ss.clients[client] = append(structs, str)
-	return nil
 }
 
 // Find finds a struct by ID
-func (ss *StructStore) Find(id StructID) (contracts.IStructItem, error) {
+func (ss *StructStore) Find(id contracts.StructID) (contracts.IStructItem, error) {
 	structs, exists := ss.clients[id.Client]
 	if !exists {
 		return nil, errors.New("no structs for client")
@@ -164,25 +162,25 @@ func (ss *StructStore) FindIndexCleanStart(transaction contracts.ITransaction, s
 }
 
 // GetItemCleanStart gets item with clean start
-func (ss *StructStore) GetItemCleanStart(transaction contracts.ITransaction, id StructID) (contracts.IStructItem, error) {
+func (ss *StructStore) GetItemCleanStart(transaction contracts.ITransaction, id contracts.StructID) contracts.IStructItem {
 	structs, exists := ss.clients[id.Client]
 	if !exists {
-		return nil, errors.New("no structs for client")
+		panic("no structs for client")
 	}
 
 	indexCleanStart := ss.FindIndexCleanStart(transaction, structs, id.Clock)
 	if indexCleanStart < 0 || indexCleanStart >= len(structs) {
-		return nil, errors.New("invalid index")
+		panic("invalid index")
 	}
 
-	return structs[indexCleanStart], nil
+	return structs[indexCleanStart]
 }
 
 // GetItemCleanEnd gets item with clean end
-func (ss *StructStore) GetItemCleanEnd(transaction contracts.ITransaction, id StructID) (contracts.IStructItem, error) {
+func (ss *StructStore) GetItemCleanEnd(transaction contracts.ITransaction, id contracts.StructID) contracts.IStructItem {
 	structs, exists := ss.clients[id.Client]
 	if !exists {
-		return nil, errors.New("no structs for client")
+		panic("no structs for client")
 	}
 
 	index := FindIndexSS(structs, id.Clock)
@@ -198,9 +196,10 @@ func (ss *StructStore) GetItemCleanEnd(transaction contracts.ITransaction, id St
 
 		// Update the clients map
 		ss.clients[str.GetID().Client] = newStructs
+		return newStructs[index+1]
 	}
 
-	return str, nil
+	return str
 }
 
 // ReplaceStruct replaces an old struct with a new one
@@ -243,24 +242,24 @@ func (ss *StructStore) IterateStructs(transaction contracts.ITransaction, struct
 }
 
 // FollowRedone follows redone items
-func (ss *StructStore) FollowRedone(id StructID) (contracts.IStructItem, int, error) {
+func (ss *StructStore) FollowRedone(id contracts.StructID) (contracts.IStructItem, int) {
 	nextID := id
 	diff := 0
 
 	for {
 		if diff > 0 {
-			nextID = StructID{Client: nextID.Client, Clock: nextID.Clock + int64(diff)}
+			nextID = contracts.StructID{Client: nextID.Client, Clock: nextID.Clock + int64(diff)}
 		}
 
 		item, err := ss.Find(nextID)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0
 		}
 
 		diff = int(nextID.Clock - item.GetID().Clock)
 
 		if item.GetRedone() == nil {
-			return item, diff, nil
+			return item, diff
 		}
 
 		nextID = *item.GetRedone()
@@ -442,23 +441,39 @@ func (ss *StructStore) ResumeStructIntegration(transaction contracts.ITransactio
 // ReadAndApplyDeleteSet reads and applies delete set
 func (ss *StructStore) ReadAndApplyDeleteSet(decoder contracts.IDSDecoder, transaction contracts.ITransaction) error {
 	unappliedDs := NewDeleteSet()
-	numClients := decoder.GetReader().ReadVarUint()
+	reader := decoder.GetReader()
+	streamReader, ok := reader.(lib0.StreamReader)
+	if !ok {
+		return errors.New("reader does not implement StreamReader interface")
+	}
 
-	for i := uint64(0); i < numClients; i++ {
+	numClients, err := lib0.ReadVarUint(streamReader)
+	if err != nil {
+		return err
+	}
+
+	for i := uint32(0); i < uint32(numClients); i++ {
 		decoder.ResetDsCurVal()
 
-		client := int64(decoder.GetReader().ReadVarUint())
-		numberOfDeletes := decoder.GetReader().ReadVarUint()
+		clientVal, err := lib0.ReadVarUint(streamReader)
+		if err != nil {
+			return err
+		}
+		client := int64(clientVal)
+		numberOfDeletes, err := lib0.ReadVarUint(streamReader)
+		if err != nil {
+			return err
+		}
 
 		structs, exists := ss.clients[client]
 		if !exists {
 			structs = make([]contracts.IStructItem, 0)
-			// NOTE: Clients map is not updated
+			ss.clients[client] = structs
 		}
 
 		state := ss.GetState(client)
 
-		for deleteIndex := uint64(0); deleteIndex < numberOfDeletes; deleteIndex++ {
+		for deleteIndex := uint32(0); deleteIndex < uint32(numberOfDeletes); deleteIndex++ {
 			clock := int64(decoder.ReadDsClock())
 			clockEnd := clock + int64(decoder.ReadDsLength())
 
@@ -473,7 +488,7 @@ func (ss *StructStore) ReadAndApplyDeleteSet(decoder contracts.IDSDecoder, trans
 				str := structs[index]
 
 				// Split the first item if necessary
-				if !str.IsDeleted() && str.GetID().Clock < clock {
+				if !str.GetDeleted() && str.GetID().Clock < clock {
 					splitItem := str.SplitItem(transaction, int(clock-str.GetID().Clock))
 					// Insert split item
 					newStructs := make([]contracts.IStructItem, len(structs)+1)
@@ -490,7 +505,7 @@ func (ss *StructStore) ReadAndApplyDeleteSet(decoder contracts.IDSDecoder, trans
 				for index < len(structs) {
 					str = structs[index]
 					if str.GetID().Clock < clockEnd {
-						if !str.IsDeleted() {
+						if !str.GetDeleted() {
 							if clockEnd < str.GetID().Clock+int64(str.GetLength()) {
 								splitItem := str.SplitItem(transaction, int(clockEnd-str.GetID().Clock))
 								// Insert split item

@@ -58,8 +58,9 @@ func (c *ContentBinary) Gc(store contracts.IStructStore) {
 	// Do nothing
 }
 
-func (c *ContentBinary) Write(encoder contracts.IUpdateEncoder, offset int) {
+func (c *ContentBinary) Write(encoder contracts.IUpdateEncoder, offset int) error {
 	encoder.WriteBuffer(c.content)
+	return nil
 }
 
 func ReadContentBinary(decoder contracts.IUpdateDecoder) *ContentBinary {

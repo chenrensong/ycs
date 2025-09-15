@@ -3,6 +3,7 @@ package core
 import (
 	"sort"
 	"ycs/contracts"
+	"ycs/lib0"
 )
 
 // DeleteItem represents a deleted item range
@@ -62,12 +63,20 @@ func NewDeleteSetFromStore(store contracts.IStructStore) *DeleteSet {
 }
 
 // GetClients returns the clients map
-func (ds *DeleteSet) GetClients() map[int64][]*DeleteItem {
-	return ds.clients
+func (ds *DeleteSet) GetClients() map[int64][]contracts.DeleteItem {
+	result := make(map[int64][]contracts.DeleteItem)
+	for client, items := range ds.clients {
+		contractItems := make([]contracts.DeleteItem, len(items))
+		for i, item := range items {
+			contractItems[i] = contracts.DeleteItem{Clock: item.Clock, Length: item.Length}
+		}
+		result[client] = contractItems
+	}
+	return result
 }
 
 // IsDeleted checks if a struct ID is deleted
-func (ds *DeleteSet) IsDeleted(id StructID) bool {
+func (ds *DeleteSet) IsDeleted(id contracts.StructID) bool {
 	deleteItems, exists := ds.clients[id.Client]
 	if !exists {
 		return false
@@ -176,7 +185,7 @@ func (ds *DeleteSet) SortAndMergeDeleteSet() {
 
 // Write writes the delete set to an encoder
 func (ds *DeleteSet) Write(encoder contracts.IDSEncoder) error {
-	encoder.GetRestWriter().WriteVarUint(uint64(len(ds.clients)))
+	lib0.WriteVarUint(encoder.GetRestWriter(), uint32(len(ds.clients)))
 
 	// Write clients in sorted order for consistency
 	var clients []int64
@@ -189,13 +198,13 @@ func (ds *DeleteSet) Write(encoder contracts.IDSEncoder) error {
 
 	for _, client := range clients {
 		deleteItems := ds.clients[client]
-		encoder.GetRestWriter().WriteVarUint(uint64(client))
-		encoder.GetRestWriter().WriteVarUint(uint64(len(deleteItems)))
+		lib0.WriteVarUint(encoder.GetRestWriter(), uint32(client))
+		lib0.WriteVarUint(encoder.GetRestWriter(), uint32(len(deleteItems)))
 
 		encoder.ResetDsCurVal()
 		for _, item := range deleteItems {
-			encoder.WriteDsClock(uint64(item.Clock))
-			encoder.WriteDsLength(uint64(item.Length))
+			encoder.WriteDsClock(item.Clock)
+			encoder.WriteDsLength(item.Length)
 		}
 	}
 
@@ -214,7 +223,9 @@ func (ds *DeleteSet) TryGcDeleteSet(store contracts.IStructStore, gcFilter func(
 			ds.iterateDeletedStructs(store, structs, deleteItem.Clock, deleteItem.Length, func(item contracts.IStructItem) bool {
 				if item.GetDeleted() && (gcFilter == nil || gcFilter(item)) {
 					// Replace with GC item
-					gcItem := NewStructGC(item.GetID(), item.GetLength())
+					itemID := item.GetID()
+					coreItemID := itemID
+					gcItem := NewStructGC(coreItemID, item.GetLength())
 					store.ReplaceStruct(item, gcItem)
 				}
 				return true
@@ -243,6 +254,22 @@ func (ds *DeleteSet) TryMergeDeleteSet(store contracts.IStructStore) {
 	}
 }
 
+// IterateDeletedStructs iterates over deleted structs in a range
+func (ds *DeleteSet) IterateDeletedStructs(transaction contracts.ITransaction, fn func(contracts.IStructItem) bool) {
+	// This method needs to be implemented according to the interface
+	// For now, we'll provide a basic implementation
+	for client, deleteItems := range ds.clients {
+		structs, exists := transaction.GetStructStore().GetClients()[client]
+		if !exists {
+			continue
+		}
+
+		for _, deleteItem := range deleteItems {
+			ds.iterateDeletedStructs(transaction.GetStructStore(), structs, deleteItem.Clock, deleteItem.Length, fn)
+		}
+	}
+}
+
 // iterateDeletedStructs iterates over deleted structs in a range
 func (ds *DeleteSet) iterateDeletedStructs(store contracts.IStructStore, structs []contracts.IStructItem, clock, length int64, fn func(contracts.IStructItem) bool) {
 	if length <= 0 {
@@ -267,6 +294,22 @@ func (ds *DeleteSet) iterateDeletedStructs(store contracts.IStructStore, structs
 
 		index++
 	}
+}
+
+// TryGc performs garbage collection on the delete set
+func (ds *DeleteSet) TryGc(store contracts.IStructStore, gcFilter func(contracts.IStructItem) bool) {
+	// TryGcDeleteSet already implements the GC functionality
+	ds.TryGcDeleteSet(store, gcFilter)
+}
+
+// FindIndexSS finds the index of a delete item with the given clock
+func (ds *DeleteSet) FindIndexSS(dis []contracts.DeleteItem, clock int64) *int {
+	for i, item := range dis {
+		if item.Clock == clock {
+			return &i
+		}
+	}
+	return nil
 }
 
 // tryToMergeWithLeft tries to merge an item with its left neighbor

@@ -76,9 +76,10 @@ func (c *ContentFormat) Gc(store contracts.IStructStore) {
 }
 
 // Write writes this content to an encoder
-func (c *ContentFormat) Write(encoder contracts.IUpdateEncoder, offset int) {
+func (c *ContentFormat) Write(encoder contracts.IUpdateEncoder, offset int) error {
 	encoder.WriteKey(c.key)
 	encoder.WriteAny(c.value)
+	return nil
 }
 
 // ReadContentFormat reads ContentFormat from a decoder

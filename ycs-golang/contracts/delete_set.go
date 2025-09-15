@@ -11,5 +11,5 @@ type IDeleteSet interface {
 	TryGc(store IStructStore, gcFilter func(IStructItem) bool)
 	TryGcDeleteSet(store IStructStore, gcFilter func(IStructItem) bool)
 	TryMergeDeleteSet(store IStructStore)
-	Write(encoder IDSEncoder)
+	Write(encoder IDSEncoder) error
 }

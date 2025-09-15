@@ -1,7 +1,6 @@
 package protocols
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"ycs/core"
@@ -22,10 +21,7 @@ func WriteSyncStep1(writer io.Writer, doc *core.YDoc) error {
 		return err
 	}
 
-	sv, err := doc.EncodeStateVectorV2()
-	if err != nil {
-		return err
-	}
+	sv := doc.EncodeStateVectorV2()
 	return lib0.WriteVarUint8Array(streamWriter, sv)
 }
 
@@ -36,10 +32,7 @@ func WriteSyncStep2(writer io.Writer, doc *core.YDoc, encodedStateVector []byte)
 		return err
 	}
 
-	update, err := doc.EncodeStateAsUpdateV2(encodedStateVector)
-	if err != nil {
-		return err
-	}
+	update := doc.EncodeStateAsUpdateV2(encodedStateVector)
 	return lib0.WriteVarUint8Array(streamWriter, update)
 }
 
@@ -62,7 +55,8 @@ func ReadSyncStep2(reader io.Reader, doc *core.YDoc, transactionOrigin interface
 		return err
 	}
 
-	return doc.ApplyUpdateV2(bytes.NewReader(update), transactionOrigin, false)
+	doc.ApplyUpdateV2(update, transactionOrigin, false)
+	return nil
 }
 
 // WriteUpdate writes an update message to stream

@@ -23,4 +23,6 @@ type ITransaction interface {
 	GetNextID() StructID
 	RedoItem(item IStructItem, redoItems map[IStructItem]struct{}) IStructItem
 	WriteUpdateMessageFromTransaction(encoder IUpdateEncoder) bool
+	GetStructStore() IStructStore
+	Cleanup()
 }

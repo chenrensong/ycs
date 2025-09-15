@@ -9,6 +9,12 @@ import (
 	"ycs/contracts"
 )
 
+// Initialize initializes the core package
+func Initialize() {
+	// This function can be used to initialize any core package requirements
+	// For now, it's empty but can be extended as needed
+}
+
 // YDoc represents a Yjs instance that handles the state of shared data
 type YDoc struct {
 	opts                contracts.YDocOptions
@@ -75,8 +81,8 @@ func generateGUID() string {
 }
 
 // GetOpts returns the document options
-func (ydoc *YDoc) GetOpts() contracts.YDocOptions {
-	return ydoc.opts
+func (ydoc *YDoc) GetOpts() *contracts.YDocOptions {
+	return &ydoc.opts
 }
 
 // GetGuid returns the document GUID
@@ -125,6 +131,13 @@ func (ydoc *YDoc) GetTransactionCleanups() []contracts.ITransaction {
 	return ydoc.transactionCleanups
 }
 
+// SetTransactionCleanups sets the transaction cleanups
+func (ydoc *YDoc) SetTransactionCleanups(transactionCleanups []contracts.ITransaction) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.transactionCleanups = transactionCleanups
+}
+
 // GetTransaction returns the current transaction
 func (ydoc *YDoc) GetTransaction() contracts.ITransaction {
 	ydoc.mutex.RLock()
@@ -167,23 +180,37 @@ func (ydoc *YDoc) GetShare() map[string]contracts.IAbstractType {
 	return ydoc.share
 }
 
+// SetShare sets the shared types
+func (ydoc *YDoc) SetShare(share map[string]contracts.IAbstractType) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.share = share
+}
+
 // GetClientID returns the client ID
-func (ydoc *YDoc) GetClientID() int64 {
+func (ydoc *YDoc) GetClientID() int {
 	ydoc.mutex.RLock()
 	defer ydoc.mutex.RUnlock()
-	return ydoc.clientID
+	return int(ydoc.clientID)
 }
 
 // SetClientID sets the client ID
-func (ydoc *YDoc) SetClientID(clientID int64) {
+func (ydoc *YDoc) SetClientID(clientID int) {
 	ydoc.mutex.Lock()
 	defer ydoc.mutex.Unlock()
-	ydoc.clientID = clientID
+	ydoc.clientID = int64(clientID)
 }
 
 // GetStore returns the struct store
 func (ydoc *YDoc) GetStore() contracts.IStructStore {
 	return ydoc.store
+}
+
+// SetStore sets the struct store
+func (ydoc *YDoc) SetStore(store contracts.IStructStore) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.store = store
 }
 
 // Load notifies the parent document that you request to load data into this subdocument
@@ -200,7 +227,7 @@ func (ydoc *YDoc) Load() {
 
 // CreateSnapshot creates a snapshot of the current document state
 func (ydoc *YDoc) CreateSnapshot() contracts.ISnapshot {
-	return NewSnapshot(NewDeleteSet(ydoc.store), ydoc.store.GetStateVector())
+	return NewSnapshot(NewDeleteSet(), ydoc.store.GetStateVector())
 }
 
 // GetSubdocGuids returns the GUIDs of all subdocuments
@@ -230,11 +257,15 @@ func (ydoc *YDoc) Destroy() {
 }
 
 // Transact bundles changes in a transaction
-func (ydoc *YDoc) Transact(fun func(contracts.ITransaction), origin interface{}, local bool) {
+func (ydoc *YDoc) Transact(fun func(contracts.ITransaction), origin interface{}, local ...bool) {
 	initialCall := false
 	if ydoc.GetTransaction() == nil {
 		initialCall = true
-		transaction := NewTransaction(ydoc, origin, local)
+		localValue := true
+		if len(local) > 0 {
+			localValue = local[0]
+		}
+		transaction := NewTransaction(ydoc, origin, localValue)
 		ydoc.SetTransaction(transaction)
 		ydoc.mutex.Lock()
 		ydoc.transactionCleanups = append(ydoc.transactionCleanups, transaction)
@@ -260,22 +291,34 @@ func (ydoc *YDoc) Transact(fun func(contracts.ITransaction), origin interface{},
 }
 
 // GetArray returns or creates a YArray with the given name
-func (ydoc *YDoc) GetArray(name string) contracts.IYArray {
-	return ydoc.Get(name).(contracts.IYArray)
+func (ydoc *YDoc) GetArray(name ...string) contracts.IYArray {
+	nameStr := ""
+	if len(name) > 0 {
+		nameStr = name[0]
+	}
+	return ydoc.Get(nameStr, func() contracts.IAbstractType { return NewYArray(nil) }).(contracts.IYArray)
 }
 
 // GetMap returns or creates a YMap with the given name
-func (ydoc *YDoc) GetMap(name string) contracts.IYMap {
-	return ydoc.Get(name).(contracts.IYMap)
+func (ydoc *YDoc) GetMap(name ...string) contracts.IYMap {
+	nameStr := ""
+	if len(name) > 0 {
+		nameStr = name[0]
+	}
+	return ydoc.Get(nameStr, func() contracts.IAbstractType { return NewYMap(nil) }).(contracts.IYMap)
 }
 
 // GetText returns or creates a YText with the given name
-func (ydoc *YDoc) GetText(name string) contracts.IYText {
-	return ydoc.Get(name).(contracts.IYText)
+func (ydoc *YDoc) GetText(name ...string) contracts.IYText {
+	nameStr := ""
+	if len(name) > 0 {
+		nameStr = name[0]
+	}
+	return ydoc.Get(nameStr, func() contracts.IAbstractType { return NewYText(nil) }).(contracts.IYText)
 }
 
 // Get returns or creates a shared type with the given name
-func (ydoc *YDoc) Get(name string) contracts.IAbstractType {
+func (ydoc *YDoc) Get(name string, typeConstructor func() contracts.IAbstractType) contracts.IAbstractType {
 	ydoc.mutex.Lock()
 	defer ydoc.mutex.Unlock()
 
@@ -283,11 +326,12 @@ func (ydoc *YDoc) Get(name string) contracts.IAbstractType {
 		return existingType
 	}
 
-	// This is a simplified version - in practice, you'd need type factories
+	// Create a new type using the provided constructor
 	var newType contracts.IAbstractType
-	switch name {
-	default:
-		// Create a generic abstract type - this needs proper implementation
+	if typeConstructor != nil {
+		newType = typeConstructor()
+	} else {
+		// Default to abstract type if no constructor provided
 		newType = NewAbstractType()
 	}
 
@@ -297,49 +341,69 @@ func (ydoc *YDoc) Get(name string) contracts.IAbstractType {
 }
 
 // ApplyUpdateV2 applies an update to the document
-func (ydoc *YDoc) ApplyUpdateV2(input io.Reader, transactionOrigin interface{}, local bool) error {
-	return ydoc.Transact(func(tr contracts.ITransaction) {
+func (ydoc *YDoc) ApplyUpdateV2(update []byte, transactionOrigin interface{}, local ...bool) {
+	localBool := false
+	if len(local) > 0 {
+		localBool = local[0]
+	}
+	ydoc.ApplyUpdateV2Stream(bytes.NewReader(update), transactionOrigin, localBool)
+}
+
+// ApplyUpdateV2Stream applies an update from a stream to the document
+func (ydoc *YDoc) ApplyUpdateV2Stream(input io.Reader, transactionOrigin interface{}, local ...bool) {
+	localBool := false
+	if len(local) > 0 {
+		localBool = local[0]
+	}
+	ydoc.Transact(func(tr contracts.ITransaction) {
 		decoder := NewUpdateDecoderV2(input)
 		err := ReadStructs(decoder, tr, ydoc.store)
 		if err != nil {
-			// Handle error - in Go we'd typically return it
+			// Handle error - in Go we'd typically panic like C# would throw
 			panic(err)
 		}
 		ydoc.store.ReadAndApplyDeleteSet(decoder, tr)
-	}, transactionOrigin, local)
+	}, transactionOrigin, localBool)
 }
 
 // ApplyUpdateV2Bytes applies an update from byte slice
-func (ydoc *YDoc) ApplyUpdateV2Bytes(update []byte, transactionOrigin interface{}, local bool) error {
-	return ydoc.ApplyUpdateV2(bytes.NewReader(update), transactionOrigin, local)
+func (ydoc *YDoc) ApplyUpdateV2Bytes(update []byte, transactionOrigin interface{}, local bool) {
+	ydoc.ApplyUpdateV2Stream(bytes.NewReader(update), transactionOrigin, local)
 }
 
 // EncodeStateAsUpdateV2 encodes the document state as an update
-func (ydoc *YDoc) EncodeStateAsUpdateV2(encodedTargetStateVector []byte) ([]byte, error) {
+func (ydoc *YDoc) EncodeStateAsUpdateV2(encodedTargetStateVector ...[]byte) []byte {
 	encoder := NewUpdateEncoderV2()
 	defer encoder.Close()
 
 	var targetStateVector map[int64]int64
-	if encodedTargetStateVector == nil {
+	if len(encodedTargetStateVector) == 0 || encodedTargetStateVector[0] == nil {
 		targetStateVector = make(map[int64]int64)
 	} else {
 		var err error
-		targetStateVector, err = DecodeStateVector(bytes.NewReader(encodedTargetStateVector))
+		targetStateVector, err = DecodeStateVector(bytes.NewReader(encodedTargetStateVector[0]))
 		if err != nil {
-			return nil, err
+			panic(err)
 		}
 	}
 
-	ydoc.WriteStateAsUpdate(encoder, targetStateVector)
-	return encoder.ToArray(), nil
+	err := ydoc.WriteStateAsUpdate(encoder, targetStateVector)
+	if err != nil {
+		panic(err)
+	}
+	return encoder.ToArray()
 }
 
 // EncodeStateVectorV2 encodes the state vector
-func (ydoc *YDoc) EncodeStateVectorV2() ([]byte, error) {
-	encoder := NewDSEncoderV2()
+func (ydoc *YDoc) EncodeStateVectorV2() []byte {
+	encoder := NewUpdateEncoderV2()
 	defer encoder.Close()
-	ydoc.WriteStateVector(encoder)
-	return encoder.ToArray(), nil
+
+	err := ydoc.WriteStateVector(encoder)
+	if err != nil {
+		panic(err)
+	}
+	return encoder.ToArray()
 }
 
 // WriteStateAsUpdate writes the document state as an update
@@ -421,9 +485,72 @@ func (ydoc *YDoc) InvokeUpdateV2(transaction contracts.ITransaction) {
 	}
 }
 
+// OnAfterAllTransactions sets the after all transactions handler
+func (ydoc *YDoc) OnAfterAllTransactions(handler contracts.AfterAllTransactionsHandler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.afterAllTransactions = handler
+}
+
+// OnBeforeObserverCalls sets the before observer calls handler
+func (ydoc *YDoc) OnBeforeObserverCalls(handler contracts.BeforeObserverCallsHandler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.beforeObserverCalls = handler
+}
+
+// OnBeforeTransaction sets the before transaction handler
+func (ydoc *YDoc) OnBeforeTransaction(handler contracts.BeforeTransactionHandler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.beforeTransaction = handler
+}
+
+// OnAfterTransaction sets the after transaction handler
+func (ydoc *YDoc) OnAfterTransaction(handler contracts.AfterTransactionHandler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.afterTransaction = handler
+}
+
+// OnAfterTransactionCleanup sets the after transaction cleanup handler
+func (ydoc *YDoc) OnAfterTransactionCleanup(handler contracts.AfterTransactionCleanupHandler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.afterTransactionCleanup = handler
+}
+
+// OnBeforeAllTransactions sets the before all transactions handler
+func (ydoc *YDoc) OnBeforeAllTransactions(handler contracts.BeforeAllTransactionsHandler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.beforeAllTransactions = handler
+}
+
+// OnUpdateV2 sets the update V2 handler
+func (ydoc *YDoc) OnUpdateV2(handler contracts.UpdateV2Handler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.updateV2 = handler
+}
+
+// OnDestroyed sets the destroyed handler
+func (ydoc *YDoc) OnDestroyed(handler contracts.DestroyedHandler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.destroyed = handler
+}
+
+// OnSubdocsChanged sets the subdocs changed handler
+func (ydoc *YDoc) OnSubdocsChanged(handler contracts.SubdocsChangedHandler) {
+	ydoc.mutex.Lock()
+	defer ydoc.mutex.Unlock()
+	ydoc.subdocsChanged = handler
+}
+
 // CloneOptionsWithNewGuid creates a copy of options with a new GUID
-func (ydoc *YDoc) CloneOptionsWithNewGuid() contracts.YDocOptions {
+func (ydoc *YDoc) CloneOptionsWithNewGuid() *contracts.YDocOptions {
 	newOpts := ydoc.opts
 	newOpts.Guid = generateGUID()
-	return newOpts
+	return &newOpts
 }

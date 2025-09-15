@@ -175,14 +175,14 @@ func (at *AbstractType) typeMapSet(transaction contracts.ITransaction, key strin
 	contentObj := contentFactory.CreateContent(value)
 
 	newItem := NewStructItem(
-		StructID{Client: int64(ownClientID), Clock: doc.GetStore().GetState(int64(ownClientID))},
+		contracts.StructID{Client: int64(ownClientID), Clock: doc.GetStore().GetState(int64(ownClientID))},
 		left,
-		FromContractsStructID(left.GetLastID()).ToPointer(),
+		func() *contracts.StructID { id := left.GetLastID(); return &id }(),
 		nil,
 		nil,
 		at,
 		&key,
-		contentObj,
+		contentObj.(contracts.IContentEx),
 	)
 	newItem.Integrate(transaction, 0)
 }
