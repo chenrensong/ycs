@@ -25,3 +25,5 @@ obj/
 .eslintcache
 /.kiro/specs/ycs-golang-translation
 /.vscode
+*.exe
+/ycs-golang/fix_types.sh
