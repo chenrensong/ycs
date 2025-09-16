@@ -15,7 +15,6 @@ namespace Ycs.Core
 
     public class AbstractType : IAbstractType
     {
-        private static IContentFactory _contentFactory;
 
         public IStructItem Item { get; set; }
         public IStructItem Start { get; set; }
@@ -119,7 +118,7 @@ namespace Ycs.Core
 
             var doc = transaction.Doc;
             var ownClientId = doc.ClientId;
-            IContent content = ContentFactoryAccessor.Factory.CreateContent(value);
+            IContent content = ContentFactory.CreateContent(value);
 
             var newItem = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, null, null, this, key, content);
             newItem.Integrate(transaction, 0);

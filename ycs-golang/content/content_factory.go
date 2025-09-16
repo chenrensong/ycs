@@ -68,3 +68,11 @@ func (cf *ContentFactory) CreateContent(value interface{}) contracts.IContent {
 		return cf.CreateContentAny(value)
 	}
 }
+
+// Global factory instance
+var globalFactory = NewContentFactory()
+
+// CreateContent creates appropriate content based on value type (global function)
+func CreateContent(value interface{}) contracts.IContent {
+	return globalFactory.CreateContent(value)
+}

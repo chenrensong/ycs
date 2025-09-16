@@ -171,8 +171,7 @@ func (at *AbstractType) typeMapSet(transaction contracts.ITransaction, key strin
 
 	doc := transaction.GetDoc()
 	ownClientID := doc.GetClientID()
-	contentFactory := content.MustGetGlobalFactory()
-	contentObj := contentFactory.CreateContent(value)
+	contentObj := content.CreateContent(value)
 
 	newItem := NewStructItem(
 		contracts.StructID{Client: int64(ownClientID), Clock: doc.GetStore().GetState(int64(ownClientID))},

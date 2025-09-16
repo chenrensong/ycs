@@ -1,6 +1,7 @@
 package content
 
 import (
+	"fmt"
 	"ycs/contracts"
 )
 
@@ -77,8 +78,25 @@ func (c *ContentType) Write(encoder contracts.IUpdateEncoder, offset int) error 
 	return nil
 }
 
+// Type reader registry for avoiding circular dependencies
+var typeReaderRegistry = make(map[uint32]func(contracts.IUpdateDecoder) contracts.IAbstractType)
+
+// RegisterTypeReader registers a type reader for a given type reference ID
+func RegisterTypeReader(key uint32, reader func(contracts.IUpdateDecoder) contracts.IAbstractType) {
+	typeReaderRegistry[key] = reader
+}
+
 // ReadContentType reads ContentType from a decoder
 func ReadContentType(decoder contracts.IUpdateDecoder) *ContentType {
-	// Implementation would go here
-	return nil
+	if typeReaderRegistry == nil {
+		panic("TypeReaderRegistry not initialized. Call RegisterTypeReader() first.")
+	}
+
+	typeRef := decoder.ReadTypeRef()
+	if reader, exists := typeReaderRegistry[typeRef]; exists {
+		abstractType := reader(decoder)
+		return NewContentType(abstractType)
+	} else {
+		panic(fmt.Sprintf("No type reader registered for typeRef %d", typeRef))
+	}
 }

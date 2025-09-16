@@ -78,6 +78,14 @@ func (c *ContentDoc) Write(encoder contracts.IUpdateEncoder, offset int) error {
 	return nil
 }
 
+// Document factory for avoiding circular dependencies
+var docFactory func(*contracts.YDocOptions) contracts.IYDoc
+
+// SetDocFactory sets the document factory function
+func SetDocFactory(factory func(*contracts.YDocOptions) contracts.IYDoc) {
+	docFactory = factory
+}
+
 // ReadContentDoc reads ContentDoc from a decoder
 func ReadContentDoc(decoder contracts.IUpdateDecoder) *ContentDoc {
 	// Implementation would go here

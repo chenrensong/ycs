@@ -1,4 +1,4 @@
-﻿﻿﻿// ------------------------------------------------------------------------------
+﻿// ------------------------------------------------------------------------------
 //  <copyright company="Microsoft Corporation">
 //      Copyright (c) Microsoft Corporation.  All rights reserved.
 //  </copyright>
@@ -13,13 +13,6 @@ namespace Ycs.Content
     public class ContentType : IContentEx
     {
         internal const int _ref = 7;
-        
-        private static ITypeReaderRegistry _typeReaderRegistry;
-        
-        public static void SetTypeReaderRegistry(ITypeReaderRegistry registry)
-        {
-            _typeReaderRegistry = registry;
-        }
 
         internal ContentType(IAbstractType type)
         {
@@ -113,16 +106,34 @@ namespace Ycs.Content
             Type.Write(encoder);
         }
 
+
+        private static Dictionary<uint, Func<IUpdateDecoder, IAbstractType>> _typeReaderRegistry =
+            new Dictionary<uint, Func<IUpdateDecoder, IAbstractType>>();
+
+        internal static void RegisterTypeReader(uint key, Func<IUpdateDecoder, IAbstractType> value)
+        {
+            _typeReaderRegistry.TryAdd(key, value);
+        }
+
         internal static ContentType Read(IUpdateDecoder decoder)
         {
             if (_typeReaderRegistry == null)
             {
                 throw new InvalidOperationException("TypeReaderRegistry not initialized. Call ContentType.SetTypeReaderRegistry() first.");
             }
-            
+
             var typeRef = decoder.ReadTypeRef();
-            var type = _typeReaderRegistry.ReadType(typeRef, decoder);
-            return new ContentType(type);
+            if (_typeReaderRegistry.TryGetValue(typeRef, out var func))
+            {
+                var type = func(decoder);
+                return new ContentType(type);
+            }
+            else
+            {
+                throw new InvalidOperationException($"No type reader registered for typeRef {typeRef}.");
+            }
         }
+
+
     }
 }

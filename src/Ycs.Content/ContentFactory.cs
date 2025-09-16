@@ -11,14 +11,14 @@ namespace Ycs.Content
     /// <summary>
     /// Default implementation of content factory
     /// </summary>
-    public class ContentFactory : IContentFactory
+    public class ContentFactory
     {
-        public IContent CreateContentType(IAbstractType type)
+        public static IContent CreateContentType(IAbstractType type)
         {
             return new ContentType(type);
         }
         
-        public IContent CreateContentDoc(object doc)
+        public static IContent CreateContentDoc(object doc)
         {
             if (doc is IYDoc yDoc)
             {
@@ -27,33 +27,32 @@ namespace Ycs.Content
             throw new ArgumentException("Expected YDoc instance", nameof(doc));
         }
 
-        public IContent CreateContentBinary(byte[] ba)
+        public static IContent CreateContentBinary(byte[] ba)
         {
             return new ContentBinary(ba);
         }
 
-        public IContent CreateContentAny(object value)
+        public static IContent CreateContentAny(object value)
         {
             return new ContentAny(new object[] { value });
         }
 
-        public IContent CreateContentFormat(string key, object value)
+        public static IContent CreateContentFormat(string key, object value)
         {
             return new ContentFormat(key, value);
         }
 
-        public IContent CreateContentString(string text)
+        public static IContent CreateContentString(string text)
         {
             return new ContentString(text);
         }
 
-        public IContent CreateContentEmbed(object embed)
+        public static IContent CreateContentEmbed(object embed)
         {
             return new ContentEmbed(embed);
         }
 
-
-        public IContent CreateContent(object value)
+        public static IContent CreateContent(object value)
         {
             if (value == null)
             {

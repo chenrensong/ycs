@@ -440,7 +440,7 @@ namespace Ycs.Core
 
                 foreach (var kvp in negatedAttributes)
                 {
-                    left = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, parent, null, ContentFactoryAccessor.Factory.CreateContentFormat(kvp.Key, kvp.Value));
+                    left = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), left, left?.LastId, right, right?.Id, parent, null, ContentFactory.CreateContentFormat(kvp.Key, kvp.Value));
                     left.Integrate(transaction, 0);
 
                     CurrentAttributes[kvp.Key] = kvp.Value;
@@ -953,7 +953,7 @@ namespace Ycs.Core
                     // Save negated attribute (set null if currentVal is not set).
                     negatedAttributes[key] = currentVal;
 
-                    currPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, ContentFactoryAccessor.Factory.CreateContentFormat(key, value));
+                    currPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), currPos.Left, currPos.Left?.LastId, currPos.Right, currPos.Right?.Id, this, null, ContentFactory.CreateContentFormat(key, value));
                     currPos.Right.Integrate(transaction, 0);
                     currPos.Forward();
                 }
@@ -981,7 +981,7 @@ namespace Ycs.Core
             var negatedAttributes = InsertAttributes(transaction, currPos, attributes);
 
             // Insert content.
-            var content = text is string s ? ContentFactoryAccessor.Factory.CreateContentString(s) : ContentFactoryAccessor.Factory.CreateContentEmbed(text);
+            var content = text is string s ? ContentFactory.CreateContentString(s) : ContentFactory.CreateContentEmbed(text);
 
             if (_searchMarkers.Count > 0)
             {
@@ -1046,7 +1046,7 @@ namespace Ycs.Core
             if (length > 0)
             {
                 var newLines = new string('\n', length - 1);
-                curPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), curPos.Left, curPos.Left?.LastId, curPos.Right, curPos.Right?.Id, this, null, ContentFactoryAccessor.Factory.CreateContentString(newLines));
+                curPos.Right = new StructItem(new StructID(ownClientId, doc.Store.GetState(ownClientId)), curPos.Left, curPos.Left?.LastId, curPos.Right, curPos.Right?.Id, this, null, ContentFactory.CreateContentString(newLines));
                 curPos.Right.Integrate(transaction, 0);
                 curPos.Forward();
             }

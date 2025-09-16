@@ -4,42 +4,39 @@ import (
 	"errors"
 	"io"
 	"sort"
+	"ycs/content"
 	"ycs/contracts"
 	"ycs/lib0"
 )
 
-// EncodingUtils provides encoding and decoding utilities
-type EncodingUtils struct {
-	contentReaderRegistry contracts.IContentReaderRegistry
-}
-
-var encodingUtils *EncodingUtils
-
-// SetContentReaderRegistry sets the content reader registry
-func SetContentReaderRegistry(registry contracts.IContentReaderRegistry) {
-	if encodingUtils == nil {
-		encodingUtils = &EncodingUtils{}
-	}
-	encodingUtils.contentReaderRegistry = registry
-}
-
-// SetGlobalContentReaderRegistry is an alias for SetContentReaderRegistry for consistency
-func SetGlobalContentReaderRegistry(registry contracts.IContentReaderRegistry) {
-	SetContentReaderRegistry(registry)
-}
-
 // ReadItemContent reads item content from a decoder
 func ReadItemContent(decoder contracts.IUpdateDecoder, info byte) (contracts.IContent, error) {
 	contentRef := int(info & 0x1F) // Bits5
-	if contentRef == 0 {           // GC
-		return nil, errors.New("GC is not ItemContent")
-	}
 
-	if encodingUtils == nil || encodingUtils.contentReaderRegistry == nil {
-		return nil, errors.New("ContentReaderRegistry not initialized. Call Initialize() first")
+	switch contentRef {
+	case 0: // GC
+		return nil, errors.New("garbage collection is not item content")
+	case 1: // Deleted
+		return content.ReadContentDeleted(decoder), nil
+	case 2: // JSON
+		return content.ReadContentJson(decoder), nil
+	case 3: // Binary
+		return content.ReadContentBinary(decoder), nil
+	case 4: // String
+		return content.ReadContentString(decoder), nil
+	case 5: // Embed
+		return content.ReadContentEmbed(decoder), nil
+	case 6: // Format
+		return content.ReadContentFormat(decoder), nil
+	case 7: // Type
+		return content.ReadContentType(decoder), nil
+	case 8: // Any
+		return content.ReadContentAny(decoder), nil
+	case 9: // Doc
+		return content.ReadContentDoc(decoder), nil
+	default:
+		return nil, errors.New("content type not recognized")
 	}
-
-	return encodingUtils.contentReaderRegistry.ReadContent(contentRef, decoder), nil
 }
 
 // ReadStructs reads the next Item in a Decoder and fills structs with the read data.
