@@ -7,32 +7,32 @@ import { ySyncPlugin, yCursorPlugin, yUndoPlugin, undo, redo } from 'y-prosemirr
 import { useYjs } from '../hooks/useYjs';
 
 export const ProseMirror = (props) => {
-  const { yDoc, yjsConnector } = useYjs();
-  const yXmlFragment = yDoc.getXmlFragment('prosemirror');
+    const { yDoc, yjsConnector } = useYjs();
+    const yText = yDoc.getText('prosemirror');
 
-  const viewHost = React.useRef<HTMLDivElement>(null);
-  const view = React.useRef<EditorView | null>(null);
+    const viewHost = React.useRef(null);
+    const view = React.useRef(null);
 
-  React.useEffect(() => {
-    const state = EditorState.create({
-      schema,
-      plugins: [
-        ySyncPlugin(yXmlFragment),
-        yCursorPlugin(yjsConnector.awareness),
-        yUndoPlugin(),
-        keymap({
-          'Mod-z': undo,
-          'Mod-y': redo,
-          'Mod-Shift-z': redo
-        })
-      ]
-    });
+    React.useEffect(() => {
+        const state = EditorState.create({
+            schema,
+            plugins: [
+                ySyncPlugin(yText),
+                yCursorPlugin(yjsConnector.awareness),
+                yUndoPlugin(),
+                keymap({
+                    'Mod-z': undo,
+                    'Mod-y': redo,
+                    'Mod-Shift-z': redo
+                })
+            ]
+        });
 
-    view.current = new EditorView(viewHost.current, { state });
-    return () => (view.current as any)?.destroy();
-  }, []);
+        view.current = new EditorView(viewHost.current, { state });
+        return () => (view.current as any)?.destroy();
+    }, []);
 
-  return (
-    <div ref={viewHost} />
-  );
+    return (
+        <div ref={viewHost} />
+    );
 };

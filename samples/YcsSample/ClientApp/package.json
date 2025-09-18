@@ -7,6 +7,7 @@
     "bootstrap": "^4.6.0",
     "lib0": "0.2.35",
     "monaco-editor": "0.22.3",
+    "postcss-safe-parser": "^7.0.1",
     "prosemirror-keymap": "^1.1.4",
     "prosemirror-schema-basic": "^1.1.2",
     "prosemirror-view": "^1.17.5",
@@ -23,8 +24,8 @@
     "yjs": "13.4.14"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "set NODE_OPTIONS=--openssl-legacy-provider && react-scripts start",
+    "build": "set NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -45,12 +46,12 @@
     ]
   },
   "devDependencies": {
+    "@types/node": "^12.0.0",
     "@types/react": "^17.0.1",
     "@types/react-dom": "^17.0.0",
     "@types/react-router": "^5.1.11",
     "@types/react-router-dom": "^5.1.7",
-    "@types/node": "^12.0.0",
-    "react-scripts": "4.0.2",
+    "react-scripts": "^5.0.1",
     "typescript": "^4.1.2"
   }
 }

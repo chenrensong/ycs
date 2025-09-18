@@ -17,6 +17,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ycs.Contracts", "src\Ycs.Co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ycs.Lib0", "src\Ycs.Lib0\Ycs.Lib0.csproj", "{72016331-0C55-118A-C042-6C88DEE645D9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sample", "Sample", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YcsWebsocket", "samples\YcsWebsocket\YcsWebsocket.csproj", "{045C925F-3D5B-4D9A-B342-ED96F2539BEC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,9 +55,17 @@ Global
 		{72016331-0C55-118A-C042-6C88DEE645D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{72016331-0C55-118A-C042-6C88DEE645D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{72016331-0C55-118A-C042-6C88DEE645D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{045C925F-3D5B-4D9A-B342-ED96F2539BEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{045C925F-3D5B-4D9A-B342-ED96F2539BEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{045C925F-3D5B-4D9A-B342-ED96F2539BEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{045C925F-3D5B-4D9A-B342-ED96F2539BEC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{83B32035-B539-4CFC-BA34-E2568BE0918D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{045C925F-3D5B-4D9A-B342-ED96F2539BEC} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3D7D58AD-F6FB-4263-A6DA-C9D0E655D3C2}
